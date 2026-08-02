@@ -25,6 +25,7 @@ jobs:
         run: flutter pub get
 
       # Re-add once Drift + Riverpod are in pubspec.yaml (VinylApp-006 / VinylApp-007):
+      # TEST 
       #- name: Generate code (Drift + Riverpod)
       #  run: dart run build_runner build --delete-conflicting-outputs
 
