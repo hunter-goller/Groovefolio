@@ -1,0 +1,19 @@
+{
+  "editor.formatOnSave": true,
+  "editor.rulers": [80],
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  "[dart]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnType": true,
+    "editor.rulers": [80],
+    "editor.selectionHighlight": false,
+    "editor.suggest.snippetsPreventQuickSuggestions": false,
+    "editor.suggestSelection": "first",
+    "editor.tabCompletion": "onlySnippets",
+    "editor.wordBasedSuggestions": "off"
+  },
+  "files.eol": "\n",
+  "files.encoding": "utf8"
+}
