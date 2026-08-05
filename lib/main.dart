@@ -19,9 +19,6 @@ class MyApp extends ConsumerWidget {
     ref.watch(databaseProvider);
 
     final router = ref.watch(routerProvider);
-    return MaterialApp.router(
-      title: 'Vinyl App',
-      routerConfig: router,
-    );
+    return MaterialApp.router(title: 'Vinyl App', routerConfig: router);
   }
 }
