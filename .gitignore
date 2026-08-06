@@ -38,6 +38,18 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Windows generated plugin files — regenerated automatically by
+# `flutter pub get` / `flutter build`, same as Android/iOS/macOS equivalents.
+**/windows/flutter/generated_plugin_registrant.cc
+**/windows/flutter/generated_plugin_registrant.h
+**/windows/flutter/generated_plugins.cmake
+**/windows/flutter/ephemeral/
+# Linux generated plugin files (same reasoning as Windows, above)
+**/linux/flutter/generated_plugin_registrant.cc
+**/linux/flutter/generated_plugin_registrant.h
+**/linux/flutter/generated_plugins.cmake
+**/linux/flutter/ephemeral/
+
 # Symbolication related
 app.*.symbols
 

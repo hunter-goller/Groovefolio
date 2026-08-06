@@ -37,6 +37,10 @@ dependencies:
   go_router: ^17.3.0
   flutter_riverpod: 2.6.1
   riverpod_annotation: 2.6.1
+  sqlite3_flutter_libs: ^0.5.42
+  drift: 2.25.0
+  path: ^1.9.1
+  path_provider: ^2.1.6
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -49,11 +53,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   riverpod_generator: 2.6.5
   build_runner: 2.4.15
-
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
-
-# The following section is specific to Flutter packages.
+  drift_dev: 2.25.0
 flutter:
 
   # The following line ensures that the Material Icons font is

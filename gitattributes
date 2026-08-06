@@ -1,0 +1,6 @@
+· GITATTRIBUTES
+# Normalize all text files to LF line endings in the repository,
+# regardless of what a given editor/OS checks them out as locally.
+# Fixes CRLF vs LF drift between Windows commits and Linux CI runners.
+* text=auto eol=lf
+ 
