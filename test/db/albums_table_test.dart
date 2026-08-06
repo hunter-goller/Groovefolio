@@ -23,7 +23,7 @@ void main() {
       await db
           .into(db.albums)
           .insert(
-            AlbumCompanion.insert(
+            AlbumsCompanion.insert(
               id: 'album-1',
               title: 'Blue Train',
               artistId: 'artist-1',
@@ -52,7 +52,7 @@ void main() {
       () => db
           .into(db.albums)
           .insert(
-            AlbumCompanion.insert(
+            AlbumsCompanion.insert(
               id: 'album-1',
               title: 'Blue Train',
               artistId: 'does-not-exist',
