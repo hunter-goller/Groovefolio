@@ -1,150 +1,247 @@
 # Vinyl App 🎵
 
-Vinyl App is a Flutter application for vinyl collectors that combines collection management, listening analytics, and music discovery into one experience.
+[![CI](https://github.com/hunter-goller/vinyl-app/actions/workflows/ci.yml/badge.svg)](https://github.com/hunter-goller/vinyl-app/actions/workflows/ci.yml)
+![Flutter](https://img.shields.io/badge/Flutter-stable-02569B?logo=flutter)
+![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart)
+![Status](https://img.shields.io/badge/status-pre--alpha-orange)
 
-Unlike traditional collection managers, Vinyl App focuses on **how you listen**, not just what you own. It helps you rediscover forgotten albums, visualize your listening habits, and build a deeper connection with your collection.
+Vinyl App is a local-first Flutter application for vinyl collectors. It is
+being designed to combine collection management, listening history, personal
+analytics, music discovery, and NFC-assisted play logging in one experience.
 
----
+Most collection tools focus on **what you own**. Vinyl App is intended to also
+show **how your records fit into your life**: what you return to, what you have
+forgotten, how your listening changes over time, and which records matter most
+to you.
 
-## Features
+> **Project status:** Pre-alpha. The application foundation and the Artists and
+> Albums tables are implemented on `main`. All user-facing screens are still
+> placeholders. VinylApp-018 contains an unmerged Collection UI prototype that
+> uses fake data and local state; it is not part of the current application.
 
-### Collection Management
-- Add, edit, and remove albums
-- Search and filter your collection
-- View detailed album pages
-- Track purchase information and condition
-- Optional Discogs integration
+## Current progress
 
-### Play Tracking
-- Manual play logging
-- NFC tap-to-log support
-- Play history timeline
-- Track listening sessions over time
+| Area | Status |
+| --- | --- |
+| Flutter project and repository structure | Complete |
+| Strict analysis and formatting rules | Complete |
+| GitHub Actions CI | Complete |
+| GoRouter navigation | Complete |
+| Riverpod foundation | Complete |
+| Drift/SQLite connection | Complete |
+| Artists table | Complete |
+| Albums table and artist foreign key | Complete |
+| Plays table | Next — VinylApp-011 |
+| Explicit migration workflow | Planned — VinylApp-012 |
+| Repository layer | Planned — VinylApp-013 through 016 |
+| Feature-level collection providers | Planned — VinylApp-043 |
+| Theme and design tokens | Deferred — VinylApp-008 |
+| Collection screen | On hold — VinylApp-018 |
+| Shared Collection widgets | Unmerged prototype work; not present on `main` |
 
-### Statistics
-- Most played albums
-- Listening trends
-- Genre breakdowns
-- Artist statistics
-- Monthly and yearly insights
+See the [implementation status](docs/implementation-status.md) and
+[roadmap](ROADMAP.md) for the exact source-of-truth and dependency order.
 
-### Discover
-- Rediscover forgotten albums
-- Personalized recommendations
-- Similar albums
-- Listening suggestions based on play history
+## Product vision
 
-### Album Wrapped *(planned signature feature)*
-Each album includes its own personalized listening summary inspired by Spotify Wrapped.
+### Collection management
 
-Examples include:
-- First played
-- Total listens
-- Listening timeline
-- Favorite listening periods
-- Rediscovery insights
-- Similar albums
-- Personal milestones
+- Add, edit, search, filter, and remove records.
+- Store release, label, artwork, purchase, and condition information.
+- Open detailed album pages from the collection.
+- Optionally enrich records through a future Discogs integration.
 
----
+### Listening history
 
-# Technology Stack
+- Log a full album, Side A, or Side B.
+- Browse play history by album and across the full collection.
+- Use NFC tags as a fast path for logging a record.
 
-- Flutter
-- Dart
-- Riverpod
-- Drift (SQLite)
-- go_router
-- Material 3
+### Statistics and discovery
 
----
+- Track most-played albums, artists, genres, and listening periods.
+- Surface records that have not been played recently.
+- Generate recommendations from collection metadata and listening history.
 
-# Project Architecture
+### Album Wrapped
 
-The project follows a feature-first architecture.
+Album Wrapped is the planned signature feature. Each record will have a
+personal listening story containing insights such as first and latest play,
+total plays, streaks, time-of-day or seasonal patterns, side preference,
+collection ranking, rediscovery moments, and related recommendations.
 
+## Technology stack
+
+| Concern | Technology |
+| --- | --- |
+| Application framework | Flutter and Dart |
+| Navigation | `go_router` |
+| State and dependency management | Riverpod with code generation |
+| Local persistence | Drift over SQLite |
+| Code generation | `build_runner`, Riverpod Generator, Drift Dev |
+| Quality checks | Flutter analyzer, formatter, tests |
+| Continuous integration | GitHub Actions |
+
+The initial product target is Android. Flutter platform scaffolding is present
+for other platforms, but those targets have not yet been validated as supported
+Vinyl App releases.
+
+## Architecture
+
+### Current `main` branch
+
+```mermaid
+flowchart TD
+    M[main.dart]
+    PS[ProviderScope]
+    RP[routerProvider]
+    DP[databaseProvider]
+    GR[GoRouter]
+    Screens[Placeholder screens]
+    DB[AppDatabase]
+    Artists[Artists table]
+    Albums[Albums table]
+    SQLite[(SQLite)]
+
+    M --> PS
+    PS --> RP
+    PS --> DP
+    RP --> GR
+    GR --> Screens
+    DP --> DB
+    DB --> Artists
+    DB --> Albums
+    DB --> SQLite
 ```
-lib/
-├── app/
-├── db/
-├── features/
-├── providers/
-├── repositories/
-├── services/
-├── theme/
-├── utils/
-└── widgets/
+
+### Target feature flow
+
+```mermaid
+flowchart TD
+    UI[Flutter screen or widget]
+    FP[Feature provider]
+    SP[Repository/service providers]
+    S[Service when orchestration is needed]
+    R[Repository]
+    D[Drift]
+    Q[(SQLite)]
+
+    UI --> FP
+    FP --> SP
+    FP --> S
+    FP --> R
+    S --> R
+    SP --> R
+    R --> D
+    D --> Q
 ```
 
-Each feature owns its own:
-- UI
-- providers
-- widgets
-- models
+Only `routerProvider` and `databaseProvider` exist today. Repositories,
+services, `albumsProvider`, and `collectionFiltersProvider` are planned and
+must not be documented as implemented.
 
-This keeps the project modular and scalable as new features are added.
+Read the [architecture overview](docs/architecture/overview.md).
 
----
+## Repository layout
 
-# Roadmap
+```text
+vinyl-app/
+├── .github/                 # CI workflow and pull-request template
+├── docs/                    # Technical and product documentation
+├── design/                  # Visual assets and future diagrams
+├── lib/
+│   ├── db/                  # Implemented Drift database and two tables
+│   ├── features/            # Placeholder route-level screens
+│   ├── providers/           # Empty scaffold; future shared providers
+│   ├── repositories/        # Empty scaffold; future repositories
+│   ├── routing/             # Route constants and GoRouter provider
+│   ├── services/            # Empty scaffold; future business workflows
+│   ├── theme/               # Empty scaffold; VinylApp-008 deferred
+│   ├── utils/               # Empty scaffold
+│   ├── widgets/             # Empty scaffold on main
+│   └── main.dart            # ProviderScope and app composition root
+├── test/                    # Database, routing, and application smoke tests
+├── CHANGELOG.md
+├── ROADMAP.md
+└── README.md
+```
 
-## Phase 1 – Foundation
-- [x] Flutter project setup
-- [x] Git repository
-- [x] CI/CD
-- [ ] App routing
-- [ ] Theme system
-- [ ] Riverpod setup
+The widgets created on the VinylApp-018 prototype branch are not present in this
+layout because that branch was not merged.
 
-## Phase 2 – Data Layer
-- [ ] SQLite database
-- [ ] Drift ORM
-- [ ] Repository pattern
-- [ ] Local persistence
+## Routes
 
-## Phase 3 – Core Features
-- [ ] Collection
-- [ ] Album Details
-- [ ] Add/Edit Albums
-- [ ] Search
-- [ ] Filtering
+| Path | Current screen |
+| --- | --- |
+| `/` | Collection placeholder |
+| `/stats` | Statistics placeholder |
+| `/discover` | Discover placeholder |
+| `/album/new` | Add Record placeholder |
+| `/album/:id` | Album Detail placeholder with path parameter |
+| `/play/log` | Log Play placeholder |
 
-## Phase 4 – Listening
-- [ ] Play logging
-- [ ] NFC integration
-- [ ] Listening history
-- [ ] Statistics
+The routes resolve so navigation and path-parameter handling can be verified.
+External Android App Links are not configured.
 
-## Phase 5 – Discovery
-- [ ] Recommendations
-- [ ] Rediscover albums
-- [ ] Album Wrapped
-- [ ] Smart insights
+## Local development
 
----
+### Prerequisites
 
-# Current Status
+- Flutter on the stable channel
+- A Dart SDK compatible with `^3.12.2`
+- Android Studio or another supported Flutter development environment
+- An Android emulator or physical device for the current primary target
 
-🚧 Early development.
-
-The project recently migrated from an earlier React Native prototype to Flutter.
-
----
-
-# Getting Started
+### Setup
 
 ```bash
+git clone https://github.com/hunter-goller/vinyl-app.git
+cd vinyl-app
 flutter pub get
-
-flutter pub run build_runner build
-
+dart run build_runner build --delete-conflicting-outputs
+flutter analyze
+flutter test
 flutter run
 ```
 
----
+Generated `*.g.dart` files are intentionally ignored. Regenerate them whenever a
+Drift schema or annotated Riverpod provider changes.
 
-# Vision
+See the [development setup guide](docs/development/setup.md).
 
-Vinyl App aims to become more than a collection tracker.
+## Continuous integration
 
-The goal is to create a companion app that encourages people to listen to and rediscover the records they already own, while providing meaningful insights into their listening habits through beautiful visualizations and personalized recommendations.
+Every pull request targeting `main`, every push to `main`, and manual workflow
+runs execute:
+
+1. Dependency installation
+2. Drift and Riverpod code generation
+3. Formatting verification
+4. Static analysis
+5. Automated tests
+6. Debug APK build verification
+
+See [CI documentation](docs/architecture/ci-cd.md).
+
+## Documentation
+
+Start with the [documentation index](docs/README.md).
+
+- [Current implementation status](docs/implementation-status.md)
+- [Architecture overview](docs/architecture/overview.md)
+- [Project structure](docs/architecture/project-structure.md)
+- [Database](docs/architecture/database.md)
+- [Routing](docs/architecture/routing.md)
+- [State management](docs/architecture/state-management.md)
+- [Testing](docs/development/testing.md)
+- [Architecture decisions](docs/decisions/README.md)
+- [Feature specifications](docs/features/README.md)
+- [Roadmap](ROADMAP.md)
+- [Changelog](CHANGELOG.md)
+
+## Project ownership
+
+Vinyl App is a personal application project being developed toward a polished
+store release. The repository documentation is primarily an engineering record
+and product-development reference for the project rather than an open-source
+contributor guide.
