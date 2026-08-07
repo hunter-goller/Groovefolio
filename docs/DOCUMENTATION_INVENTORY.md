@@ -1,0 +1,53 @@
+# Documentation Inventory
+
+Phase 1 personal-project documentation files:
+
+- `.github/PULL_REQUEST_TEMPLATE.md`
+- `CHANGELOG.md`
+- `INSTALL.md`
+- `README.md`
+- `ROADMAP.md`
+- `design/README.md`
+- `design/branding/README.md`
+- `design/diagrams/README.md`
+- `design/mockups/README.md`
+- `design/screenshots/README.md`
+- `design/wireframes/README.md`
+- `docs/DOCUMENTATION_INVENTORY.md`
+- `docs/README.md`
+- `docs/architecture/ci-cd.md`
+- `docs/architecture/database.md`
+- `docs/architecture/dependency-graph.md`
+- `docs/architecture/overview.md`
+- `docs/architecture/project-structure.md`
+- `docs/architecture/repository-pattern.md`
+- `docs/architecture/routing.md`
+- `docs/architecture/services.md`
+- `docs/architecture/state-management.md`
+- `docs/decisions/ADR-0001-flutter.md`
+- `docs/decisions/ADR-0002-riverpod.md`
+- `docs/decisions/ADR-0003-drift-sqlite.md`
+- `docs/decisions/ADR-0004-go-router.md`
+- `docs/decisions/ADR-0005-project-structure.md`
+- `docs/decisions/ADR-0006-native-drift-connection.md`
+- `docs/decisions/README.md`
+- `docs/development/code-generation.md`
+- `docs/development/coding-standards.md`
+- `docs/development/documentation-maintenance.md`
+- `docs/development/git-workflow.md`
+- `docs/development/pull-requests.md`
+- `docs/development/google-play-readiness.md`
+- `docs/development/release-process.md`
+- `docs/development/setup.md`
+- `docs/development/testing.md`
+- `docs/features/README.md`
+- `docs/features/add-album.md`
+- `docs/features/album-details.md`
+- `docs/features/album-wrapped.md`
+- `docs/features/collection.md`
+- `docs/features/discover.md`
+- `docs/features/nfc.md`
+- `docs/features/play-logging.md`
+- `docs/features/recommendations.md`
+- `docs/features/statistics.md`
+- `docs/implementation-status.md`

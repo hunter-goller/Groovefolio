@@ -8,27 +8,43 @@
 - [ ] Bug fix
 - [ ] Refactor (no functional change)
 - [ ] Chore / tooling / CI
-- [ ] Docs
+- [ ] Documentation
 
 ## Related
 
-<!-- Link a Trello card (e.g. VinylApp-012), issue, or just describe context -->
+<!-- Link a Trello card (for example VinylApp-012), issue, or context. -->
 
 ## How was this tested?
 
+- [ ] Automated tests added or updated
+- [ ] `flutter analyze` passes locally
+- [ ] `flutter test` passes locally
 - [ ] Tested on Android (physical device or emulator)
-- [ ] Not yet tested — needs manual verification
+- [ ] Manual verification is not applicable
 
-<!-- Briefly describe what you actually clicked through, e.g. "Added album, edited it, deleted it, confirmed list updates" -->
+<!-- Describe what was actually verified. -->
+
+## Documentation impact
+
+- [ ] No documentation change is required
+- [ ] Relevant documentation is updated in this PR
+- [ ] A named follow-up documentation task is required
+- [ ] Status claims were checked against the current `main` branch
+
+<!-- Identify affected docs and label any unmerged prototype work clearly. -->
 
 ## Screenshots / recordings
 
-<!-- Drag in images or a screen recording for any UI change. Delete this section if there's no visual change. -->
+<!-- Add images or a recording for visual changes. Delete if not applicable. -->
 
 ## Checklist
 
+- [ ] Acceptance criteria are met against real dependencies, not only fake data
+- [ ] `dart format --output=none --set-exit-if-changed .` passes
 - [ ] `flutter analyze` passes
 - [ ] `flutter test` passes
-- [ ] `dart run build_runner build` runs clean (if schema/providers changed)
-- [ ] No leftover `print()` / commented-out code
-- [ ] Updated relevant docs (if architecture or setup changed)
+- [ ] `dart run build_runner build --delete-conflicting-outputs` runs clean when schemas/providers changed
+- [ ] No leftover `print()` calls or temporary debugging code
+- [ ] Generated `*.g.dart` files were not hand-edited or committed
+- [ ] Branch-only prototypes are not documented as implemented
+- [ ] Roadmap/changelog status is updated when appropriate
