@@ -24,12 +24,12 @@ board; this document is the stable public overview.
 - ⏸ VinylApp-008 — Theme, design tokens, and dark mode
 - ✅ VinylApp-009 — Albums table
 - ✅ VinylApp-010 — Artists table
+- ✅ VinylApp-011 — Plays table
 
 ## 2. Core data layer
 
 Complete these in order:
 
-1. 🚧 VinylApp-011 — Plays table
 2. ⬜ VinylApp-012 — Initial Drift migration and schema export
 3. ⬜ VinylApp-013 — AlbumRepository
 4. ⬜ VinylApp-014 — ArtistRepository

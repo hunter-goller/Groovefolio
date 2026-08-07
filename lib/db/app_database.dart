@@ -6,10 +6,12 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:vinyl_app/db/schema/albums.dart';
 import 'package:vinyl_app/db/schema/artists.dart';
+import 'package:vinyl_app/db/schema/plays.dart';
+import 'package:vinyl_app/types/side_played.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [Albums, Artists])
+@DriftDatabase(tables: [Albums, Artists, Plays])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
@@ -20,10 +22,8 @@ class AppDatabase extends _$AppDatabase {
   MigrationStrategy get migration {
     return MigrationStrategy(
       beforeOpen: (details) async {
-        // Not required by either card's acceptance criteria, but without
-        // this, the FK on albums.artistId is decorative only — SQLite
-        // silently allows inserts referencing a non-existent artist unless
-        // foreign key enforcement is explicitly turned on per-connection.
+        // Required for FK constraints (albums.artistId -> artists.id,
+        // plays.albumId -> albums.id) to actually be enforced.
         await customStatement('PRAGMA foreign_keys = ON');
       },
     );
