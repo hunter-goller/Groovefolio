@@ -21,23 +21,23 @@ to you.
 
 ## Current progress
 
-| Area | Status |
-| --- | --- |
-| Flutter project and repository structure | Complete |
-| Strict analysis and formatting rules | Complete |
-| GitHub Actions CI | Complete |
-| GoRouter navigation | Complete |
-| Riverpod foundation | Complete |
-| Drift/SQLite connection | Complete |
-| Artists table | Complete |
-| Albums table and artist foreign key | Complete |
-| Plays table | Next — VinylApp-011 |
-| Explicit migration workflow | Planned — VinylApp-012 |
-| Repository layer | Planned — VinylApp-013 through 016 |
-| Feature-level collection providers | Planned — VinylApp-043 |
-| Theme and design tokens | Deferred — VinylApp-008 |
-| Collection screen | On hold — VinylApp-018 |
-| Shared Collection widgets | Unmerged prototype work; not present on `main` |
+| Area                                     | Status                                         |
+| ---------------------------------------- | ---------------------------------------------- |
+| Flutter project and repository structure | Complete                                       |
+| Strict analysis and formatting rules     | Complete                                       |
+| GitHub Actions CI                        | Complete                                       |
+| GoRouter navigation                      | Complete                                       |
+| Riverpod foundation                      | Complete                                       |
+| Drift/SQLite connection                  | Complete                                       |
+| Artists table                            | Complete                                       |
+| Albums table and artist foreign key      | Complete                                       |
+| Plays table                              | Next — VinylApp-011                            |
+| Explicit migration workflow              | Planned — VinylApp-012                         |
+| Repository layer                         | Planned — VinylApp-013 through 016             |
+| Feature-level collection providers       | Planned — VinylApp-043                         |
+| Theme and design tokens                  | Deferred — VinylApp-008                        |
+| Collection screen                        | On hold — VinylApp-018                         |
+| Shared Collection widgets                | Unmerged prototype work; not present on `main` |
 
 See the [implementation status](docs/implementation-status.md) and
 [roadmap](ROADMAP.md) for the exact source-of-truth and dependency order.
@@ -72,15 +72,15 @@ collection ranking, rediscovery moments, and related recommendations.
 
 ## Technology stack
 
-| Concern | Technology |
-| --- | --- |
-| Application framework | Flutter and Dart |
-| Navigation | `go_router` |
-| State and dependency management | Riverpod with code generation |
-| Local persistence | Drift over SQLite |
-| Code generation | `build_runner`, Riverpod Generator, Drift Dev |
-| Quality checks | Flutter analyzer, formatter, tests |
-| Continuous integration | GitHub Actions |
+| Concern                         | Technology                                    |
+| ------------------------------- | --------------------------------------------- |
+| Application framework           | Flutter and Dart                              |
+| Navigation                      | `go_router`                                   |
+| State and dependency management | Riverpod with code generation                 |
+| Local persistence               | Drift over SQLite                             |
+| Code generation                 | `build_runner`, Riverpod Generator, Drift Dev |
+| Quality checks                  | Flutter analyzer, formatter, tests            |
+| Continuous integration          | GitHub Actions                                |
 
 The initial product target is Android. Flutter platform scaffolding is present
 for other platforms, but those targets have not yet been validated as supported
@@ -171,14 +171,14 @@ layout because that branch was not merged.
 
 ## Routes
 
-| Path | Current screen |
-| --- | --- |
-| `/` | Collection placeholder |
-| `/stats` | Statistics placeholder |
-| `/discover` | Discover placeholder |
-| `/album/new` | Add Record placeholder |
+| Path         | Current screen                               |
+| ------------ | -------------------------------------------- |
+| `/`          | Collection placeholder                       |
+| `/stats`     | Statistics placeholder                       |
+| `/discover`  | Discover placeholder                         |
+| `/album/new` | Add Record placeholder                       |
 | `/album/:id` | Album Detail placeholder with path parameter |
-| `/play/log` | Log Play placeholder |
+| `/play/log`  | Log Play placeholder                         |
 
 The routes resolve so navigation and path-parameter handling can be verified.
 External Android App Links are not configured.
