@@ -52,7 +52,7 @@ The branch also contains early widget versions. Those files are not on `main`.
 - ✅ VinylApp-011 — Plays table
 - ✅ VinylApp-012 — Initial Drift migration
 - ✅ VinylApp-013 — AlbumRepository
-- VinylApp-014 — ArtistRepository
+- ✅ VinylApp-014 — ArtistRepository
 - VinylApp-015 — PlayRepository
 - VinylApp-016 — Repository providers
 

@@ -1,6 +1,6 @@
 # Current Implementation Status
 
-This page summarizes the implementation state represented by the VinylApp-013
+This page summarizes the implementation state represented by the VinylApp-014
 change set. Once the pull request is merged, it describes `main`.
 
 ## Implemented
@@ -38,15 +38,24 @@ change set. Once the pull request is merged, it describes `main`.
 - `delete()`
 - `search(query)` across album title and artist name, case-insensitive
 - In-memory repository tests for every AlbumRepository operation
+- VinylApp-014 — `IArtistRepository`
+- Drift-backed `ArtistRepository`
+- `findOrCreate(name)` with case-insensitive, idempotent deduplication
+- `findById()`
+- `findAll()`
+- In-memory ArtistRepository tests covering creation, lookup, listing, and
+  deduplication
 
 ### Current providers
 
 - `routerProvider`
 - `databaseProvider`
 - `albumRepositoryProvider`
+- `artistRepositoryProvider`
 
-`albumRepositoryProvider` is introduced with VinylApp-013. VinylApp-016 still
-completes and standardizes the remaining repository-provider layer.
+The Album and Artist repository providers are introduced with VinylApp-013 and
+VinylApp-014. VinylApp-016 still completes and standardizes the remaining
+repository-provider layer.
 
 ### Current screens
 
@@ -64,7 +73,6 @@ The six routes resolve, but each user-facing screen is still a placeholder:
 ## Not implemented yet
 
 - Theme and design tokens
-- ArtistRepository
 - PlayRepository
 - Remaining repository providers
 - PlayLoggingService
@@ -109,7 +117,7 @@ flowchart TD
     P11[011 Plays table ✅]
     P12[012 Initial migration ✅]
     P13[013 AlbumRepository ✅]
-    P14[014 ArtistRepository]
+    P14[014 ArtistRepository ✅]
     P15[015 PlayRepository]
     P16[016 Repository providers]
     P43[043 Feature providers]

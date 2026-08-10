@@ -36,6 +36,12 @@ rather than stable public versions. The format is based on Keep a Changelog.
 - Case-insensitive album search across album title and artist name.
 - `albumRepositoryProvider` for dependency injection through Riverpod.
 - In-memory AlbumRepository tests covering CRUD and search behavior.
+- `IArtistRepository` and Drift-backed `ArtistRepository` with `findOrCreate()`,
+  `findById()`, and `findAll()`.
+- Case-insensitive, idempotent artist deduplication with trimmed artist names.
+- `artistRepositoryProvider` for Riverpod dependency injection.
+- In-memory ArtistRepository tests covering creation, lookup, listing, and
+  deduplication.
 - Database, table, router-provider, and application smoke tests.
 - Phase 1 repository, architecture, feature, and development documentation.
 - A current-implementation status page that distinguishes merged work from
@@ -58,7 +64,8 @@ rather than stable public versions. The format is based on Keep a Changelog.
 - Clarified that VinylApp-018 and its prototype widgets are not merged into
   `main` and do not count as completed functionality.
 - Clarified that VinylApp-016 completes the repository-provider layer even
-  though VinylApp-013 introduces `albumRepositoryProvider`.
+  though VinylApp-013 and VinylApp-014 introduce the Album and Artist repository
+  providers.
 
 ### Fixed
 

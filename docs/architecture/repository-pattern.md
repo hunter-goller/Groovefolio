@@ -4,7 +4,8 @@
 
 The repository layer is partially implemented. VinylApp-013 introduces
 `IAlbumRepository`, `AlbumRepository`, and `albumRepositoryProvider`.
-ArtistRepository and PlayRepository remain planned.
+VinylApp-014 adds `IArtistRepository`, `ArtistRepository`, and
+`artistRepositoryProvider`. PlayRepository remains planned.
 
 ## Purpose
 
@@ -61,15 +62,40 @@ albumRepositoryProvider
 The provider exposes the repository through its interface and obtains
 `AppDatabase` from `databaseProvider`.
 
-## Remaining Trello tasks
+## VinylApp-014 — ArtistRepository
 
-### VinylApp-014 — ArtistRepository
+Implemented in `lib/repositories/artist_repository.dart`.
 
-Planned operations:
+### Contract
 
-- `findOrCreate(name)` with case-insensitive deduplication
-- `findById()`
+`IArtistRepository` exposes:
+
+- `findOrCreate(String name)`
+- `findById(String id)`
 - `findAll()`
+
+### Drift implementation
+
+`ArtistRepository` receives `AppDatabase` through its constructor.
+`findOrCreate(name)` trims the supplied name, looks for an existing artist using
+a case-insensitive match, and returns that row when found. If no match exists,
+it inserts and returns a new Artist. The lookup-and-create sequence runs inside
+a Drift transaction so one repository call is atomic on the database connection.
+
+Blank names are rejected rather than persisted as empty artists.
+
+### Provider
+
+VinylApp-014 introduces:
+
+```text
+artistRepositoryProvider
+```
+
+The provider exposes the repository through `IArtistRepository` and obtains
+`AppDatabase` from `databaseProvider`.
+
+## Remaining Trello tasks
 
 ### VinylApp-015 — PlayRepository
 
@@ -85,9 +111,10 @@ Planned operations:
 ### VinylApp-016 — Repository providers
 
 VinylApp-016 remains the dedicated task for completing and standardizing the
-repository-provider layer. Because VinylApp-013 already introduces
-`albumRepositoryProvider`, 016 should add the remaining providers and verify a
-consistent override/testing pattern instead of duplicating the Album provider.
+repository-provider layer. Because VinylApp-013 and VinylApp-014 already introduce
+`albumRepositoryProvider` and `artistRepositoryProvider`, 016 should add the
+remaining providers and verify a consistent override/testing pattern instead of
+duplicating existing providers.
 
 ## Rules
 
@@ -114,6 +141,15 @@ consistent override/testing pattern instead of duplicating the Album provider.
 - title search case-insensitively;
 - artist-name search case-insensitively;
 - blank-query behavior.
+
+`test/repositories/artist_repository_test.dart` covers:
+
+- creating a new artist;
+- case-insensitive idempotent `findOrCreate()` behavior;
+- whitespace normalization;
+- blank-name rejection;
+- find by ID, including missing rows;
+- find all.
 
 ## Collection requirement
 
