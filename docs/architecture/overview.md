@@ -2,16 +2,15 @@
 
 ## Purpose
 
-Vinyl App is a local-first Flutter application. Its architecture is intended to
-keep UI, state, business workflows, and persistence separate enough to test and
-evolve independently without creating unnecessary abstractions before they are
-needed.
+Vinyl App is a local-first Flutter application. Its architecture keeps UI,
+state, business workflows, and persistence separate enough to test and evolve
+independently without creating abstractions before they are needed.
 
 ## Current architecture
 
-The current codebase contains an application composition root, Riverpod-provided
-router and database, feature placeholder screens, and Drift tables for Artists
-and Albums.
+The codebase now contains the application composition root, Riverpod-provided
+router and database, the full v1 Drift schema, migration infrastructure, and the
+first repository implementation: AlbumRepository.
 
 ```mermaid
 flowchart TD
@@ -19,21 +18,28 @@ flowchart TD
     PS[ProviderScope]
     DBP[databaseProvider]
     RP[routerProvider]
+    ARP[albumRepositoryProvider]
     GR[GoRouter]
     FS[Placeholder feature screens]
+    AR[AlbumRepository]
     DB[AppDatabase]
-    A[Artists table]
-    AL[Albums table]
-    SQ[(SQLite file)]
+    A[Artists]
+    AL[Albums]
+    P[Plays]
+    SQ[(SQLite)]
 
     M --> PS
     PS --> DBP
     PS --> RP
-    DBP --> DB
     RP --> GR
     GR --> FS
+    ARP --> DBP
+    ARP --> AR
+    AR --> DB
+    DBP --> DB
     DB --> A
     DB --> AL
+    DB --> P
     DB --> SQ
 ```
 
@@ -41,10 +47,10 @@ flowchart TD
 application startup. It also watches the router provider and passes the router
 to `MaterialApp.router`.
 
-## Target architecture
+`AlbumRepository` is not yet connected to a real feature screen. It establishes
+the persistence boundary that later providers and services will consume.
 
-As the data layer is completed, feature UI should no longer communicate with
-Drift directly.
+## Target architecture
 
 ```mermaid
 flowchart TD
@@ -65,9 +71,7 @@ flowchart TD
 
 A provider may call a repository directly for a simple read or write. A service
 is appropriate when one action coordinates several repositories, hardware APIs,
-or domain rules. For example, `PlayLoggingService` is planned to create a play,
-update album listening metadata, and handle NFC-originated logging without
-placing that sequence in a widget.
+or domain rules.
 
 ## Layer responsibilities
 
@@ -78,38 +82,42 @@ They should not contain SQL or multi-step business workflows.
 
 ### Providers
 
-Riverpod providers expose dependencies and feature state. Providers own
-lifetimes, support dependency overrides in tests, and translate asynchronous
-results into UI-consumable state.
+Riverpod providers expose dependencies and feature state. Current dependency
+providers are `routerProvider`, `databaseProvider`, and
+`albumRepositoryProvider`. Feature-level collection providers are still planned.
 
 ### Services
 
 Services coordinate business workflows that span multiple dependencies. The
-folder is currently scaffolded but empty.
+folder is scaffolded but still empty. VinylApp-017 will introduce
+`PlayLoggingService`.
 
 ### Repositories
 
-Repositories will define persistence operations in domain language, hiding
-Drift queries from UI and services. The folder is currently scaffolded but
-empty.
+Repositories define persistence operations in application language while hiding
+Drift queries from UI and services. AlbumRepository is implemented; Artist and
+Play repositories are next.
 
 ### Database
 
 Drift owns table definitions, generated row/companion types, SQL execution, and
-migrations. SQLite is the local source of truth.
+migrations. SQLite is the local source of truth. Version 1 contains Artists,
+Albums, and Plays and is captured in a committed schema snapshot.
 
 ## Architectural principles
 
 1. **Local-first:** Core collection and play tracking must work without a
    network connection.
 2. **Incremental structure:** Add abstractions when a real dependency or testing
-   need exists; do not fill the repository with unused layers.
+   need exists.
 3. **Testable boundaries:** Dependencies are exposed through Riverpod and the
    database accepts an injected executor.
 4. **Single source of route paths:** Navigation paths belong in `AppRoutes`.
 5. **Generated code is disposable:** Riverpod and Drift generated files are
    regenerated, ignored by Git, and never edited manually.
-6. **Documentation follows implementation:** Planned features are explicitly
+6. **Versioned persistence:** Schema changes require migration and schema
+   snapshot discipline.
+7. **Documentation follows implementation:** Planned features are explicitly
    labeled as planned instead of being described as complete.
 
 ## Related documents

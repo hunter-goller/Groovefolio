@@ -1,14 +1,17 @@
 # Project Structure
 
-## Current layout on `main`
+## Current layout
 
 ```text
 lib/
 ├── db/
-│   ├── migrations/          # Empty scaffold
+│   ├── migrations/
+│   │   ├── migration_v1.dart
+│   │   └── schema_versions.dart
 │   ├── schema/
 │   │   ├── albums.dart
-│   │   └── artists.dart
+│   │   ├── artists.dart
+│   │   └── plays.dart
 │   ├── app_database.dart
 │   └── database_provider.dart
 ├── features/
@@ -17,13 +20,16 @@ lib/
 │   ├── plays/screens/       # Log Play placeholder
 │   ├── stats/screens/       # Stats placeholder
 │   └── route_test_buttons.dart
-├── providers/               # Empty scaffold
-├── repositories/            # Empty scaffold
+├── providers/               # Future shared feature/service state
+├── repositories/
+│   └── album_repository.dart
 ├── routing/
 │   ├── app_routes.dart
 │   └── router.dart
 ├── services/                # Empty scaffold
 ├── theme/                   # Empty scaffold
+├── types/
+│   └── side_played.dart
 ├── utils/                   # Empty scaffold
 ├── widgets/
 │   ├── shared/              # Empty scaffold
@@ -31,14 +37,21 @@ lib/
 └── main.dart
 ```
 
+Versioned schema snapshots live outside `lib/`:
+
+```text
+drift_schemas/
+└── drift_schema_v1.json
+```
+
 A directory containing only `.gitkeep` is planned structure, not implemented
 functionality.
 
 ## Unmerged prototype layout
 
-The VinylApp-018 branch contains additional files under `lib/dev/`,
-`lib/utils/`, and `lib/widgets/`. Those files do not belong to the current
-`main` layout until a reviewed pull request merges them.
+The VinylApp-018 branch contains additional files under `lib/dev/`, `lib/utils/`,
+and `lib/widgets/`. Those files do not belong to the current layout until a
+reviewed pull request merges them.
 
 Do not copy the branch's widget list into current architecture diagrams or mark
 the corresponding Trello cards complete.
@@ -62,12 +75,17 @@ The composition root:
 
 ### `lib/db/`
 
-- `schema/` holds Drift table definitions.
-- `migrations/` is reserved for VinylApp-012.
-- `app_database.dart` registers tables and opens SQLite.
+- `schema/` holds Drift table definitions for Artists, Albums, and Plays.
+- `migrations/` holds stable schema-version and migration code.
+- `app_database.dart` registers tables, migration behavior, and SQLite opening.
 - `database_provider.dart` exposes the database through Riverpod.
 
 Generated `*.g.dart` files are ignored and regenerated locally and in CI.
+
+### `drift_schemas/`
+
+Stores committed Drift schema snapshots. These files are migration history and
+must not be placed in `.gitignore`.
 
 ### `lib/features/`
 
@@ -79,14 +97,16 @@ navigation shell and feature screens replace it.
 
 ### `lib/providers/`
 
-Currently empty. VinylApp-016 will add repository providers. VinylApp-043 will
-add feature-level providers such as `albumsProvider` and
-`collectionFiltersProvider`.
+Currently an empty scaffold for shared feature/service state. Repository
+providers may live beside their repository when generated from that file, as
+`albumRepositoryProvider` does today. VinylApp-043 will add feature-level
+providers such as `albumsProvider` and `collectionFiltersProvider`.
 
 ### `lib/repositories/`
 
-Currently empty. VinylApp-013, 014, and 015 will add Album, Artist, and Play
-repositories.
+Contains persistence boundaries. `album_repository.dart` currently defines both
+`IAlbumRepository` and the Drift-backed implementation. VinylApp-014 and 015 add
+Artist and Play repositories.
 
 ### `lib/services/`
 
@@ -102,8 +122,10 @@ Currently empty. VinylApp-008 is deferred and will add design tokens and
 Currently empty except for `.gitkeep`. Prototype widgets from VinylApp-018 are
 not on `main`.
 
-Shared widgets belong here only after their own acceptance criteria are met and
-the implementation is merged.
+### `lib/types/`
+
+Contains shared types needed across persistence and future feature layers.
+`SidePlayed` currently lives here.
 
 ### `lib/utils/`
 
@@ -116,7 +138,11 @@ test/
 ├── db/
 │   ├── app_database_test.dart
 │   ├── artists_table_test.dart
-│   └── albums_table_test.dart
+│   ├── albums_table_test.dart
+│   ├── plays_table_test.dart
+│   └── migration_test.dart
+├── repositories/
+│   └── album_repository_test.dart
 ├── routing/
 │   └── router_test.dart
 └── widget_test.dart

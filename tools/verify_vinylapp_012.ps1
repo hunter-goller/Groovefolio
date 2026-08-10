@@ -4,7 +4,7 @@ Write-Host 'Formatting Dart files...'
 dart format .
 
 Write-Host 'Regenerating generated sources...'
-dart run build_runner build --delete-conflicting-outputs
+dart run build_runner build
 
 Write-Host 'Running analyzer...'
 flutter analyze

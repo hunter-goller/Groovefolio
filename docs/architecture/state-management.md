@@ -19,21 +19,31 @@ instance used by `MaterialApp.router`.
 
 ### `databaseProvider`
 
-Generated from an annotated `database()` function with `keepAlive: true`.
-The database is a process-wide dependency. It registers `db.close` through
+Generated from an annotated `database()` function with `keepAlive: true`. The
+database is a process-wide dependency and registers `db.close` through
 `ref.onDispose`.
 
-No repository, service, or feature providers are implemented on `main` yet.
+### `albumRepositoryProvider`
 
-## Planned repository providers — VinylApp-016
+Generated from the annotated `albumRepository()` function introduced by
+VinylApp-013. It watches `databaseProvider`, constructs `AlbumRepository`, and
+exposes it as `IAlbumRepository`.
 
-- `albumRepositoryProvider`
+No service or feature-state providers are implemented yet.
+
+## Repository-provider roadmap — VinylApp-016
+
+VinylApp-016 completes and standardizes the repository provider layer. The
+remaining planned providers include:
+
 - `artistRepositoryProvider`
 - `playRepositoryProvider`
 - `nfcTagRepositoryProvider`
 
-These providers expose repositories and must be overrideable in tests. UI and
-feature providers should not read Drift directly.
+`albumRepositoryProvider` already exists and should not be duplicated.
+
+Repository providers must remain overrideable in tests. UI and feature providers
+should not read Drift directly.
 
 ## Planned feature providers — VinylApp-043
 
@@ -44,7 +54,6 @@ feature providers should not read Drift directly.
 - `collectionFiltersProvider`
 
 VinylApp-043 is the direct provider dependency identified by VinylApp-018.
-Neither VinylApp-009 nor VinylApp-010 implemented these providers.
 
 ## Collection state flow
 

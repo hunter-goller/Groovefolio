@@ -15,15 +15,42 @@ simple query.
 
 `test/db/albums_table_test.dart` verifies:
 
-- Insert and select with a valid artist reference.
-- Failure when the referenced artist does not exist.
+- insert/select with a valid artist reference;
+- failure when the referenced artist does not exist.
+
+### Plays table tests
+
+`test/db/plays_table_test.dart` verifies play insertion, album filtering, and
+`SidePlayed` enum persistence.
+
+### Migration test
+
+`test/db/migration_test.dart` verifies:
+
+- an empty database creates Artists, Albums, and Plays;
+- generated table accessors can query the created schema;
+- `PRAGMA user_version` is set to v1.
+
+### AlbumRepository tests
+
+`test/repositories/album_repository_test.dart` uses an in-memory Drift database
+to verify:
+
+- `create()`;
+- `findAll()`;
+- `findById()` including missing IDs;
+- `update()`;
+- `delete()`;
+- title search case-insensitively;
+- artist-name search case-insensitively;
+- empty search behavior.
 
 ### Router provider tests
 
 `test/routing/router_test.dart` verifies:
 
-- Riverpod returns a `GoRouter`.
-- The router provider can be overridden for testing.
+- Riverpod returns a `GoRouter`;
+- the router provider can be overridden for testing.
 
 ### Application smoke test
 
@@ -38,23 +65,21 @@ addTearDown(db.close);
 ```
 
 An in-memory database is fast, isolated, and does not depend on a device
-filesystem. Prefer `addTearDown` or `tearDown` so resources close even when a test
-fails.
+filesystem. Prefer `addTearDown` or `tearDown` so resources close even when a
+test fails.
 
 ## Planned test layers
 
 ### Schema and migration tests
 
-- Plays table and album foreign key
-- Fresh schema creation
-- Schema snapshot generation
-- Step-up migration tests for every version
+Every future schema version should add a step-up migration test from the prior
+committed snapshot.
 
 ### Repository tests
 
-Every repository method should be tested against a clean in-memory database,
-including sorting, filtering, case-insensitive matching, deletion, and
-aggregations.
+ArtistRepository and PlayRepository should follow the AlbumRepository pattern:
+every public method covered against a clean in-memory database, including
+case-insensitive matching and aggregation behavior where relevant.
 
 ### Service tests
 
@@ -85,7 +110,7 @@ Planned core flows:
 
 ```bash
 flutter test
-flutter test test/db/albums_table_test.dart
+flutter test test/repositories/album_repository_test.dart
 flutter test --coverage
 ```
 

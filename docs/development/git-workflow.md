@@ -11,38 +11,41 @@ flowchart LR
     B --> C[Commits]
     C --> PR[Pull request]
     PR --> CI[CI checks]
-    CI --> RV[Review]
+    CI --> RV[Self-review]
     RV --> M2[Merge to main]
 ```
 
-Do not keep a permanent development or documentation branch. The future GitHub
-Pages deployment branch, if used, should contain generated output only.
+Do not keep a permanent development or documentation branch.
 
 ## Starting a task
+
+Example for the next data-layer ticket:
 
 ```bash
 git switch main
 git pull --ff-only
-git switch -c VinylApp-011
+git switch -c VinylApp-014
 ```
 
 ## Before pushing
 
 ```bash
-dart run build_runner build --delete-conflicting-outputs
+dart run build_runner build
 dart format .
 flutter analyze
 flutter test
 ```
+
+If the Drift schema changed, also regenerate and review the schema snapshot.
 
 ## Commit messages
 
 Use imperative, durable descriptions:
 
 ```text
-Add Plays Drift table
-Add query-by-album play test
-Document play schema
+Add AlbumRepository search queries
+Add ArtistRepository find-or-create behavior
+Document repository layer
 ```
 
 Avoid messages such as `updates`, `fix stuff`, or descriptions of the editing
@@ -53,20 +56,18 @@ process rather than the outcome.
 Align the title with the task and merged result:
 
 ```text
-VinylApp-011: Add Plays Drift table
-Docs: Document current database architecture
+VinylApp-013: Add AlbumRepository
+VinylApp-014: Add ArtistRepository
 ```
 
-The repository is configured to use the pull-request title and description for
-merge commits, so both should read well in long-term history.
+The pull-request title and description should read well in long-term history.
 
 ## After merge
 
 ```bash
 git switch main
 git pull --ff-only
-git branch -d VinylApp-011
+git branch -d VinylApp-014
 ```
 
-Delete the remote feature branch through GitHub or with Git when it is no longer
-needed.
+Delete the remote feature branch when it is no longer needed.

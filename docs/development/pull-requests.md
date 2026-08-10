@@ -13,7 +13,7 @@ Use `.github/PULL_REQUEST_TEMPLATE.md` and include:
 
 - Summary and motivation
 - Type of change
-- Related VinylApp task or issue
+- Related VinylApp task
 - Actual test coverage and manual verification
 - Screenshots or recordings for visual changes
 - Documentation impact
@@ -35,14 +35,15 @@ review clearer.
 Before requesting review:
 
 ```bash
-dart run build_runner build --delete-conflicting-outputs
+dart run build_runner build
 dart format --output=none --set-exit-if-changed .
 flutter analyze
 flutter test
 flutter build apk --debug
 ```
 
-CI repeats these checks.
+For Drift schema changes, also regenerate the schema snapshot. CI repeats the
+core checks and verifies the committed snapshot.
 
 ## Documentation impact
 
@@ -64,4 +65,5 @@ A PR is ready when:
 - Tests verify changed behavior.
 - Temporary debugging output is removed.
 - Generated code builds from a clean checkout.
-- Documentation reflects the merged behavior.
+- Drift snapshots are current when the schema changed.
+- Documentation reflects the behavior that will exist after merge.

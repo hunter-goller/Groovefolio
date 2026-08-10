@@ -12,7 +12,7 @@
 
 ## Related
 
-<!-- Link a Trello card (for example VinylApp-012), issue, or context. -->
+<!-- Link a Trello card (for example VinylApp-013), issue, or context. -->
 
 ## How was this tested?
 
@@ -29,7 +29,7 @@
 - [ ] No documentation change is required
 - [ ] Relevant documentation is updated in this PR
 - [ ] A named follow-up documentation task is required
-- [ ] Status claims were checked against the current `main` branch
+- [ ] Status claims were checked against the behavior that will exist after merge
 
 <!-- Identify affected docs and label any unmerged prototype work clearly. -->
 
@@ -43,7 +43,8 @@
 - [ ] `dart format --output=none --set-exit-if-changed .` passes
 - [ ] `flutter analyze` passes
 - [ ] `flutter test` passes
-- [ ] `dart run build_runner build --delete-conflicting-outputs` runs clean when schemas/providers changed
+- [ ] `dart run build_runner build` runs clean when schemas/providers changed
+- [ ] Drift schema snapshot is regenerated and committed when the schema version changes
 - [ ] No leftover `print()` calls or temporary debugging code
 - [ ] Generated `*.g.dart` files were not hand-edited or committed
 - [ ] Branch-only prototypes are not documented as implemented

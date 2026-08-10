@@ -15,7 +15,7 @@ part 'router.g.dart';
 /// This is the codegen pattern (VinylApp-006) — the @riverpod annotation
 /// generates `routerProvider` and the boilerplate in router.g.dart for you.
 /// Any time you edit this file, re-run:
-///   dart run build_runner build --delete-conflicting-outputs
+///   dart run build_runner build
 ///
 /// TEMPLATE FOR FUTURE PROVIDERS YOU WRITE YOURSELF:
 ///   @riverpod
