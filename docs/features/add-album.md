@@ -29,10 +29,10 @@ service.
 5. Persist artist and album atomically enough to avoid orphaned data.
 6. Return to the collection or new album detail page.
 
-## Planned dependencies
+## Dependencies
 
-- ArtistRepository `findOrCreate`
-- AlbumRepository `create` and `update`
+- ✅ AlbumRepository `create` and `update`
+- ⬜ ArtistRepository `findOrCreate`
 - Form provider/state
 - Artwork picker and form widgets
 - Optional future Discogs lookup adapter

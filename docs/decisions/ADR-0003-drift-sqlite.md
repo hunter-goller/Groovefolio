@@ -22,16 +22,25 @@ Use SQLite as the local source of truth and Drift as the Dart database layer.
 - Drift generates type-safe rows, companions, and query support.
 - The database can run in memory for automated tests.
 - SQL remains available for complex statistics and discovery queries.
+- Versioned schema snapshots provide a durable migration baseline.
 
 ### Negative / tradeoffs
 
 - Schema changes require migration discipline.
 - Code generation is part of the development and CI process.
+- Schema snapshots must stay synchronized with the Drift declarations.
 - Future synchronization must reconcile remote data with a local source of
   truth.
 
-## Follow-up
+## Current outcome
 
-- Add the Plays table.
-- Add explicit schema export and migration tests.
-- Implement repositories before feature UI relies on persistence.
+Implemented follow-up work now includes:
+
+- Artists, Albums, and Plays tables;
+- v1 migration and `SchemaVersions`;
+- committed Drift v1 schema snapshot;
+- empty → v1 migration test;
+- first repository boundary through AlbumRepository.
+
+Future schema versions must add explicit step-up migration tests instead of
+rewriting v1 history.

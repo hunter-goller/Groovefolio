@@ -15,7 +15,8 @@ flowchart LR
     G --> M[Check formatting]
     M --> A[flutter analyze]
     A --> T[flutter test]
-    T --> B[Build debug APK]
+    T --> S[Verify Drift schema snapshot]
+    S --> B[Build debug APK]
 ```
 
 ## Steps
@@ -37,7 +38,7 @@ flutter pub get
 ### Code generation
 
 ```bash
-dart run build_runner build --delete-conflicting-outputs
+dart run build_runner build
 ```
 
 This step is mandatory because generated `*.g.dart` files are ignored by Git.
@@ -66,7 +67,21 @@ to project lint rules.
 flutter test
 ```
 
-Runs database, routing, and widget tests.
+Runs database, migration, repository, routing, and widget tests.
+
+### Drift schema snapshot verification
+
+CI runs:
+
+```bash
+dart run drift_dev schema dump lib/db/app_database.dart drift_schemas/
+```
+
+It then checks `git status` for changes under `drift_schemas/`. If dumping the
+current database schema modifies the committed snapshot, CI fails and the new
+snapshot must be reviewed and committed.
+
+This keeps migration history synchronized with the actual Drift declarations.
 
 ### Build verification
 
@@ -78,13 +93,11 @@ Confirms the Android application compiles after code generation and tests.
 
 ## Branch protection
 
-The project intends `main` to require the CI check before merge. Repository
-settings enforce that policy; the workflow file itself cannot guarantee branch
-protection.
+`main` should require the CI check before merge. Repository settings enforce that
+policy; the workflow file itself cannot guarantee branch protection.
 
-## Documentation deployment later
+## Release CI later
 
-GitHub Pages should eventually use a separate deployment workflow triggered by
-changes merged into `main`. Generated Pages output may be written to a
-`gh-pages` branch or deployed through GitHub's Pages artifact mechanism. Source
-documentation remains in `main`; no permanent hand-edited docs branch is needed.
+Google Play release automation should remain separate from pull-request CI. A
+future release workflow can build a signed Android App Bundle, while the current
+workflow remains a fast correctness gate.

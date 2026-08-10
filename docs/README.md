@@ -2,13 +2,12 @@
 
 This directory is the documentation source for Vinyl App. It is written in
 Markdown so the project architecture, implementation status, feature plans, and
-release workflow stay close to the code. It can also be published through
-GitHub Pages later as a polished project/development site.
+release workflow stay close to the code.
 
 Vinyl App is a personal application project, not an open-source project. These
-docs are therefore optimized for project continuity, engineering decisions,
-release preparation, and portfolio presentation rather than external
-contributor onboarding.
+docs are optimized for project continuity, engineering decisions, release
+preparation, and portfolio presentation rather than external contributor
+onboarding.
 
 ## Start here
 
@@ -28,8 +27,8 @@ contributor onboarding.
 | [Dependency graph](architecture/dependency-graph.md) | Which layers and tickets unblock Collection? |
 | [Routing](architecture/routing.md) | How are routes declared and resolved? |
 | [State management](architecture/state-management.md) | Which Riverpod providers exist and which are planned? |
-| [Database](architecture/database.md) | How is local data stored and tested? |
-| [Repository pattern](architecture/repository-pattern.md) | What will separate Drift from feature code? |
+| [Database](architecture/database.md) | How is local data stored, versioned, and tested? |
+| [Repository pattern](architecture/repository-pattern.md) | How does AlbumRepository separate Drift from feature code? |
 | [Services](architecture/services.md) | Where will multi-step business logic live? |
 | [CI/CD](architecture/ci-cd.md) | What does GitHub Actions verify? |
 
@@ -43,7 +42,7 @@ contributor onboarding.
 | [Git workflow](development/git-workflow.md) | Create branches and merge work |
 | [Pull requests](development/pull-requests.md) | Prepare reviewable changes |
 | [Testing](development/testing.md) | Understand current and planned tests |
-| [Documentation maintenance](development/documentation-maintenance.md) | Keep docs synchronized with `main` |
+| [Documentation maintenance](development/documentation-maintenance.md) | Keep docs synchronized with implementation |
 | [Release process](development/release-process.md) | Prepare future versioned releases |
 | [Google Play readiness](development/google-play-readiness.md) | Track polish, release, listing, and privacy tasks |
 
@@ -65,17 +64,17 @@ target product behavior.
 
 ## Documentation baseline
 
-These documents reflect `main` after VinylApp-009 and VinylApp-010 were merged:
+The current documented baseline includes:
 
-- VinylApp-001 through 007 are complete.
-- VinylApp-008 is deferred.
-- VinylApp-009 and 010 are complete.
-- VinylApp-011 is next.
-- Repositories and services are not implemented.
-- Only `routerProvider` and `databaseProvider` currently exist.
-- All user-facing feature screens are placeholders.
-- VinylApp-018 is an unmerged fake-data prototype and is on hold.
+- VinylApp-001 through 007 complete.
+- VinylApp-008 deferred.
+- VinylApp-009 through 013 complete.
+- Artists, Albums, and Plays in Drift.
+- Initial v1 migration and committed Drift schema snapshot.
+- `AlbumRepository` and `albumRepositoryProvider` implemented.
+- VinylApp-014 is the next repository task.
+- All user-facing feature screens remain placeholders.
+- VinylApp-018 remains an unmerged fake-data prototype and is on hold.
 
-When code and documentation disagree, `main` is the source of truth. A branch,
-ZIP, mockup, or prototype must be labeled as such until its pull request is
-merged.
+When code and documentation disagree, the merged repository is the source of
+truth. A branch, ZIP, mockup, or prototype must be labeled as such until merged.

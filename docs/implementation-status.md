@@ -1,9 +1,9 @@
 # Current Implementation Status
 
-This page is the source-of-truth summary for what exists on the current `main`
-branch.
+This page summarizes the implementation state represented by the VinylApp-013
+change set. Once the pull request is merged, it describes `main`.
 
-## Implemented on `main`
+## Implemented
 
 ### Foundation
 
@@ -19,17 +19,38 @@ branch.
 
 - VinylApp-009 — Albums table
 - VinylApp-010 — Artists table
+- VinylApp-011 — Plays table
+- `SidePlayed` persistence with `full`, `sideA`, and `sideB`
 - Foreign-key enforcement from `Albums.artistId` to `Artists.id`
-- In-memory database and table tests
+- Foreign-key enforcement from `Plays.albumId` to `Albums.id`
+- VinylApp-012 — v1 migration and schema version constants
+- `drift_schemas/drift_schema_v1.json`
+- In-memory database, table, and empty → v1 migration tests
+
+### Repository layer
+
+- VinylApp-013 — `IAlbumRepository`
+- Drift-backed `AlbumRepository`
+- `findAll()`
+- `findById()`
+- `create()`
+- `update()`
+- `delete()`
+- `search(query)` across album title and artist name, case-insensitive
+- In-memory repository tests for every AlbumRepository operation
 
 ### Current providers
 
 - `routerProvider`
 - `databaseProvider`
+- `albumRepositoryProvider`
+
+`albumRepositoryProvider` is introduced with VinylApp-013. VinylApp-016 still
+completes and standardizes the remaining repository-provider layer.
 
 ### Current screens
 
-The six routes resolve, but each user-facing screen is a placeholder:
+The six routes resolve, but each user-facing screen is still a placeholder:
 
 - Collection
 - Statistics
@@ -40,15 +61,12 @@ The six routes resolve, but each user-facing screen is a placeholder:
 
 `RouteTestButtons` is temporary navigation scaffolding.
 
-## Not implemented on `main`
+## Not implemented yet
 
 - Theme and design tokens
-- Plays table
-- Explicit Drift migration files and schema snapshots
-- AlbumRepository
 - ArtistRepository
 - PlayRepository
-- Repository providers
+- Remaining repository providers
 - PlayLoggingService
 - `albumsProvider`
 - `collectionFiltersProvider`
@@ -86,15 +104,11 @@ README, changelog, architecture diagrams, or feature status tables.
 
 ## Collection dependency chain
 
-VinylApp-018's Trello description requires `albumsProvider` and
-`collectionFiltersProvider`. Those providers belong to VinylApp-043, not
-VinylApp-009 or VinylApp-010.
-
 ```mermaid
 flowchart TD
-    P11[011 Plays table]
-    P12[012 Initial migration]
-    P13[013 AlbumRepository]
+    P11[011 Plays table ✅]
+    P12[012 Initial migration ✅]
+    P13[013 AlbumRepository ✅]
     P14[014 ArtistRepository]
     P15[015 PlayRepository]
     P16[016 Repository providers]
@@ -114,20 +128,6 @@ flowchart TD
     P08 --> P18
 ```
 
-VinylApp-017 PlayLoggingService remains part of the ordered data-layer work and
-is required for logging plays, but it is not the direct provider dependency for
-rendering the Collection list.
-
-## Completion rule for VinylApp-018
-
-VinylApp-018 is complete only when the merged implementation:
-
-1. reads real data through providers and repositories;
-2. does not use `fakeAlbums`;
-3. does not keep Collection filters solely in local widget state;
-4. sorts by actual last-played information;
-5. shows actual play counts;
-6. handles loading, empty, error, and populated states;
-7. refreshes real data;
-8. navigates to `/album/:id`;
-9. passes tests and CI.
+VinylApp-017 remains part of the ordered data-layer work because real play
+logging depends on `PlayLoggingService`, but VinylApp-043 is the direct provider
+prerequisite for the read-only Collection screen.

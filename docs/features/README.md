@@ -5,10 +5,10 @@ implementation status.
 
 | Feature | Current status |
 | --- | --- |
-| [Collection](collection.md) | Placeholder on `main`; unmerged fake-data prototype on hold |
-| [Add and edit album](add-album.md) | Placeholder Add route; persistence planned |
+| [Collection](collection.md) | Placeholder on `main`; data layer partially implemented; unmerged fake-data prototype on hold |
+| [Add and edit album](add-album.md) | Placeholder Add route; AlbumRepository available but UI persistence not wired |
 | [Album details](album-details.md) | Placeholder route with album ID |
-| [Play logging](play-logging.md) | Placeholder route; Plays table next |
+| [Play logging](play-logging.md) | Placeholder route; Plays schema implemented; repository/service/UI still planned |
 | [Statistics](statistics.md) | Placeholder route |
 | [Discover](discover.md) | Placeholder route |
 | [Recommendations](recommendations.md) | Planned |
@@ -17,7 +17,7 @@ implementation status.
 
 ## Status terms
 
-- **Implemented:** present on `main`
+- **Implemented:** present in merged production code
 - **Placeholder:** route exists but feature behavior does not
 - **Prototype:** experimental work outside `main`
 - **Planned:** accepted backlog work
