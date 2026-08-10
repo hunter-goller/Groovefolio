@@ -1,18 +1,18 @@
 # Vinyl App Roadmap
 
 This roadmap summarizes implementation order. Trello remains the detailed task
-board; this document is the stable public overview.
+board; this document is the stable project overview.
 
 ## Status legend
 
-- ✅ Complete on `main`
+- ✅ Complete
 - 🚧 Next or actively in progress
 - ⏸ On hold or intentionally deferred
 - ⬜ Planned
 - 🧪 Prototype exists outside `main`
 - 🔭 Future exploration
 
-## 1. Foundation and current database
+## 1. Foundation and database
 
 - ✅ VinylApp-001 — Flutter project and initial folder structure
 - ✅ VinylApp-002 — Strict analysis and lint configuration
@@ -25,17 +25,22 @@ board; this document is the stable public overview.
 - ✅ VinylApp-009 — Albums table
 - ✅ VinylApp-010 — Artists table
 - ✅ VinylApp-011 — Plays table
+- ✅ VinylApp-012 — Initial Drift migration and schema export
 
 ## 2. Core data layer
 
 Complete these in order:
 
-2. ⬜ VinylApp-012 — Initial Drift migration and schema export
-3. ⬜ VinylApp-013 — AlbumRepository
-4. ⬜ VinylApp-014 — ArtistRepository
-5. ⬜ VinylApp-015 — PlayRepository
-6. ⬜ VinylApp-016 — Riverpod repository providers
-7. ⬜ VinylApp-017 — PlayLoggingService
+1. ✅ VinylApp-013 — AlbumRepository
+2. ✅ VinylApp-014 — ArtistRepository
+3. 🚧 VinylApp-015 — PlayRepository
+4. ⬜ VinylApp-016 — Complete repository-provider layer
+5. ⬜ VinylApp-017 — PlayLoggingService
+
+VinylApp-013 introduces `albumRepositoryProvider`, and VinylApp-014 introduces
+`artistRepositoryProvider`. VinylApp-016 remains responsible for completing and
+standardizing the repository provider layer, including Play and future NFC
+repository providers.
 
 VinylApp-017 is required for the play-logging workflow. It is not the direct
 provider dependency used by the read-only Collection screen, but it remains part
@@ -45,7 +50,7 @@ of the ordered core data-layer work.
 
 - ⬜ VinylApp-043 — Riverpod service and feature providers
 
-VinylApp-043 is the direct Trello task that creates:
+VinylApp-043 is the direct task that creates:
 
 - `albumsProvider`
 - `albumProvider(id)`
@@ -80,7 +85,7 @@ versions of several widgets. That work:
 - does not read Drift through repositories;
 - is not merged into `main`.
 
-The prototype is reference material, not completed or released functionality.
+The prototype is reference material, not completed functionality.
 
 ## 5. First end-to-end collection flow
 
@@ -98,7 +103,7 @@ After the prerequisites above:
 - ⬜ VinylApp-020 — Log Play Screen
 - ⬜ Play history by album
 - ⬜ Collection-level recently played list
-- ⬜ Full album / Side A / Side B tracking
+- ⬜ Full album / Side A / Side B tracking in the UI
 - ⬜ VinylApp-044 — StatsService
 - ⬜ VinylApp-046 — Stats Screen
 
@@ -123,7 +128,7 @@ After the prerequisites above:
 ## 9. Quality and release
 
 - ⬜ VinylApp-033 — Test framework setup
-- ⬜ VinylApp-034 — AlbumRepository unit tests
+- ⬜ VinylApp-034 — AlbumRepository unit-test follow-up card (013 already includes baseline repository coverage)
 - ⬜ VinylApp-035 — PlayRepository unit tests
 - ⬜ VinylApp-036 — PlayLoggingService unit tests
 - ⬜ Widget tests for primary states

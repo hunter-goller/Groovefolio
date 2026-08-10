@@ -45,6 +45,18 @@ to verify:
 - artist-name search case-insensitively;
 - empty search behavior.
 
+### ArtistRepository tests
+
+`test/repositories/artist_repository_test.dart` uses an in-memory Drift database
+to verify:
+
+- creation through `findOrCreate()`;
+- case-insensitive idempotent deduplication;
+- whitespace normalization;
+- blank-name rejection;
+- `findById()` including missing IDs;
+- `findAll()`.
+
 ### Router provider tests
 
 `test/routing/router_test.dart` verifies:
@@ -77,9 +89,9 @@ committed snapshot.
 
 ### Repository tests
 
-ArtistRepository and PlayRepository should follow the AlbumRepository pattern:
-every public method covered against a clean in-memory database, including
-case-insensitive matching and aggregation behavior where relevant.
+PlayRepository should follow the existing AlbumRepository and ArtistRepository
+pattern: every public method covered against a clean in-memory database,
+including aggregation behavior where relevant.
 
 ### Service tests
 
@@ -111,6 +123,7 @@ Planned core flows:
 ```bash
 flutter test
 flutter test test/repositories/album_repository_test.dart
+flutter test test/repositories/artist_repository_test.dart
 flutter test --coverage
 ```
 

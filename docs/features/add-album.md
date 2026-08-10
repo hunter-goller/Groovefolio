@@ -32,7 +32,7 @@ service.
 ## Dependencies
 
 - ✅ AlbumRepository `create` and `update`
-- ⬜ ArtistRepository `findOrCreate`
+- ✅ ArtistRepository `findOrCreate`
 - Form provider/state
 - Artwork picker and form widgets
 - Optional future Discogs lookup adapter

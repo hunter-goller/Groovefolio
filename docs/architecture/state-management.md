@@ -29,6 +29,12 @@ Generated from the annotated `albumRepository()` function introduced by
 VinylApp-013. It watches `databaseProvider`, constructs `AlbumRepository`, and
 exposes it as `IAlbumRepository`.
 
+### `artistRepositoryProvider`
+
+Generated from the annotated `artistRepository()` function introduced by
+VinylApp-014. It watches `databaseProvider`, constructs `ArtistRepository`, and
+exposes it as `IArtistRepository`.
+
 No service or feature-state providers are implemented yet.
 
 ## Repository-provider roadmap — VinylApp-016
@@ -36,11 +42,11 @@ No service or feature-state providers are implemented yet.
 VinylApp-016 completes and standardizes the repository provider layer. The
 remaining planned providers include:
 
-- `artistRepositoryProvider`
 - `playRepositoryProvider`
 - `nfcTagRepositoryProvider`
 
-`albumRepositoryProvider` already exists and should not be duplicated.
+`albumRepositoryProvider` and `artistRepositoryProvider` already exist and
+should not be duplicated.
 
 Repository providers must remain overrideable in tests. UI and feature providers
 should not read Drift directly.

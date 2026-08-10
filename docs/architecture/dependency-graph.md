@@ -38,7 +38,7 @@ flowchart TD
 - Drift code must not import feature UI.
 - Shared layers must not depend on one feature's presentation code.
 
-## Current graph after VinylApp-013
+## Current graph after VinylApp-014
 
 ```mermaid
 flowchart TD
@@ -46,9 +46,11 @@ flowchart TD
     RouterProvider[routerProvider]
     DatabaseProvider[databaseProvider]
     AlbumRepoProvider[albumRepositoryProvider]
+    ArtistRepoProvider[artistRepositoryProvider]
     Router[GoRouter]
     Placeholders[Placeholder screens]
     AlbumRepo[AlbumRepository]
+    ArtistRepo[ArtistRepository]
     Database[AppDatabase]
     Tables[Artists + Albums + Plays]
 
@@ -58,13 +60,16 @@ flowchart TD
     Router --> Placeholders
     AlbumRepoProvider --> DatabaseProvider
     AlbumRepoProvider --> AlbumRepo
+    ArtistRepoProvider --> DatabaseProvider
+    ArtistRepoProvider --> ArtistRepo
     AlbumRepo --> Database
+    ArtistRepo --> Database
     DatabaseProvider --> Database
     Database --> Tables
 ```
 
-The first repository boundary now exists, but no feature screen consumes it yet.
-ArtistRepository, PlayRepository, services, and feature providers remain
+The Album and Artist repository boundaries now exist, but no feature screen
+consumes them yet. PlayRepository, services, and feature providers remain
 planned.
 
 ## Collection ticket dependency graph
@@ -74,7 +79,7 @@ flowchart TD
     T11[VinylApp-011 Plays ✅]
     T12[VinylApp-012 Migration ✅]
     T13[VinylApp-013 AlbumRepository ✅]
-    T14[VinylApp-014 ArtistRepository]
+    T14[VinylApp-014 ArtistRepository ✅]
     T15[VinylApp-015 PlayRepository]
     T16[VinylApp-016 Repository providers]
     T43[VinylApp-043 Feature providers]

@@ -22,7 +22,8 @@ lib/
 │   └── route_test_buttons.dart
 ├── providers/               # Future shared feature/service state
 ├── repositories/
-│   └── album_repository.dart
+│   ├── album_repository.dart
+│   └── artist_repository.dart
 ├── routing/
 │   ├── app_routes.dart
 │   └── router.dart
@@ -104,9 +105,9 @@ providers such as `albumsProvider` and `collectionFiltersProvider`.
 
 ### `lib/repositories/`
 
-Contains persistence boundaries. `album_repository.dart` currently defines both
-`IAlbumRepository` and the Drift-backed implementation. VinylApp-014 and 015 add
-Artist and Play repositories.
+Contains persistence boundaries. `album_repository.dart` defines the Album
+contract/implementation, while `artist_repository.dart` defines the Artist
+contract/implementation. VinylApp-015 adds the Play repository.
 
 ### `lib/services/`
 
@@ -142,7 +143,8 @@ test/
 │   ├── plays_table_test.dart
 │   └── migration_test.dart
 ├── repositories/
-│   └── album_repository_test.dart
+│   ├── album_repository_test.dart
+│   └── artist_repository_test.dart
 ├── routing/
 │   └── router_test.dart
 └── widget_test.dart

@@ -28,7 +28,7 @@ onboarding.
 | [Routing](architecture/routing.md) | How are routes declared and resolved? |
 | [State management](architecture/state-management.md) | Which Riverpod providers exist and which are planned? |
 | [Database](architecture/database.md) | How is local data stored, versioned, and tested? |
-| [Repository pattern](architecture/repository-pattern.md) | How does AlbumRepository separate Drift from feature code? |
+| [Repository pattern](architecture/repository-pattern.md) | How do repositories separate Drift from feature code? |
 | [Services](architecture/services.md) | Where will multi-step business logic live? |
 | [CI/CD](architecture/ci-cd.md) | What does GitHub Actions verify? |
 
@@ -68,11 +68,11 @@ The current documented baseline includes:
 
 - VinylApp-001 through 007 complete.
 - VinylApp-008 deferred.
-- VinylApp-009 through 013 complete.
+- VinylApp-009 through 014 complete.
 - Artists, Albums, and Plays in Drift.
 - Initial v1 migration and committed Drift schema snapshot.
-- `AlbumRepository` and `albumRepositoryProvider` implemented.
-- VinylApp-014 is the next repository task.
+- `AlbumRepository`, `ArtistRepository`, and their Riverpod providers implemented.
+- VinylApp-015 is the next repository task.
 - All user-facing feature screens remain placeholders.
 - VinylApp-018 remains an unmerged fake-data prototype and is on hold.
 

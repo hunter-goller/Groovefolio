@@ -10,7 +10,7 @@ independently without creating abstractions before they are needed.
 
 The codebase now contains the application composition root, Riverpod-provided
 router and database, the full v1 Drift schema, migration infrastructure, and the
-first repository implementation: AlbumRepository.
+AlbumRepository and ArtistRepository implementations.
 
 ```mermaid
 flowchart TD
@@ -19,9 +19,11 @@ flowchart TD
     DBP[databaseProvider]
     RP[routerProvider]
     ARP[albumRepositoryProvider]
+    AIP[artistRepositoryProvider]
     GR[GoRouter]
     FS[Placeholder feature screens]
     AR[AlbumRepository]
+    AIR[ArtistRepository]
     DB[AppDatabase]
     A[Artists]
     AL[Albums]
@@ -35,7 +37,10 @@ flowchart TD
     GR --> FS
     ARP --> DBP
     ARP --> AR
+    AIP --> DBP
+    AIP --> AIR
     AR --> DB
+    AIR --> DB
     DBP --> DB
     DB --> A
     DB --> AL
@@ -47,8 +52,9 @@ flowchart TD
 application startup. It also watches the router provider and passes the router
 to `MaterialApp.router`.
 
-`AlbumRepository` is not yet connected to a real feature screen. It establishes
-the persistence boundary that later providers and services will consume.
+`AlbumRepository` and `ArtistRepository` are not yet connected to a real
+feature screen. They establish persistence boundaries that later providers and
+services will consume.
 
 ## Target architecture
 
@@ -83,8 +89,9 @@ They should not contain SQL or multi-step business workflows.
 ### Providers
 
 Riverpod providers expose dependencies and feature state. Current dependency
-providers are `routerProvider`, `databaseProvider`, and
-`albumRepositoryProvider`. Feature-level collection providers are still planned.
+providers are `routerProvider`, `databaseProvider`, `albumRepositoryProvider`,
+and `artistRepositoryProvider`. Feature-level collection providers are still
+planned.
 
 ### Services
 
@@ -95,8 +102,8 @@ folder is scaffolded but still empty. VinylApp-017 will introduce
 ### Repositories
 
 Repositories define persistence operations in application language while hiding
-Drift queries from UI and services. AlbumRepository is implemented; Artist and
-Play repositories are next.
+Drift queries from UI and services. AlbumRepository and ArtistRepository are
+implemented; PlayRepository is next.
 
 ### Database
 
