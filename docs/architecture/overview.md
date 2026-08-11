@@ -90,8 +90,9 @@ They should not contain SQL or multi-step business workflows.
 
 Riverpod providers expose dependencies and feature state. Current dependency
 providers are `routerProvider`, `databaseProvider`, `albumRepositoryProvider`,
-and `artistRepositoryProvider`. Feature-level collection providers are still
-planned.
+`artistRepositoryProvider`, `playRepositoryProvider`, and the VinylApp-041
+`nfcTagRepositoryProvider` change set. Feature-level collection providers are
+still planned.
 
 ### Services
 
@@ -102,14 +103,16 @@ folder is scaffolded but still empty. VinylApp-017 will introduce
 ### Repositories
 
 Repositories define persistence operations in application language while hiding
-Drift queries from UI and services. AlbumRepository, ArtistRepository, and
-PlayRepository are implemented.
+Drift queries from UI and services. AlbumRepository, ArtistRepository,
+PlayRepository, and the VinylApp-041 NfcTagRepository change set are
+implemented.
 
 ### Database
 
 Drift owns table definitions, generated row/companion types, SQL execution, and
-migrations. SQLite is the local source of truth. Version 1 contains Artists,
-Albums, and Plays and is captured in a committed schema snapshot.
+migrations. SQLite is the local source of truth. Version 1 contains Artists, Albums, and
+Plays. VinylApp-040 introduces version 2 by adding NfcTags while preserving the
+v1 baseline; both versions are captured in committed schema snapshots.
 
 ## Architectural principles
 

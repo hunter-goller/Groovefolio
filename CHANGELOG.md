@@ -46,6 +46,11 @@ rather than stable public versions. The format is based on Keep a Changelog.
   `findByAlbum()`, `findAll()`, `deleteById()`, `getPlayCountByAlbum()`, and
   `getRecentlyPlayed(limit)`.
 - `playRepositoryProvider` for Riverpod dependency injection.
+- `INfcTagRepository` and Drift-backed `NfcTagRepository` with `create()`,
+  `findByTagId()`, `findByAlbum()`, and `delete()`.
+- `nfcTagRepositoryProvider` for Riverpod dependency injection.
+- In-memory NfcTagRepository tests covering creation, tag lookup, album lookup,
+  deletion, not-found behavior, and input validation.
 - VinylApp-040 `NfcTags` table with unique NFC tag IDs and a unique Album foreign key, enforcing one registered tag per album.
 - Schema version 2 with an explicit v1 → v2 NFC-table migration and upgrade test.
 - In-memory PlayRepository tests covering persistence, per-album ordering,

@@ -69,10 +69,12 @@ The current documented baseline includes:
 - VinylApp-001 through 007 complete.
 - VinylApp-008 deferred.
 - VinylApp-009 through 015 complete.
-- Artists, Albums, and Plays in Drift.
-- Initial v1 migration and committed Drift schema snapshot.
-- `AlbumRepository`, `ArtistRepository`, `PlayRepository`, and their Riverpod providers implemented.
-- VinylApp-016 is the next core data-layer task.
+- VinylApp-040 adds the NFC schema as v2 on top of the frozen v1 baseline.
+- Artists, Albums, Plays, and NFC tag mappings in Drift.
+- Committed v1 and v2 Drift schema snapshots.
+- `AlbumRepository`, `ArtistRepository`, `PlayRepository`, and the VinylApp-041
+  `NfcTagRepository` change set plus their Riverpod providers implemented.
+- VinylApp-016 is the next core data-layer task after VinylApp-041.
 - All user-facing feature screens remain placeholders.
 - VinylApp-018 remains an unmerged fake-data prototype and is on hold.
 
