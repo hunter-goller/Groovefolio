@@ -1,8 +1,8 @@
 # Play Logging
 
 - Route: `/play/log`
-- Current status: Placeholder screen; Plays persistence exists, but the repository,
-  service, providers, and real UI flow are not implemented yet
+- Current status: Placeholder screen; Plays persistence and PlayRepository exist,
+  but PlayLoggingService, feature state, and the real UI flow are not implemented yet
 
 ## Purpose
 
@@ -39,8 +39,8 @@ The v1 database already contains the Plays table with:
 
 ## Remaining dependencies
 
-- VinylApp-015 — PlayRepository
-- VinylApp-016 — play repository provider
+- ✅ VinylApp-015 — PlayRepository and `playRepositoryProvider`
+- VinylApp-016 — repository-provider standardization
 - VinylApp-017 — PlayLoggingService
 - Riverpod feature state for selected album and form submission
 - NFC service as an alternate entry path

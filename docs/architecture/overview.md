@@ -102,8 +102,8 @@ folder is scaffolded but still empty. VinylApp-017 will introduce
 ### Repositories
 
 Repositories define persistence operations in application language while hiding
-Drift queries from UI and services. AlbumRepository and ArtistRepository are
-implemented; PlayRepository is next.
+Drift queries from UI and services. AlbumRepository, ArtistRepository, and
+PlayRepository are implemented.
 
 ### Database
 

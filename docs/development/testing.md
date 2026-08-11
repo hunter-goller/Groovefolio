@@ -57,6 +57,20 @@ to verify:
 - `findById()` including missing IDs;
 - `findAll()`.
 
+### PlayRepository tests
+
+`test/repositories/play_repository_test.dart` uses an in-memory Drift database
+to verify:
+
+- `create()` persists the expected play fields;
+- `findByAlbum()` filters correctly and sorts newest first;
+- `findAll()` spans albums;
+- `deleteById()` removes only the selected play;
+- `getPlayCountByAlbum()` returns the correct count and zero;
+- `getRecentlyPlayed()` returns distinct albums in recency order and respects
+  the limit;
+- every `SidePlayed` value round-trips through Drift.
+
 ### Router provider tests
 
 `test/routing/router_test.dart` verifies:
@@ -89,9 +103,10 @@ committed snapshot.
 
 ### Repository tests
 
-PlayRepository should follow the existing AlbumRepository and ArtistRepository
-pattern: every public method covered against a clean in-memory database,
-including aggregation behavior where relevant.
+AlbumRepository, ArtistRepository, and PlayRepository now have baseline
+in-memory repository coverage. VinylApp-034 and VinylApp-035 remain useful as
+follow-up hardening cards for edge cases, performance expectations, and any
+contract changes discovered during feature integration.
 
 ### Service tests
 
@@ -124,6 +139,7 @@ Planned core flows:
 flutter test
 flutter test test/repositories/album_repository_test.dart
 flutter test test/repositories/artist_repository_test.dart
+flutter test test/repositories/play_repository_test.dart
 flutter test --coverage
 ```
 

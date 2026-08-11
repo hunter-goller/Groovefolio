@@ -100,14 +100,15 @@ navigation shell and feature screens replace it.
 
 Currently an empty scaffold for shared feature/service state. Repository
 providers may live beside their repository when generated from that file, as
-`albumRepositoryProvider` does today. VinylApp-043 will add feature-level
+`albumRepositoryProvider`, `artistRepositoryProvider`, and
+`playRepositoryProvider` do today. VinylApp-043 will add feature-level
 providers such as `albumsProvider` and `collectionFiltersProvider`.
 
 ### `lib/repositories/`
 
-Contains persistence boundaries. `album_repository.dart` defines the Album
-contract/implementation, while `artist_repository.dart` defines the Artist
-contract/implementation. VinylApp-015 adds the Play repository.
+Contains persistence boundaries. `album_repository.dart`,
+`artist_repository.dart`, and `play_repository.dart` define the current Album,
+Artist, and Play contracts and Drift implementations.
 
 ### `lib/services/`
 
@@ -144,7 +145,8 @@ test/
 │   └── migration_test.dart
 ├── repositories/
 │   ├── album_repository_test.dart
-│   └── artist_repository_test.dart
+│   ├── artist_repository_test.dart
+│   └── play_repository_test.dart
 ├── routing/
 │   └── router_test.dart
 └── widget_test.dart

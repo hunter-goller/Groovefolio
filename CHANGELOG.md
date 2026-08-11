@@ -42,6 +42,13 @@ rather than stable public versions. The format is based on Keep a Changelog.
 - `artistRepositoryProvider` for Riverpod dependency injection.
 - In-memory ArtistRepository tests covering creation, lookup, listing, and
   deduplication.
+- `IPlayRepository` and Drift-backed `PlayRepository` with `create()`,
+  `findByAlbum()`, `findAll()`, `deleteById()`, `getPlayCountByAlbum()`, and
+  `getRecentlyPlayed(limit)`.
+- `playRepositoryProvider` for Riverpod dependency injection.
+- In-memory PlayRepository tests covering persistence, per-album ordering,
+  deletion, play counts, distinct recently played albums, limits, and
+  `SidePlayed` enum round-trips.
 - Database, table, router-provider, and application smoke tests.
 - Phase 1 repository, architecture, feature, and development documentation.
 - A current-implementation status page that distinguishes merged work from
@@ -64,8 +71,8 @@ rather than stable public versions. The format is based on Keep a Changelog.
 - Clarified that VinylApp-018 and its prototype widgets are not merged into
   `main` and do not count as completed functionality.
 - Clarified that VinylApp-016 completes the repository-provider layer even
-  though VinylApp-013 and VinylApp-014 introduce the Album and Artist repository
-  providers.
+  though VinylApp-013 through VinylApp-015 introduce the Album, Artist, and Play
+  repository providers.
 
 ### Fixed
 

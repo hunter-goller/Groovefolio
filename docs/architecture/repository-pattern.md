@@ -2,10 +2,11 @@
 
 ## Status
 
-The repository layer is partially implemented. VinylApp-013 introduces
-`IAlbumRepository`, `AlbumRepository`, and `albumRepositoryProvider`.
-VinylApp-014 adds `IArtistRepository`, `ArtistRepository`, and
-`artistRepositoryProvider`. PlayRepository remains planned.
+The repository layer now includes the core Album, Artist, and Play persistence
+boundaries. VinylApp-013 introduces `IAlbumRepository`, `AlbumRepository`, and
+`albumRepositoryProvider`; VinylApp-014 adds the Artist equivalents; and
+VinylApp-015 adds `IPlayRepository`, `PlayRepository`, and
+`playRepositoryProvider`.
 
 ## Purpose
 
@@ -99,22 +100,49 @@ The provider exposes the repository through `IArtistRepository` and obtains
 
 ### VinylApp-015 — PlayRepository
 
-Planned operations:
+Implemented in `lib/repositories/play_repository.dart`.
 
-- `create()`
-- `findByAlbum(albumId)`
+#### Contract
+
+`IPlayRepository` exposes:
+
+- `create(PlaysCompanion play)`
+- `findByAlbum(String albumId)`
 - `findAll()`
-- `deleteById()`
-- `getPlayCountByAlbum()`
-- `getRecentlyPlayed(limit)`
+- `deleteById(String id)`
+- `getPlayCountByAlbum(String albumId)`
+- `getRecentlyPlayed(int limit)`
+
+#### Drift implementation
+
+`PlayRepository` receives `AppDatabase` through its constructor and owns play
+history queries. `findByAlbum()` returns the selected album's plays newest first.
+`getPlayCountByAlbum()` uses a Drift count aggregate and returns zero when no
+plays exist. `getRecentlyPlayed(limit)` walks play history newest-first, keeps one
+entry per album, loads those Album rows, and restores recency order after the
+`IN` query. Non-positive limits return an empty list.
+
+The v1 schema stores `playedAt` as normalized ISO-8601 text, so repository tests
+write timestamps in a consistent sortable representation.
+
+#### Provider
+
+VinylApp-015 introduces:
+
+```text
+playRepositoryProvider
+```
+
+The provider exposes the repository through `IPlayRepository` and obtains
+`AppDatabase` from `databaseProvider`.
 
 ### VinylApp-016 — Repository providers
 
 VinylApp-016 remains the dedicated task for completing and standardizing the
-repository-provider layer. Because VinylApp-013 and VinylApp-014 already introduce
-`albumRepositoryProvider` and `artistRepositoryProvider`, 016 should add the
-remaining providers and verify a consistent override/testing pattern instead of
-duplicating existing providers.
+repository-provider layer. Because VinylApp-013 through VinylApp-015 already introduce
+`albumRepositoryProvider`, `artistRepositoryProvider`, and `playRepositoryProvider`,
+016 should add the remaining provider(s) and verify a consistent override/testing
+pattern instead of duplicating existing providers.
 
 ## Rules
 
@@ -150,6 +178,16 @@ duplicating existing providers.
 - blank-name rejection;
 - find by ID, including missing rows;
 - find all.
+
+`test/repositories/play_repository_test.dart` covers:
+
+- play creation and persisted fields;
+- per-album filtering with newest-first ordering;
+- all-play retrieval;
+- targeted deletion;
+- per-album play counts, including zero;
+- distinct recently played albums, recency ordering, and limits;
+- `SidePlayed` round-trips for `full`, `sideA`, and `sideB`.
 
 ## Collection requirement
 

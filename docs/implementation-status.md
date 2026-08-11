@@ -1,6 +1,6 @@
 # Current Implementation Status
 
-This page summarizes the implementation state represented by the VinylApp-014
+This page summarizes the implementation state represented by the VinylApp-015
 change set. Once the pull request is merged, it describes `main`.
 
 ## Implemented
@@ -53,9 +53,9 @@ change set. Once the pull request is merged, it describes `main`.
 - `albumRepositoryProvider`
 - `artistRepositoryProvider`
 
-The Album and Artist repository providers are introduced with VinylApp-013 and
-VinylApp-014. VinylApp-016 still completes and standardizes the remaining
-repository-provider layer.
+The Album, Artist, and Play repository providers are introduced with
+VinylApp-013 through VinylApp-015. VinylApp-016 still completes and standardizes
+the remaining repository-provider layer.
 
 ### Current screens
 
@@ -73,7 +73,6 @@ The six routes resolve, but each user-facing screen is still a placeholder:
 ## Not implemented yet
 
 - Theme and design tokens
-- PlayRepository
 - Remaining repository providers
 - PlayLoggingService
 - `albumsProvider`
@@ -118,7 +117,7 @@ flowchart TD
     P12[012 Initial migration ✅]
     P13[013 AlbumRepository ✅]
     P14[014 ArtistRepository ✅]
-    P15[015 PlayRepository]
+    P15[015 PlayRepository ✅]
     P16[016 Repository providers]
     P43[043 Feature providers]
     P08[008 Theme]
