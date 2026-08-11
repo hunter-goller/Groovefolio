@@ -38,8 +38,8 @@ to you.
 | ArtistRepository + provider | Complete — VinylApp-014 |
 | PlayRepository + provider | Complete — VinylApp-015 |
 | NFC tag schema + v1→v2 migration | Complete — VinylApp-040 |
-| NfcTagRepository + provider | In progress — VinylApp-041 |
-| Repository provider completion | Planned — VinylApp-016 |
+| NfcTagRepository + provider | Complete — VinylApp-041 |
+| Repository provider completion | In progress — VinylApp-016 |
 | PlayLoggingService | Planned — VinylApp-017 |
 | Feature-level collection providers | Planned — VinylApp-043 |
 | Theme and design tokens | Deferred — VinylApp-008 |

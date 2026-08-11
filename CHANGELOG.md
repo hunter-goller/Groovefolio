@@ -49,6 +49,10 @@ rather than stable public versions. The format is based on Keep a Changelog.
 - `INfcTagRepository` and Drift-backed `NfcTagRepository` with `create()`,
   `findByTagId()`, `findByAlbum()`, and `delete()`.
 - `nfcTagRepositoryProvider` for Riverpod dependency injection.
+- Central `repository_providers.dart` import surface for all four repository
+  interfaces/providers.
+- ProviderContainer override tests covering Album, Artist, Play, and NFC-tag
+  repository dependencies.
 - In-memory NfcTagRepository tests covering creation, tag lookup, album lookup,
   deletion, not-found behavior, and input validation.
 - VinylApp-040 `NfcTags` table with unique NFC tag IDs and a unique Album foreign key, enforcing one registered tag per album.

@@ -48,7 +48,7 @@ VinylApp-040 v2 baseline.
 - Play counts and SQL-level recently-played aggregation
 - Repository creation APIs own generated IDs, creation timestamps, and Drift
   companions so callers do not need to construct persistence objects
-- VinylApp-041 change set — `INfcTagRepository` / `NfcTagRepository`
+- VinylApp-041 — `INfcTagRepository` / `NfcTagRepository`
 - NFC tag creation, lookup by physical tag ID, lookup by album, and deletion
 - Missing NFC-tag lookups return null rather than throwing
 - In-memory repository tests for Album, Artist, Play, and NFC behavior
@@ -62,8 +62,9 @@ VinylApp-040 v2 baseline.
 - `playRepositoryProvider`
 - `nfcTagRepositoryProvider`
 
-VinylApp-016 then completes and standardizes the repository-provider layer with
-override coverage.
+VinylApp-016 completes and standardizes the repository-provider layer with a
+central `repository_providers.dart` import surface and ProviderContainer override
+coverage for all four repository dependencies.
 
 ### Current screens
 
@@ -80,7 +81,6 @@ The six routes resolve, but each user-facing screen is still a placeholder:
 
 ## Not implemented yet
 
-- VinylApp-016 repository-provider completion/override test
 - Theme and design tokens
 - PlayLoggingService
 - `albumsProvider`
