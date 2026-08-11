@@ -49,18 +49,20 @@ VinylApp-041 change set. It watches `databaseProvider`, constructs
 
 No service or feature-state providers are implemented yet.
 
-## Repository-provider roadmap — VinylApp-016
+## Repository-provider layer — VinylApp-016
 
 VinylApp-016 completes and standardizes the repository provider layer. All four
-repository providers are introduced by their repository tickets:
+repository providers are still defined alongside their repository implementations:
 
 - `albumRepositoryProvider`
 - `artistRepositoryProvider`
 - `playRepositoryProvider`
 - `nfcTagRepositoryProvider`
 
-VinylApp-016 should not duplicate them; it standardizes naming/lifetimes and adds
-provider-override coverage.
+`lib/providers/repository_providers.dart` is the stable import surface for feature
+and service code. It re-exports the four repository interfaces/providers without
+duplicating provider definitions. ProviderContainer tests verify every repository
+dependency can be replaced with a fake implementation.
 
 Repository providers must remain overrideable in tests. UI and feature providers
 should not read Drift directly.
@@ -122,7 +124,8 @@ final container = ProviderContainer(
 );
 ```
 
-Future repository and service providers must preserve this capability.
+VinylApp-016 verifies this capability for all four repository providers. Future
+service and feature providers must preserve the same override-friendly design.
 
 ## Rules
 

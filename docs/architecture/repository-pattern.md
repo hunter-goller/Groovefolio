@@ -108,9 +108,11 @@ playRepositoryProvider
 nfcTagRepositoryProvider
 ```
 
-VinylApp-041 introduces `nfcTagRepositoryProvider`. VinylApp-016 then standardizes
-the four repository dependencies and verifies they can be overridden through a
-`ProviderContainer` without direct Drift access from feature providers.
+VinylApp-016 adds `lib/providers/repository_providers.dart` as the single import
+surface for these dependencies and verifies all four can be overridden through a
+`ProviderContainer`. The provider definitions remain next to their repositories,
+and feature/service code should depend on the repository interfaces rather than
+querying Drift directly.
 
 ## Ordering
 

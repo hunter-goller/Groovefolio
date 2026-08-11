@@ -38,7 +38,7 @@ flowchart TD
 - Drift code must not import feature UI.
 - Shared layers must not depend on one feature's presentation code.
 
-## Current graph after VinylApp-015 / during VinylApp-040
+## Current graph through VinylApp-016
 
 ```mermaid
 flowchart TD
@@ -48,11 +48,14 @@ flowchart TD
     AlbumRepoProvider[albumRepositoryProvider]
     ArtistRepoProvider[artistRepositoryProvider]
     PlayRepoProvider[playRepositoryProvider]
+    NfcRepoProvider[nfcTagRepositoryProvider]
+    RepositoryProviders[repository_providers.dart import surface]
     Router[GoRouter]
     Placeholders[Placeholder screens]
     AlbumRepo[AlbumRepository]
     ArtistRepo[ArtistRepository]
     PlayRepo[PlayRepository]
+    NfcRepo[NfcTagRepository]
     Database[AppDatabase]
     Tables[Artists + Albums + Plays + NfcTags]
 
@@ -66,15 +69,24 @@ flowchart TD
     ArtistRepoProvider --> ArtistRepo
     PlayRepoProvider --> DatabaseProvider
     PlayRepoProvider --> PlayRepo
+    NfcRepoProvider --> DatabaseProvider
+    NfcRepoProvider --> NfcRepo
+    RepositoryProviders --> AlbumRepoProvider
+    RepositoryProviders --> ArtistRepoProvider
+    RepositoryProviders --> PlayRepoProvider
+    RepositoryProviders --> NfcRepoProvider
     AlbumRepo --> Database
     ArtistRepo --> Database
     PlayRepo --> Database
+    NfcRepo --> Database
     DatabaseProvider --> Database
     Database --> Tables
 ```
 
-The Album, Artist, and Play repository boundaries now exist, but no feature
-screen consumes them yet. Services and feature providers remain planned.
+The Album, Artist, Play, and NFC-tag repository boundaries now exist.
+VinylApp-016 provides a single import surface plus override coverage, but no
+feature screen consumes these repositories directly yet. Services and feature
+providers remain planned.
 
 ## Collection ticket dependency graph
 
@@ -85,9 +97,9 @@ flowchart TD
     T13[VinylApp-013 AlbumRepository ✅]
     T14[VinylApp-014 ArtistRepository ✅]
     T15[VinylApp-015 PlayRepository ✅]
-    T40[VinylApp-040 NFC schema / v2 🚧]
-    T41[VinylApp-041 NfcTagRepository]
-    T16[VinylApp-016 Repository providers]
+    T40[VinylApp-040 NFC schema / v2 ✅]
+    T41[VinylApp-041 NfcTagRepository ✅]
+    T16[VinylApp-016 Repository providers 🚧]
     T43[VinylApp-043 Feature providers]
     T08[VinylApp-008 Theme]
     T18[VinylApp-018 Collection]
