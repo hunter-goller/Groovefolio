@@ -16,8 +16,9 @@ to you.
 
 > **Project status:** Pre-alpha. AlbumRepository, ArtistRepository, and
 > PlayRepository are merged. VinylApp-040 advances the Drift schema to v2 with
-> NFC tag mappings. All user-facing screens are still placeholders. VinylApp-018
-> contains an unmerged Collection UI prototype using fake data and local state.
+> NFC tag mappings, and the VinylApp-041 change set adds NfcTagRepository. All
+> user-facing screens are still placeholders. VinylApp-018 contains an unmerged
+> Collection UI prototype using fake data and local state.
 
 ## Current progress
 
@@ -36,8 +37,8 @@ to you.
 | AlbumRepository + provider | Complete — VinylApp-013 |
 | ArtistRepository + provider | Complete — VinylApp-014 |
 | PlayRepository + provider | Complete — VinylApp-015 |
-| NFC tag schema + v1→v2 migration | In progress — VinylApp-040 |
-| NfcTagRepository | Next — VinylApp-041 |
+| NFC tag schema + v1→v2 migration | Complete — VinylApp-040 |
+| NfcTagRepository + provider | In progress — VinylApp-041 |
 | Repository provider completion | Planned — VinylApp-016 |
 | PlayLoggingService | Planned — VinylApp-017 |
 | Feature-level collection providers | Planned — VinylApp-043 |
@@ -105,11 +106,13 @@ flowchart TD
     ARP[albumRepositoryProvider]
     AIP[artistRepositoryProvider]
     PRP[playRepositoryProvider]
+    NRP[nfcTagRepositoryProvider]
     GR[GoRouter]
     Screens[Placeholder screens]
     AR[AlbumRepository]
     AIR[ArtistRepository]
     PR[PlayRepository]
+    NR[NfcTagRepository]
     DB[AppDatabase]
     Artists[Artists]
     Albums[Albums]
@@ -128,9 +131,12 @@ flowchart TD
     AIP --> AIR
     PRP --> DP
     PRP --> PR
+    NRP --> DP
+    NRP --> NR
     AR --> DB
     AIR --> DB
     PR --> DB
+    NR --> DB
     DP --> DB
     DB --> Artists
     DB --> Albums
@@ -161,9 +167,9 @@ flowchart TD
     D --> Q
 ```
 
-`AlbumRepository`, `ArtistRepository`, and `PlayRepository` are implemented.
-Services and feature providers such as `albumsProvider` and
-`collectionFiltersProvider` are still planned.
+`AlbumRepository`, `ArtistRepository`, `PlayRepository`, and the VinylApp-041
+`NfcTagRepository` change set are implemented. Services and feature providers
+such as `albumsProvider` and `collectionFiltersProvider` are still planned.
 
 Read the [architecture overview](docs/architecture/overview.md).
 
@@ -179,7 +185,7 @@ vinyl-app/
 │   ├── db/                  # Drift DB, migrations, Artists/Albums/Plays/NFC schema
 │   ├── features/            # Placeholder route-level screens
 │   ├── providers/           # Future shared feature providers
-│   ├── repositories/        # AlbumRepository + ArtistRepository + PlayRepository
+│   ├── repositories/        # Album/Artist/Play/NFC repositories
 │   ├── routing/             # Route constants and GoRouter provider
 │   ├── services/            # Future business workflows
 │   ├── theme/               # Empty scaffold; VinylApp-008 deferred

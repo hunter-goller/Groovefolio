@@ -1,7 +1,7 @@
 # Current Implementation Status
 
-This page summarizes the post-VinylApp-015 baseline plus the VinylApp-040
-schema work in the current change set.
+This page summarizes the post-VinylApp-015 baseline plus the VinylApp-040 schema
+and VinylApp-041 NFC repository work in the current change set.
 
 ## Implemented
 
@@ -35,8 +35,8 @@ VinylApp-068 will own explicit startup/bootstrap initialization.
 - Explicit v1 → v2 upgrade that creates `nfc_tags`
 - Migration coverage for fresh v2 creation and v1 → v2 Artist/Album/Play data preservation
 
-Before VinylApp-040 is merged, generate and commit `drift_schema_v2.json` with
-Drift's schema-dump command.
+`drift_schemas/drift_schema_v2.json` is the committed schema snapshot for the
+VinylApp-040 v2 baseline.
 
 ### Repository layer
 
@@ -48,7 +48,10 @@ Drift's schema-dump command.
 - Play counts and SQL-level recently-played aggregation
 - Repository creation APIs own generated IDs, creation timestamps, and Drift
   companions so callers do not need to construct persistence objects
-- In-memory repository tests for Album, Artist, and Play behavior
+- VinylApp-041 change set — `INfcTagRepository` / `NfcTagRepository`
+- NFC tag creation, lookup by physical tag ID, lookup by album, and deletion
+- Missing NFC-tag lookups return null rather than throwing
+- In-memory repository tests for Album, Artist, Play, and NFC behavior
 
 ### Current providers
 
@@ -57,9 +60,10 @@ Drift's schema-dump command.
 - `albumRepositoryProvider`
 - `artistRepositoryProvider`
 - `playRepositoryProvider`
+- `nfcTagRepositoryProvider`
 
-VinylApp-041 will add the NFC repository/provider. VinylApp-016 then completes
-and standardizes the repository-provider layer with override coverage.
+VinylApp-016 then completes and standardizes the repository-provider layer with
+override coverage.
 
 ### Current screens
 
@@ -76,7 +80,6 @@ The six routes resolve, but each user-facing screen is still a placeholder:
 
 ## Not implemented yet
 
-- VinylApp-041 — NfcTagRepository
 - VinylApp-016 repository-provider completion/override test
 - Theme and design tokens
 - PlayLoggingService
@@ -122,7 +125,7 @@ flowchart TD
     P14[014 ArtistRepository ✅]
     P15[015 PlayRepository ✅]
     P40[040 NFC schema / v2 🚧]
-    P41[041 NfcTagRepository]
+    P41[041 NfcTagRepository 🚧]
     P16[016 Repository providers]
     P43[043 Feature providers]
     P08[008 Theme]

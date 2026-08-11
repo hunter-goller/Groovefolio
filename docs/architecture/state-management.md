@@ -41,16 +41,26 @@ Generated from the annotated `playRepository()` function introduced by
 VinylApp-015. It watches `databaseProvider`, constructs `PlayRepository`, and
 exposes it as `IPlayRepository`.
 
+### `nfcTagRepositoryProvider`
+
+Generated from the annotated `nfcTagRepository()` function introduced by the
+VinylApp-041 change set. It watches `databaseProvider`, constructs
+`NfcTagRepository`, and exposes it as `INfcTagRepository`.
+
 No service or feature-state providers are implemented yet.
 
 ## Repository-provider roadmap — VinylApp-016
 
-VinylApp-016 completes and standardizes the repository provider layer. The remaining planned repository provider is:
+VinylApp-016 completes and standardizes the repository provider layer. All four
+repository providers are introduced by their repository tickets:
 
+- `albumRepositoryProvider`
+- `artistRepositoryProvider`
+- `playRepositoryProvider`
 - `nfcTagRepositoryProvider`
 
-`albumRepositoryProvider`, `artistRepositoryProvider`, and
-`playRepositoryProvider` already exist and should not be duplicated.
+VinylApp-016 should not duplicate them; it standardizes naming/lifetimes and adds
+provider-override coverage.
 
 Repository providers must remain overrideable in tests. UI and feature providers
 should not read Drift directly.

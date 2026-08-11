@@ -2,10 +2,10 @@
 
 ## Status
 
-The repository layer includes the core Album, Artist, and Play persistence
+The repository layer includes Album, Artist, Play, and NFC-tag persistence
 boundaries. VinylApp-013 introduced AlbumRepository, VinylApp-014 added
-ArtistRepository, and VinylApp-015 added PlayRepository. VinylApp-041 will add
-the NFC repository after the VinylApp-040 schema is in place.
+ArtistRepository, VinylApp-015 added PlayRepository, and the VinylApp-041 change
+set adds NfcTagRepository on top of the VinylApp-040 NFC schema.
 
 ## Purpose
 
@@ -83,6 +83,20 @@ SQL `GROUP BY` plus `MAX(playedAt)` and applies the limit before loading the
 matching Album rows, so it does not load the entire play-history table into
 Dart.
 
+### NfcTagRepository
+
+`INfcTagRepository` exposes:
+
+- `create(albumId:, nfcTagId:, writtenAt:)`
+- `findByTagId(String nfcTagId)`
+- `findByAlbum(String albumId)`
+- `delete(String id)`
+
+`create()` owns the association ID, UTC write timestamp, and
+`NfcTagsCompanion` construction. `findByTagId()` and `findByAlbum()` return null
+when no association exists. VinylApp-040 enforces the one-album/one-tag rule at
+the database level.
+
 ## Repository providers
 
 The current repository providers are:
@@ -91,10 +105,11 @@ The current repository providers are:
 albumRepositoryProvider
 artistRepositoryProvider
 playRepositoryProvider
+nfcTagRepositoryProvider
 ```
 
-VinylApp-041 adds `nfcTagRepositoryProvider`. VinylApp-016 then standardizes the
-four repository dependencies and verifies they can be overridden through a
+VinylApp-041 introduces `nfcTagRepositoryProvider`. VinylApp-016 then standardizes
+the four repository dependencies and verifies they can be overridden through a
 `ProviderContainer` without direct Drift access from feature providers.
 
 ## Ordering

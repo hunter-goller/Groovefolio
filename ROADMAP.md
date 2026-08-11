@@ -34,8 +34,8 @@ Complete these in order:
 1. ✅ VinylApp-013 — AlbumRepository
 2. ✅ VinylApp-014 — ArtistRepository
 3. ✅ VinylApp-015 — PlayRepository
-4. 🚧 VinylApp-040 — NFC tag table + schema v2 migration
-5. ⬜ VinylApp-041 — NfcTagRepository
+4. ✅ VinylApp-040 — NFC tag table + schema v2 migration
+5. 🚧 VinylApp-041 — NfcTagRepository
 6. ⬜ VinylApp-016 — Complete repository-provider layer
 7. ⬜ VinylApp-017 — PlayLoggingService
 
@@ -121,8 +121,8 @@ After the prerequisites above:
 
 ## 8. NFC
 
-- 🚧 VinylApp-040 — NFC schema + v2 migration
-- ⬜ VinylApp-041 — NfcTagRepository
+- ✅ VinylApp-040 — NFC schema + v2 migration
+- 🚧 VinylApp-041 — NfcTagRepository
 - ⬜ NFC capability detection and permission handling
 - ⬜ Associate a tag with an album
 - ⬜ Scan a tag and resolve its album
