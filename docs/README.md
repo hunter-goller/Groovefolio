@@ -68,11 +68,11 @@ The current documented baseline includes:
 
 - VinylApp-001 through 007 complete.
 - VinylApp-008 deferred.
-- VinylApp-009 through 014 complete.
+- VinylApp-009 through 015 complete.
 - Artists, Albums, and Plays in Drift.
 - Initial v1 migration and committed Drift schema snapshot.
-- `AlbumRepository`, `ArtistRepository`, and their Riverpod providers implemented.
-- VinylApp-015 is the next repository task.
+- `AlbumRepository`, `ArtistRepository`, `PlayRepository`, and their Riverpod providers implemented.
+- VinylApp-016 is the next core data-layer task.
 - All user-facing feature screens remain placeholders.
 - VinylApp-018 remains an unmerged fake-data prototype and is on hold.
 

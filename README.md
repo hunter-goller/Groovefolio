@@ -15,7 +15,7 @@ forgotten, how your listening changes over time, and which records matter most
 to you.
 
 > **Project status:** Pre-alpha. The core Drift schema, v1 migration workflow,
-> AlbumRepository, and ArtistRepository are implemented. All user-facing screens are
+> AlbumRepository, ArtistRepository, and PlayRepository are implemented. All user-facing screens are
 > still placeholders. VinylApp-018 contains an unmerged Collection UI prototype that
 > uses fake data and local state; it is not part of the current application.
 
@@ -35,8 +35,8 @@ to you.
 | v1 migration and Drift schema snapshot | Complete — VinylApp-012 |
 | AlbumRepository + provider | Complete — VinylApp-013 |
 | ArtistRepository + provider | Complete — VinylApp-014 |
-| PlayRepository | Next — VinylApp-015 |
-| Remaining repository providers | Planned — VinylApp-016 |
+| PlayRepository + provider | Complete — VinylApp-015 |
+| Remaining repository providers | Next — VinylApp-016 |
 | PlayLoggingService | Planned — VinylApp-017 |
 | Feature-level collection providers | Planned — VinylApp-043 |
 | Theme and design tokens | Deferred — VinylApp-008 |
@@ -102,10 +102,12 @@ flowchart TD
     DP[databaseProvider]
     ARP[albumRepositoryProvider]
     AIP[artistRepositoryProvider]
+    PRP[playRepositoryProvider]
     GR[GoRouter]
     Screens[Placeholder screens]
     AR[AlbumRepository]
     AIR[ArtistRepository]
+    PR[PlayRepository]
     DB[AppDatabase]
     Artists[Artists]
     Albums[Albums]
@@ -121,8 +123,11 @@ flowchart TD
     ARP --> AR
     AIP --> DP
     AIP --> AIR
+    PRP --> DP
+    PRP --> PR
     AR --> DB
     AIR --> DB
+    PR --> DB
     DP --> DB
     DB --> Artists
     DB --> Albums
@@ -152,8 +157,8 @@ flowchart TD
     D --> Q
 ```
 
-`AlbumRepository` and `ArtistRepository` are implemented. PlayRepository,
-services, and feature providers such as `albumsProvider` and
+`AlbumRepository`, `ArtistRepository`, and `PlayRepository` are implemented.
+Services and feature providers such as `albumsProvider` and
 `collectionFiltersProvider` are still planned.
 
 Read the [architecture overview](docs/architecture/overview.md).
@@ -170,7 +175,7 @@ vinyl-app/
 │   ├── db/                  # Drift DB, migrations, Artists/Albums/Plays schema
 │   ├── features/            # Placeholder route-level screens
 │   ├── providers/           # Future shared feature providers
-│   ├── repositories/        # AlbumRepository + ArtistRepository
+│   ├── repositories/        # AlbumRepository + ArtistRepository + PlayRepository
 │   ├── routing/             # Route constants and GoRouter provider
 │   ├── services/            # Future business workflows
 │   ├── theme/               # Empty scaffold; VinylApp-008 deferred

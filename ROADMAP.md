@@ -33,14 +33,15 @@ Complete these in order:
 
 1. ✅ VinylApp-013 — AlbumRepository
 2. ✅ VinylApp-014 — ArtistRepository
-3. 🚧 VinylApp-015 — PlayRepository
-4. ⬜ VinylApp-016 — Complete repository-provider layer
+3. ✅ VinylApp-015 — PlayRepository
+4. 🚧 VinylApp-016 — Complete repository-provider layer
 5. ⬜ VinylApp-017 — PlayLoggingService
 
-VinylApp-013 introduces `albumRepositoryProvider`, and VinylApp-014 introduces
-`artistRepositoryProvider`. VinylApp-016 remains responsible for completing and
-standardizing the repository provider layer, including Play and future NFC
-repository providers.
+VinylApp-013 introduces `albumRepositoryProvider`, VinylApp-014 introduces
+`artistRepositoryProvider`, and VinylApp-015 introduces `playRepositoryProvider`.
+VinylApp-016 remains responsible for completing and standardizing the repository
+provider layer, including the future NFC repository provider and provider override
+coverage.
 
 VinylApp-017 is required for the play-logging workflow. It is not the direct
 provider dependency used by the read-only Collection screen, but it remains part
@@ -129,7 +130,7 @@ After the prerequisites above:
 
 - ⬜ VinylApp-033 — Test framework setup
 - ⬜ VinylApp-034 — AlbumRepository unit-test follow-up card (013 already includes baseline repository coverage)
-- ⬜ VinylApp-035 — PlayRepository unit tests
+- ⬜ VinylApp-035 — PlayRepository unit-test hardening (015 includes baseline repository coverage)
 - ⬜ VinylApp-036 — PlayLoggingService unit tests
 - ⬜ Widget tests for primary states
 - ⬜ Integration tests for core user flows
