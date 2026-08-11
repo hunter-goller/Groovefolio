@@ -1,7 +1,7 @@
 # Current Implementation Status
 
-This page summarizes the implementation state represented by the VinylApp-015
-change set. Once the pull request is merged, it describes `main`.
+This page summarizes the post-VinylApp-015 baseline plus the VinylApp-040
+schema work in the current change set.
 
 ## Implemented
 
@@ -15,6 +15,11 @@ change set. Once the pull request is merged, it describes `main`.
 - VinylApp-006 — Riverpod foundation
 - VinylApp-007 — Drift and SQLite setup
 
+`databaseProvider` is created at the application root, but the production
+connection is backed by `LazyDatabase`. Constructing the provider does not by
+itself guarantee that SQLite has opened or migrations have completed.
+VinylApp-068 will own explicit startup/bootstrap initialization.
+
 ### Database
 
 - VinylApp-009 — Albums table
@@ -23,28 +28,27 @@ change set. Once the pull request is merged, it describes `main`.
 - `SidePlayed` persistence with `full`, `sideA`, and `sideB`
 - Foreign-key enforcement from `Albums.artistId` to `Artists.id`
 - Foreign-key enforcement from `Plays.albumId` to `Albums.id`
-- VinylApp-012 — v1 migration and schema version constants
+- VinylApp-012 — immutable v1 baseline and schema snapshot
 - `drift_schemas/drift_schema_v1.json`
-- In-memory database, table, and empty → v1 migration tests
+- VinylApp-040 change set — `NfcTags` table and schema version 2
+- One-to-one Album ↔ NFC tag mapping enforced by unique `albumId` and `nfcTagId`
+- Explicit v1 → v2 upgrade that creates `nfc_tags`
+- Migration coverage for fresh v2 creation and v1 → v2 Artist/Album/Play data preservation
+
+Before VinylApp-040 is merged, generate and commit `drift_schema_v2.json` with
+Drift's schema-dump command.
 
 ### Repository layer
 
-- VinylApp-013 — `IAlbumRepository`
-- Drift-backed `AlbumRepository`
-- `findAll()`
-- `findById()`
-- `create()`
-- `update()`
-- `delete()`
-- `search(query)` across album title and artist name, case-insensitive
-- In-memory repository tests for every AlbumRepository operation
-- VinylApp-014 — `IArtistRepository`
-- Drift-backed `ArtistRepository`
-- `findOrCreate(name)` with case-insensitive, idempotent deduplication
-- `findById()`
-- `findAll()`
-- In-memory ArtistRepository tests covering creation, lookup, listing, and
-  deduplication
+- VinylApp-013 — `IAlbumRepository` / `AlbumRepository`
+- VinylApp-014 — `IArtistRepository` / `ArtistRepository`
+- VinylApp-015 — `IPlayRepository` / `PlayRepository`
+- Album search across album title and artist name, case-insensitive
+- Artist `findOrCreate(name)` with case-insensitive deduplication
+- Play counts and SQL-level recently-played aggregation
+- Repository creation APIs own generated IDs, creation timestamps, and Drift
+  companions so callers do not need to construct persistence objects
+- In-memory repository tests for Album, Artist, and Play behavior
 
 ### Current providers
 
@@ -52,10 +56,10 @@ change set. Once the pull request is merged, it describes `main`.
 - `databaseProvider`
 - `albumRepositoryProvider`
 - `artistRepositoryProvider`
+- `playRepositoryProvider`
 
-The Album, Artist, and Play repository providers are introduced with
-VinylApp-013 through VinylApp-015. VinylApp-016 still completes and standardizes
-the remaining repository-provider layer.
+VinylApp-041 will add the NFC repository/provider. VinylApp-016 then completes
+and standardizes the repository-provider layer with override coverage.
 
 ### Current screens
 
@@ -72,8 +76,9 @@ The six routes resolve, but each user-facing screen is still a placeholder:
 
 ## Not implemented yet
 
+- VinylApp-041 — NfcTagRepository
+- VinylApp-016 repository-provider completion/override test
 - Theme and design tokens
-- Remaining repository providers
 - PlayLoggingService
 - `albumsProvider`
 - `collectionFiltersProvider`
@@ -113,28 +118,26 @@ README, changelog, architecture diagrams, or feature status tables.
 
 ```mermaid
 flowchart TD
-    P11[011 Plays table ✅]
-    P12[012 Initial migration ✅]
     P13[013 AlbumRepository ✅]
     P14[014 ArtistRepository ✅]
     P15[015 PlayRepository ✅]
+    P40[040 NFC schema / v2 🚧]
+    P41[041 NfcTagRepository]
     P16[016 Repository providers]
     P43[043 Feature providers]
     P08[008 Theme]
     P18[018 Collection Screen]
 
-    P11 --> P12
-    P12 --> P13
-    P12 --> P14
-    P12 --> P15
     P13 --> P16
     P14 --> P16
     P15 --> P16
+    P40 --> P41
+    P41 --> P16
     P16 --> P43
     P43 --> P18
     P08 --> P18
 ```
 
 VinylApp-017 remains part of the ordered data-layer work because real play
-logging depends on `PlayLoggingService`, but VinylApp-043 is the direct provider
-prerequisite for the read-only Collection screen.
+logging depends on `PlayLoggingService`, while VinylApp-043 is the direct
+provider prerequisite for the read-only Collection screen.

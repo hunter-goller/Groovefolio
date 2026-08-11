@@ -2,12 +2,20 @@ import 'package:drift/drift.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/db/database_provider.dart';
+import 'package:vinyl_app/types/side_played.dart';
+import 'package:vinyl_app/utils/id_generator.dart';
 
 part 'play_repository.g.dart';
 
 /// Contract for play-history persistence and play-derived collection queries.
 abstract interface class IPlayRepository {
-  Future<int> create(PlaysCompanion play);
+  /// Creates a play while keeping generated IDs, timestamps, and Drift
+  /// companion construction inside the repository boundary.
+  Future<Play> create({
+    required String albumId,
+    required DateTime playedAt,
+    required SidePlayed sidePlayed,
+  });
 
   /// Returns plays for [albumId], newest first.
   Future<List<Play>> findByAlbum(String albumId);
@@ -19,11 +27,6 @@ abstract interface class IPlayRepository {
   Future<int> getPlayCountByAlbum(String albumId);
 
   /// Returns distinct albums ordered by the date of their most recent play.
-  ///
-  /// TODO(VinylApp-Performance): This currently loads all plays and performs
-  /// distinct-album selection in Dart. This is acceptable for the expected
-  /// local dataset size, but could be moved to a SQL GROUP BY / MAX query if
-  /// play history grows enough for this to become a measurable bottleneck.
   Future<List<Album>> getRecentlyPlayed(int limit);
 }
 
@@ -34,8 +37,29 @@ class PlayRepository implements IPlayRepository {
   final AppDatabase _db;
 
   @override
-  Future<int> create(PlaysCompanion play) {
-    return _db.into(_db.plays).insert(play);
+  Future<Play> create({
+    required String albumId,
+    required DateTime playedAt,
+    required SidePlayed sidePlayed,
+  }) {
+    final normalizedAlbumId = albumId.trim();
+    if (normalizedAlbumId.isEmpty) {
+      throw ArgumentError.value(
+        albumId,
+        'albumId',
+        'Album ID cannot be empty.',
+      );
+    }
+
+    final companion = PlaysCompanion.insert(
+      id: generateId('play'),
+      albumId: normalizedAlbumId,
+      playedAt: playedAt.toUtc().toIso8601String(),
+      sidePlayed: sidePlayed,
+      createdAt: DateTime.now().toUtc().toIso8601String(),
+    );
+
+    return _db.into(_db.plays).insertReturning(companion);
   }
 
   @override

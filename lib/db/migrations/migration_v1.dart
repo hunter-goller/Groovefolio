@@ -1,10 +1,41 @@
 import 'package:drift/drift.dart';
 
-/// Creates the complete schema for a brand-new v1 database.
+/// Creates exactly the historical v1 schema.
 ///
-/// Version 1 contains the artists, albums, and plays tables registered on
-/// AppDatabase. Future schema upgrades should be added as separate migration
-/// steps rather than changing this function after v1 has shipped.
+/// VinylApp-012 froze v1 as Artists + Albums + Plays. Keep these statements
+/// stable even as newer tables are added to [AppDatabase]. Fresh installs at a
+/// newer schema version may call this helper and then apply later creation
+/// steps explicitly.
 Future<void> migrateToV1(Migrator migrator) async {
-  await migrator.createAll();
+  await migrator.database.customStatement('''
+    CREATE TABLE artists (
+      id TEXT NOT NULL PRIMARY KEY,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )
+  ''');
+
+  await migrator.database.customStatement('''
+    CREATE TABLE albums (
+      id TEXT NOT NULL PRIMARY KEY,
+      title TEXT NOT NULL,
+      artist_id TEXT NOT NULL REFERENCES artists(id),
+      release_year INTEGER NULL,
+      label TEXT NULL,
+      artwork_path TEXT NULL,
+      purchase_date TEXT NULL,
+      purchase_price_cents INTEGER NULL,
+      created_at TEXT NOT NULL
+    )
+  ''');
+
+  await migrator.database.customStatement('''
+    CREATE TABLE plays (
+      id TEXT NOT NULL PRIMARY KEY,
+      album_id TEXT NOT NULL REFERENCES albums(id),
+      played_at TEXT NOT NULL,
+      side_played TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )
+  ''');
 }

@@ -34,14 +34,16 @@ Complete these in order:
 1. ✅ VinylApp-013 — AlbumRepository
 2. ✅ VinylApp-014 — ArtistRepository
 3. ✅ VinylApp-015 — PlayRepository
-4. 🚧 VinylApp-016 — Complete repository-provider layer
-5. ⬜ VinylApp-017 — PlayLoggingService
+4. 🚧 VinylApp-040 — NFC tag table + schema v2 migration
+5. ⬜ VinylApp-041 — NfcTagRepository
+6. ⬜ VinylApp-016 — Complete repository-provider layer
+7. ⬜ VinylApp-017 — PlayLoggingService
 
 VinylApp-013 introduces `albumRepositoryProvider`, VinylApp-014 introduces
 `artistRepositoryProvider`, and VinylApp-015 introduces `playRepositoryProvider`.
-VinylApp-016 remains responsible for completing and standardizing the repository
-provider layer, including the future NFC repository provider and provider override
-coverage.
+VinylApp-040 and 041 complete the NFC persistence dependency needed by 016.
+VinylApp-016 then standardizes all four repository providers and adds provider
+override coverage.
 
 VinylApp-017 is required for the play-logging workflow. It is not the direct
 provider dependency used by the read-only Collection screen, but it remains part
@@ -119,7 +121,8 @@ After the prerequisites above:
 
 ## 8. NFC
 
-- ⬜ NFC schema and repository
+- 🚧 VinylApp-040 — NFC schema + v2 migration
+- ⬜ VinylApp-041 — NfcTagRepository
 - ⬜ NFC capability detection and permission handling
 - ⬜ Associate a tag with an album
 - ⬜ Scan a tag and resolve its album

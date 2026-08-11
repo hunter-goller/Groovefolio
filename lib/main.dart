@@ -12,10 +12,10 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Forces the database connection to open as soon as the app boots —
-    // satisfies VinylApp-007's "app opens database on launch" criterion.
-    // Unused directly here yet, but this is what makes it eager instead
-    // of lazily opening on whatever screen first happens to query it.
+    // Keep the AppDatabase provider owned by the root ProviderScope. The
+    // production executor is a LazyDatabase, so this constructs the database
+    // object but does not guarantee SQLite has opened or migrations completed.
+    // Explicit startup initialization belongs to the later splash/bootstrap flow.
     ref.watch(databaseProvider);
 
     final router = ref.watch(routerProvider);

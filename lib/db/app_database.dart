@@ -8,12 +8,13 @@ import 'package:vinyl_app/db/migrations/migration_v1.dart';
 import 'package:vinyl_app/db/migrations/schema_versions.dart';
 import 'package:vinyl_app/db/schema/albums.dart';
 import 'package:vinyl_app/db/schema/artists.dart';
+import 'package:vinyl_app/db/schema/nfc_tags.dart';
 import 'package:vinyl_app/db/schema/plays.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [Albums, Artists, Plays])
+@DriftDatabase(tables: [Albums, Artists, Plays, NfcTags])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
@@ -23,11 +24,20 @@ class AppDatabase extends _$AppDatabase {
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
-      onCreate: migrateToV1,
+      // Preserve the frozen v1 baseline, then create schema additions for the
+      // current version explicitly.
+      onCreate: (migrator) async {
+        await migrateToV1(migrator);
+        await migrator.createTable(nfcTags);
+      },
+      onUpgrade: (migrator, from, to) async {
+        if (from < SchemaVersions.v2 && to >= SchemaVersions.v2) {
+          await migrator.createTable(nfcTags);
+        }
+      },
       beforeOpen: (details) async {
         // SQLite foreign-key enforcement is connection-local and disabled by
-        // default. Enable it so albums.artistId and plays.albumId are real
-        // constraints at runtime.
+        // default. Enable it so all declared relationships are enforced.
         await customStatement('PRAGMA foreign_keys = ON');
       },
     );
