@@ -14,10 +14,10 @@ show **how your records fit into your life**: what you return to, what you have
 forgotten, how your listening changes over time, and which records matter most
 to you.
 
-> **Project status:** Pre-alpha. The core Drift schema, v1 migration workflow,
-> AlbumRepository, ArtistRepository, and PlayRepository are implemented. All user-facing screens are
-> still placeholders. VinylApp-018 contains an unmerged Collection UI prototype that
-> uses fake data and local state; it is not part of the current application.
+> **Project status:** Pre-alpha. AlbumRepository, ArtistRepository, and
+> PlayRepository are merged. VinylApp-040 advances the Drift schema to v2 with
+> NFC tag mappings. All user-facing screens are still placeholders. VinylApp-018
+> contains an unmerged Collection UI prototype using fake data and local state.
 
 ## Current progress
 
@@ -36,7 +36,9 @@ to you.
 | AlbumRepository + provider | Complete — VinylApp-013 |
 | ArtistRepository + provider | Complete — VinylApp-014 |
 | PlayRepository + provider | Complete — VinylApp-015 |
-| Remaining repository providers | Next — VinylApp-016 |
+| NFC tag schema + v1→v2 migration | In progress — VinylApp-040 |
+| NfcTagRepository | Next — VinylApp-041 |
+| Repository provider completion | Planned — VinylApp-016 |
 | PlayLoggingService | Planned — VinylApp-017 |
 | Feature-level collection providers | Planned — VinylApp-043 |
 | Theme and design tokens | Deferred — VinylApp-008 |
@@ -112,6 +114,7 @@ flowchart TD
     Artists[Artists]
     Albums[Albums]
     Plays[Plays]
+    NfcTags[NfcTags — VinylApp-040]
     SQLite[(SQLite)]
 
     M --> PS
@@ -132,6 +135,7 @@ flowchart TD
     DB --> Artists
     DB --> Albums
     DB --> Plays
+    DB --> NfcTags
     DB --> SQLite
 ```
 
@@ -172,7 +176,7 @@ vinyl-app/
 ├── design/                  # Visual assets and future diagrams
 ├── drift_schemas/           # Versioned Drift schema snapshots
 ├── lib/
-│   ├── db/                  # Drift DB, migrations, Artists/Albums/Plays schema
+│   ├── db/                  # Drift DB, migrations, Artists/Albums/Plays/NFC schema
 │   ├── features/            # Placeholder route-level screens
 │   ├── providers/           # Future shared feature providers
 │   ├── repositories/        # AlbumRepository + ArtistRepository + PlayRepository
@@ -234,18 +238,16 @@ See the [development setup guide](docs/development/setup.md).
 
 ## Database migration workflow
 
-The v1 schema contains Artists, Albums, and Plays. `AppDatabase` uses
-`SchemaVersions.current`, and a fresh database is created through
-`migrateToV1()`.
+The immutable v1 baseline contains Artists, Albums, and Plays. VinylApp-040
+advances the current schema to v2 by adding `NfcTags` through an explicit
+v1 → v2 migration. Fresh installs create the current schema directly.
 
-The committed schema snapshot lives at:
+`drift_schema_v1.json` remains the historical v1 snapshot. Before merging a
+schema-version change, regenerate code and export the new versioned snapshot:
 
-```text
-drift_schemas/drift_schema_v1.json
+```bash
+dart run drift_dev schema dump lib/db/app_database.dart drift_schemas/
 ```
-
-When the Drift schema changes, regenerate code and export the appropriate schema
-snapshot before merging.
 
 ## Continuous integration
 

@@ -27,9 +27,13 @@ simple query.
 
 `test/db/migration_test.dart` verifies:
 
-- an empty database creates Artists, Albums, and Plays;
+- a fresh database creates Artists, Albums, Plays, and NfcTags at schema v2;
 - generated table accessors can query the created schema;
-- `PRAGMA user_version` is set to v1.
+- `PRAGMA user_version` is set to v2;
+- a historical v1 database upgrades to v2 while preserving Artist, Album, and Play rows;
+- NFC tag IDs are unique and each Album can have at most one tag;
+- NFC tag foreign keys reject missing Albums;
+- a tag resolves to its Album with one joined query.
 
 ### AlbumRepository tests
 

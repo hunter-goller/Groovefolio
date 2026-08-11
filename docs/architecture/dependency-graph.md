@@ -38,7 +38,7 @@ flowchart TD
 - Drift code must not import feature UI.
 - Shared layers must not depend on one feature's presentation code.
 
-## Current graph after VinylApp-015
+## Current graph after VinylApp-015 / during VinylApp-040
 
 ```mermaid
 flowchart TD
@@ -54,7 +54,7 @@ flowchart TD
     ArtistRepo[ArtistRepository]
     PlayRepo[PlayRepository]
     Database[AppDatabase]
-    Tables[Artists + Albums + Plays]
+    Tables[Artists + Albums + Plays + NfcTags]
 
     Main --> RouterProvider
     Main --> DatabaseProvider
@@ -85,6 +85,8 @@ flowchart TD
     T13[VinylApp-013 AlbumRepository ✅]
     T14[VinylApp-014 ArtistRepository ✅]
     T15[VinylApp-015 PlayRepository ✅]
+    T40[VinylApp-040 NFC schema / v2 🚧]
+    T41[VinylApp-041 NfcTagRepository]
     T16[VinylApp-016 Repository providers]
     T43[VinylApp-043 Feature providers]
     T08[VinylApp-008 Theme]
@@ -97,6 +99,8 @@ flowchart TD
     T13 --> T16
     T14 --> T16
     T15 --> T16
+    T40 --> T41
+    T41 --> T16
     T16 --> T43
     T43 --> T18
     T08 --> T18

@@ -46,6 +46,8 @@ rather than stable public versions. The format is based on Keep a Changelog.
   `findByAlbum()`, `findAll()`, `deleteById()`, `getPlayCountByAlbum()`, and
   `getRecentlyPlayed(limit)`.
 - `playRepositoryProvider` for Riverpod dependency injection.
+- VinylApp-040 `NfcTags` table with unique NFC tag IDs and a unique Album foreign key, enforcing one registered tag per album.
+- Schema version 2 with an explicit v1 → v2 NFC-table migration and upgrade test.
 - In-memory PlayRepository tests covering persistence, per-album ordering,
   deletion, play counts, distinct recently played albums, limits, and
   `SidePlayed` enum round-trips.
@@ -74,6 +76,11 @@ rather than stable public versions. The format is based on Keep a Changelog.
   though VinylApp-013 through VinylApp-015 introduce the Album, Artist, and Play
   repository providers.
 
+- Repository creation APIs now keep generated IDs, timestamps, and Drift
+  companion construction inside AlbumRepository and PlayRepository.
+- Fresh databases create the current schema directly; the historical v1 helper
+  remains an immutable v1 definition.
+
 ### Fixed
 
 - Corrected album table tests to use Drift's generated `AlbumsCompanion` type.
@@ -82,6 +89,10 @@ rather than stable public versions. The format is based on Keep a Changelog.
   documentation and workflow guidance.
 - Corrected documentation that could otherwise imply the Collection prototype
   or shared widgets were already part of the application.
+- Removed the stale PlayRepository performance TODO after `getRecentlyPlayed()`
+  moved to SQL aggregation.
+- Corrected startup documentation to reflect the production `LazyDatabase`
+  connection behavior.
 
 ## Not included on `main`
 
