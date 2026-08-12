@@ -14,11 +14,11 @@ show **how your records fit into your life**: what you return to, what you have
 forgotten, how your listening changes over time, and which records matter most
 to you.
 
-> **Project status:** Pre-alpha. AlbumRepository, ArtistRepository, and
-> PlayRepository are merged. VinylApp-040 advances the Drift schema to v2 with
-> NFC tag mappings, and the VinylApp-041 change set adds NfcTagRepository. All
-> user-facing screens are still placeholders. VinylApp-018 contains an unmerged
-> Collection UI prototype using fake data and local state.
+> **Project status:** Pre-alpha. The four repository boundaries and repository
+> providers are implemented. VinylApp-017 adds PlayLoggingService as the first
+> business-workflow service. All user-facing screens are still placeholders.
+> VinylApp-018 contains an unmerged Collection UI prototype using fake data and
+> local state.
 
 ## Current progress
 
@@ -39,8 +39,8 @@ to you.
 | PlayRepository + provider | Complete — VinylApp-015 |
 | NFC tag schema + v1→v2 migration | Complete — VinylApp-040 |
 | NfcTagRepository + provider | Complete — VinylApp-041 |
-| Repository provider completion | In progress — VinylApp-016 |
-| PlayLoggingService | Planned — VinylApp-017 |
+| Repository provider completion | Complete — VinylApp-016 |
+| PlayLoggingService | Complete — VinylApp-017 |
 | Feature-level collection providers | Planned — VinylApp-043 |
 | Theme and design tokens | Deferred — VinylApp-008 |
 | Collection screen | On hold — VinylApp-018 |
@@ -167,8 +167,9 @@ flowchart TD
     D --> Q
 ```
 
-`AlbumRepository`, `ArtistRepository`, `PlayRepository`, and the VinylApp-041
-`NfcTagRepository` change set are implemented. Services and feature providers
+`AlbumRepository`, `ArtistRepository`, `PlayRepository`, and `NfcTagRepository`
+are implemented and exposed through the repository-provider layer.
+`PlayLoggingService` is the first business-workflow service. Feature providers
 such as `albumsProvider` and `collectionFiltersProvider` are still planned.
 
 Read the [architecture overview](docs/architecture/overview.md).
@@ -187,7 +188,7 @@ vinyl-app/
 │   ├── providers/           # Future shared feature providers
 │   ├── repositories/        # Album/Artist/Play/NFC repositories
 │   ├── routing/             # Route constants and GoRouter provider
-│   ├── services/            # Future business workflows
+│   ├── services/            # Business workflows such as PlayLoggingService
 │   ├── theme/               # Empty scaffold; VinylApp-008 deferred
 │   ├── types/               # Shared persistence/domain enums such as SidePlayed
 │   ├── utils/               # Empty scaffold

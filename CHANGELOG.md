@@ -9,6 +9,21 @@ rather than stable public versions. The format is based on Keep a Changelog.
 
 ### Added
 
+- VinylApp-017 PlayLoggingService with album validation and a generated
+  `playLoggingServiceProvider`.
+- Fake-repository service tests covering exactly-one-play creation, immediate
+  play-count visibility through the overridden repository provider, missing
+  albums, and blank album IDs.
+
+### Architecture
+
+- Play logging now flows through a business service that depends only on
+  repository interfaces; it does not construct Drift companions or query Drift.
+- Last-played state remains derived from Play history, and future NFC scan flows
+  can resolve an album before invoking the same service.
+
+### Added
+
 - Flutter application scaffold and cross-platform runner projects.
 - Strict Dart analyzer and lint configuration.
 - GitHub pull-request template and protected-branch workflow.

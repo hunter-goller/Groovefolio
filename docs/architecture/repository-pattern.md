@@ -114,6 +114,14 @@ surface for these dependencies and verifies all four can be overridden through a
 and feature/service code should depend on the repository interfaces rather than
 querying Drift directly.
 
+## Service boundary after VinylApp-017
+
+`PlayLoggingService` depends on `IAlbumRepository` and `IPlayRepository`, not on
+Drift or repository implementations. It validates the target album, then calls
+`IPlayRepository.create()` exactly once. The service does not persist a separate
+`lastPlayedAt` field because current collection recency is derived from Plays.
+Future NFC input should resolve a tag to an album and then call the same service.
+
 ## Ordering
 
 Repository methods without an explicit ordering contract should not be assumed
