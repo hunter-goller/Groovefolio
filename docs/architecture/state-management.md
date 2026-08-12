@@ -47,7 +47,14 @@ Generated from the annotated `nfcTagRepository()` function introduced by the
 VinylApp-041 change set. It watches `databaseProvider`, constructs
 `NfcTagRepository`, and exposes it as `INfcTagRepository`.
 
-No service or feature-state providers are implemented yet.
+### `playLoggingServiceProvider`
+
+Generated from the annotated `playLoggingService()` function introduced by
+VinylApp-017. It watches `albumRepositoryProvider` and `playRepositoryProvider`
+and constructs `PlayLoggingService`. Repository overrides therefore flow through
+to the service automatically in ProviderContainer tests.
+
+No feature-state providers are implemented yet.
 
 ## Repository-provider layer — VinylApp-016
 
@@ -124,8 +131,11 @@ final container = ProviderContainer(
 );
 ```
 
-VinylApp-016 verifies this capability for all four repository providers. Future
-service and feature providers must preserve the same override-friendly design.
+VinylApp-016 verifies this capability for all four repository providers.
+VinylApp-017 verifies that `playLoggingServiceProvider` consumes overridden fake
+repositories and that the same play repository immediately reports the newly
+logged play. Future feature providers must preserve the same override-friendly
+design.
 
 ## Rules
 

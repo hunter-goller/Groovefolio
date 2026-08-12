@@ -66,6 +66,16 @@ VinylApp-016 completes and standardizes the repository-provider layer with a
 central `repository_providers.dart` import surface and ProviderContainer override
 coverage for all four repository dependencies.
 
+### Current services
+
+- `PlayLoggingService` — VinylApp-017
+- `playLoggingServiceProvider`
+
+`PlayLoggingService.logPlay(albumId, playedAt, side)` validates that the album
+exists and creates exactly one Play through `IPlayRepository`. Last-played state
+is derived from the Plays table instead of being duplicated on Album rows. NFC
+scan flows can resolve a tag first and then use this same logging workflow.
+
 ### Current screens
 
 The six routes resolve, but each user-facing screen is still a placeholder:
@@ -82,7 +92,6 @@ The six routes resolve, but each user-facing screen is still a placeholder:
 ## Not implemented yet
 
 - Theme and design tokens
-- PlayLoggingService
 - `albumsProvider`
 - `collectionFiltersProvider`
 - `albumProvider(id)`
@@ -126,7 +135,8 @@ flowchart TD
     P15[015 PlayRepository ✅]
     P40[040 NFC schema / v2 🚧]
     P41[041 NfcTagRepository 🚧]
-    P16[016 Repository providers]
+    P16[016 Repository providers ✅]
+    P17[017 PlayLoggingService ✅]
     P43[043 Feature providers]
     P08[008 Theme]
     P18[018 Collection Screen]
@@ -136,11 +146,11 @@ flowchart TD
     P15 --> P16
     P40 --> P41
     P41 --> P16
-    P16 --> P43
+    P16 --> P17
+    P17 --> P43
     P43 --> P18
     P08 --> P18
 ```
 
-VinylApp-017 remains part of the ordered data-layer work because real play
-logging depends on `PlayLoggingService`, while VinylApp-043 is the direct
-provider prerequisite for the read-only Collection screen.
+VinylApp-017 now provides the play-logging workflow. VinylApp-043 remains the
+direct provider prerequisite for the read-only Collection screen.

@@ -38,7 +38,7 @@ flowchart TD
 - Drift code must not import feature UI.
 - Shared layers must not depend on one feature's presentation code.
 
-## Current graph through VinylApp-016
+## Current graph through VinylApp-017
 
 ```mermaid
 flowchart TD
@@ -50,6 +50,8 @@ flowchart TD
     PlayRepoProvider[playRepositoryProvider]
     NfcRepoProvider[nfcTagRepositoryProvider]
     RepositoryProviders[repository_providers.dart import surface]
+    PlayLoggingProvider[playLoggingServiceProvider]
+    PlayLoggingService[PlayLoggingService]
     Router[GoRouter]
     Placeholders[Placeholder screens]
     AlbumRepo[AlbumRepository]
@@ -75,6 +77,11 @@ flowchart TD
     RepositoryProviders --> ArtistRepoProvider
     RepositoryProviders --> PlayRepoProvider
     RepositoryProviders --> NfcRepoProvider
+    PlayLoggingProvider --> AlbumRepoProvider
+    PlayLoggingProvider --> PlayRepoProvider
+    PlayLoggingProvider --> PlayLoggingService
+    PlayLoggingService --> AlbumRepo
+    PlayLoggingService --> PlayRepo
     AlbumRepo --> Database
     ArtistRepo --> Database
     PlayRepo --> Database
@@ -84,9 +91,9 @@ flowchart TD
 ```
 
 The Album, Artist, Play, and NFC-tag repository boundaries now exist.
-VinylApp-016 provides a single import surface plus override coverage, but no
-feature screen consumes these repositories directly yet. Services and feature
-providers remain planned.
+VinylApp-016 provides a single import surface plus override coverage.
+VinylApp-017 adds PlayLoggingService and its provider; feature providers remain
+planned and no feature screen consumes repository/service state yet.
 
 ## Collection ticket dependency graph
 
@@ -99,7 +106,8 @@ flowchart TD
     T15[VinylApp-015 PlayRepository ✅]
     T40[VinylApp-040 NFC schema / v2 ✅]
     T41[VinylApp-041 NfcTagRepository ✅]
-    T16[VinylApp-016 Repository providers 🚧]
+    T16[VinylApp-016 Repository providers ✅]
+    T17[VinylApp-017 PlayLoggingService ✅]
     T43[VinylApp-043 Feature providers]
     T08[VinylApp-008 Theme]
     T18[VinylApp-018 Collection]
@@ -113,14 +121,14 @@ flowchart TD
     T15 --> T16
     T40 --> T41
     T41 --> T16
-    T16 --> T43
+    T16 --> T17
+    T17 --> T43
     T43 --> T18
     T08 --> T18
 ```
 
-VinylApp-017 is part of the core data-layer sequence and unlocks actual play
-logging. VinylApp-043 is the direct task that provides the state named in
-VinylApp-018.
+VinylApp-017 now unlocks the actual play-logging workflow. VinylApp-043 is the
+direct task that provides the state named in VinylApp-018.
 
 ## Prototype exception
 
