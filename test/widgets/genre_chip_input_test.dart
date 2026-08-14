@@ -148,6 +148,42 @@ void main() {
     expect(changeCount, 0);
   });
 
+  testWidgets('picker remains usable in compact keyboard-height layouts', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 520);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      buildSubject(
+        genres: const [],
+        suggestions: const [
+          'Art Rock',
+          'Disco',
+          'Electronic',
+          'Funk',
+          'Glam Rock',
+          'Hard Bop',
+          'Heartland Rock',
+          'Jazz',
+          'Modal Jazz',
+          'Progressive Rock',
+          'Soft Rock',
+        ],
+        onChanged: (_) {},
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('genre-add-chip')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('input wraps selected chips and add action in narrow layouts', (
     tester,
   ) async {
