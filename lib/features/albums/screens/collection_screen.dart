@@ -222,7 +222,7 @@ class _CollectionBody extends StatelessWidget {
                 artworkPath: album.album.artworkPath,
                 playCount: album.playCount,
                 lastPlayedAt: album.lastPlayedAt,
-                onTap: () => context.go(AppRoutes.albumDetailPath(album.id)),
+                onTap: () => context.push(AppRoutes.albumDetailPath(album.id)),
               ),
               SizedBox(height: tokens.space8),
             ],
@@ -230,7 +230,7 @@ class _CollectionBody extends StatelessWidget {
             PrimaryButton(
               label: 'Add record',
               icon: Icons.add_rounded,
-              onPressed: () => context.go(AppRoutes.addAlbum),
+              onPressed: () => context.push(AppRoutes.addAlbum),
             ),
           ] else if (hasSearch)
             EmptyState(
@@ -250,7 +250,7 @@ class _CollectionBody extends StatelessWidget {
               subtitle:
                   'Add your first record and Vinyl App will start building your listening history.',
               ctaLabel: 'Add your first record',
-              onCtaTap: () => context.go(AppRoutes.addAlbum),
+              onCtaTap: () => context.push(AppRoutes.addAlbum),
             ),
         ],
       ),

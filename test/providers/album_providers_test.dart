@@ -174,6 +174,47 @@ void main() {
       expect(album, kindOfBlue);
     });
 
+    test(
+      'albumDetailProvider composes album, artist, and play history',
+      () async {
+        final container = _container(
+          albumRepository: _FakeAlbumRepository([kindOfBlue]),
+          artistRepository: _FakeArtistRepository([miles]),
+          playRepository: _FakePlayRepository([
+            _play('play-older', kindOfBlue.id, '2026-08-10T12:00:00.000Z'),
+            _play('play-newer', kindOfBlue.id, '2026-08-12T12:00:00.000Z'),
+          ]),
+        );
+        addTearDown(container.dispose);
+
+        final detail = await container.read(
+          albumDetailProvider(kindOfBlue.id).future,
+        );
+
+        expect(detail, isNotNull);
+        expect(detail!.album, kindOfBlue);
+        expect(detail.artist, miles);
+        expect(detail.playCount, 2);
+        expect(detail.plays.first.id, 'play-newer');
+        expect(detail.lastPlayedAt, DateTime.parse('2026-08-12T12:00:00.000Z'));
+      },
+    );
+
+    test('albumDetailProvider returns null for an unknown album', () async {
+      final container = _container(
+        albumRepository: _FakeAlbumRepository([kindOfBlue]),
+        artistRepository: _FakeArtistRepository([miles]),
+        playRepository: _FakePlayRepository(const []),
+      );
+      addTearDown(container.dispose);
+
+      final detail = await container.read(
+        albumDetailProvider('missing').future,
+      );
+
+      expect(detail, isNull);
+    });
+
     test('playCountProvider delegates to PlayRepository', () async {
       final container = _container(
         albumRepository: _FakeAlbumRepository([kindOfBlue]),
