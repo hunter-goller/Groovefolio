@@ -106,9 +106,7 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
     final genresState = ref.watch(genresProvider);
     final isSaving = mutationState.isLoading || _isSubmitting;
     final genreSuggestions =
-        genresState.valueOrNull
-            ?.map((genre) => genre.name)
-            .toList(growable: false) ??
+        genresState.value?.map((genre) => genre.name).toList(growable: false) ??
         const <String>[];
 
     return Scaffold(
@@ -117,99 +115,102 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
         top: false,
         child: Form(
           key: _formKey,
-          child: ListView(
+          child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
               tokens.space16,
               tokens.space8,
               tokens.space16,
               tokens.space32,
             ),
-            children: [
-              Text(
-                'Record details',
-                style: context.theme.textTheme.titleLarge?.copyWith(
-                  color: tokens.text,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              SizedBox(height: tokens.space4),
-              Text(
-                'Start with the basics. You can add richer metadata later.',
-                style: context.theme.textTheme.bodyMedium?.copyWith(
-                  color: tokens.textMuted,
-                ),
-              ),
-              SizedBox(height: tokens.space24),
-              LabeledTextField(
-                key: const Key('add-record-title'),
-                label: 'TITLE *',
-                controller: _titleController,
-                hint: 'Blue Train',
-                enabled: !isSaving,
-                textInputAction: TextInputAction.next,
-                validator: _requiredValidator('Title'),
-              ),
-              SizedBox(height: tokens.space16),
-              LabeledTextField(
-                key: const Key('add-record-artist'),
-                label: 'ARTIST *',
-                controller: _artistController,
-                hint: 'John Coltrane',
-                enabled: !isSaving,
-                textInputAction: TextInputAction.next,
-                validator: _requiredValidator('Artist'),
-              ),
-              SizedBox(height: tokens.space16),
-              LabeledTextField(
-                key: const Key('add-record-year'),
-                label: 'YEAR',
-                controller: _yearController,
-                hint: '1957',
-                enabled: !isSaving,
-                keyboardType: TextInputType.number,
-                textInputAction: TextInputAction.next,
-                validator: _yearValidator,
-              ),
-              SizedBox(height: tokens.space16),
-              LabeledTextField(
-                key: const Key('add-record-label'),
-                label: 'LABEL',
-                controller: _labelController,
-                hint: 'Blue Note',
-                enabled: !isSaving,
-                textInputAction: TextInputAction.done,
-              ),
-              SizedBox(height: tokens.space16),
-              Text(
-                'GENRES',
-                style: context.theme.textTheme.labelMedium?.copyWith(
-                  color: tokens.textMuted,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              SizedBox(height: tokens.space8),
-              IgnorePointer(
-                ignoring: isSaving,
-                child: Opacity(
-                  opacity: isSaving ? 0.55 : 1,
-                  child: GenreChipInput(
-                    key: const Key('add-record-genres'),
-                    genres: _selectedGenres,
-                    suggestions: genreSuggestions,
-                    onChanged: (genres) {
-                      setState(() => _selectedGenres = genres);
-                    },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Record details',
+                  style: context.theme.textTheme.titleLarge?.copyWith(
+                    color: tokens.text,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ),
-              SizedBox(height: tokens.space32),
-              PrimaryButton(
-                label: 'Add to collection',
-                icon: Icons.add_rounded,
-                isLoading: isSaving,
-                onPressed: isSaving ? null : _save,
-              ),
-            ],
+                SizedBox(height: tokens.space4),
+                Text(
+                  'Start with the basics. You can add richer metadata later.',
+                  style: context.theme.textTheme.bodyMedium?.copyWith(
+                    color: tokens.textMuted,
+                  ),
+                ),
+                SizedBox(height: tokens.space24),
+                LabeledTextField(
+                  key: const Key('add-record-title'),
+                  label: 'TITLE *',
+                  controller: _titleController,
+                  hint: 'Blue Train',
+                  enabled: !isSaving,
+                  textInputAction: TextInputAction.next,
+                  validator: _requiredValidator('Title'),
+                ),
+                SizedBox(height: tokens.space16),
+                LabeledTextField(
+                  key: const Key('add-record-artist'),
+                  label: 'ARTIST *',
+                  controller: _artistController,
+                  hint: 'John Coltrane',
+                  enabled: !isSaving,
+                  textInputAction: TextInputAction.next,
+                  validator: _requiredValidator('Artist'),
+                ),
+                SizedBox(height: tokens.space16),
+                LabeledTextField(
+                  key: const Key('add-record-year'),
+                  label: 'YEAR',
+                  controller: _yearController,
+                  hint: '1957',
+                  enabled: !isSaving,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
+                  validator: _yearValidator,
+                ),
+                SizedBox(height: tokens.space16),
+                LabeledTextField(
+                  key: const Key('add-record-label'),
+                  label: 'LABEL',
+                  controller: _labelController,
+                  hint: 'Blue Note',
+                  enabled: !isSaving,
+                  textInputAction: TextInputAction.done,
+                ),
+                SizedBox(height: tokens.space16),
+                Text(
+                  'GENRES',
+                  style: context.theme.textTheme.labelMedium?.copyWith(
+                    color: tokens.textMuted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: tokens.space8),
+                IgnorePointer(
+                  ignoring: isSaving,
+                  child: Opacity(
+                    opacity: isSaving ? 0.55 : 1,
+                    child: GenreChipInput(
+                      key: const Key('add-record-genres'),
+                      genres: _selectedGenres,
+                      suggestions: genreSuggestions,
+                      onChanged: (genres) {
+                        setState(() => _selectedGenres = genres);
+                      },
+                    ),
+                  ),
+                ),
+                SizedBox(height: tokens.space32),
+                PrimaryButton(
+                  label: 'Add to collection',
+                  icon: Icons.add_rounded,
+                  isLoading: isSaving,
+                  onPressed: isSaving ? null : _save,
+                ),
+              ],
+            ),
           ),
         ),
       ),

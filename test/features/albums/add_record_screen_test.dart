@@ -13,6 +13,7 @@ void main() {
     await tester.pumpWidget(_testApp());
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('Add to collection'));
     await tester.tap(find.text('Add to collection'));
     await tester.pump();
 
@@ -73,7 +74,7 @@ void main() {
     final albumRepository = _FakeAlbumRepository();
     final genreRepository = _FakeGenreRepository(
       initialGenres: [
-        Genre(
+        const Genre(
           id: 'genre-jazz',
           name: 'Jazz',
           createdAt: '2026-08-14T00:00:00.000Z',
