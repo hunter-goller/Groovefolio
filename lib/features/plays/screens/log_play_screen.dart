@@ -19,9 +19,14 @@ import 'package:vinyl_app/widgets/ui/search_field.dart';
 /// VinylApp-020 owns the scanning UI. Hardware tag detection remains deferred
 /// to VinylApp-066, which can set [_selectedAlbum] and reuse the same save path.
 class LogPlayScreen extends ConsumerStatefulWidget {
-  const LogPlayScreen({this.isBottomSheet = false, super.key});
+  const LogPlayScreen({
+    this.isBottomSheet = false,
+    this.initialAlbum,
+    super.key,
+  });
 
   final bool isBottomSheet;
+  final CollectionAlbum? initialAlbum;
 
   @override
   ConsumerState<LogPlayScreen> createState() => _LogPlayScreenState();
@@ -36,7 +41,7 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
   late TimeOfDay _selectedTime;
   SidePlayed _side = SidePlayed.full;
   bool _isSaving = false;
-  bool _isNfcScanning = true;
+  late bool _isNfcScanning;
 
   @override
   void initState() {
@@ -45,6 +50,8 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
     _selectedDate = DateTime(now.year, now.month, now.day);
     _selectedTime = TimeOfDay.fromDateTime(now);
     _searchController = TextEditingController();
+    _selectedAlbum = widget.initialAlbum;
+    _isNfcScanning = widget.initialAlbum == null;
   }
 
   @override
@@ -141,6 +148,7 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
       ref.invalidate(albumsProvider);
       ref.invalidate(recentlyPlayedProvider);
       ref.invalidate(playCountProvider(album.id));
+      ref.invalidate(albumDetailProvider(album.id));
       ref.invalidate(albumSearchProvider(_query));
 
       if (!mounted) return;

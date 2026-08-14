@@ -10,6 +10,6 @@ abstract final class AppRoutes {
   static const logPlay = '/play/log';
 
   /// Builds a concrete /album/{id} path for navigation calls,
-  /// e.g. context.go(AppRoutes.albumDetailPath(album.id))
+  /// e.g. context.push(AppRoutes.albumDetailPath(album.id))
   static String albumDetailPath(String id) => '/album/$id';
 }

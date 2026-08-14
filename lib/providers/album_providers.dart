@@ -189,6 +189,78 @@ final albumProvider = FutureProvider.autoDispose.family<Album?, String>((
   return ref.watch(albumRepositoryProvider).findById(normalizedId);
 });
 
+/// UI-ready data for one album detail page.
+///
+/// The Album row only stores artistId and play history lives in the Plays
+/// table, so the provider composes the three repository boundaries once and
+/// keeps the screen free of persistence/join logic.
+class AlbumDetailData {
+  const AlbumDetailData({
+    required this.album,
+    required this.artist,
+    required this.plays,
+  });
+
+  final Album album;
+  final Artist artist;
+  final List<Play> plays;
+
+  int get playCount => plays.length;
+
+  DateTime? get lastPlayedAt {
+    if (plays.isEmpty) return null;
+    return DateTime.tryParse(plays.first.playedAt);
+  }
+
+  CollectionAlbum get collectionAlbum => CollectionAlbum(
+    album: album,
+    artist: artist,
+    playCount: playCount,
+    lastPlayedAt: lastPlayedAt,
+  );
+}
+
+/// Complete data required by the MVP Album Detail screen.
+final albumDetailProvider = FutureProvider.autoDispose
+    .family<AlbumDetailData?, String>((ref, id) async {
+      final normalizedId = id.trim();
+      if (normalizedId.isEmpty) return null;
+
+      final albumRepository = ref.watch(albumRepositoryProvider);
+      final artistRepository = ref.watch(artistRepositoryProvider);
+      final playRepository = ref.watch(playRepositoryProvider);
+
+      final album = await albumRepository.findById(normalizedId);
+      if (album == null) return null;
+
+      final artistFuture = artistRepository.findById(album.artistId);
+      final playsFuture = playRepository.findByAlbum(album.id);
+      final artist = await artistFuture;
+      final plays = await playsFuture;
+
+      if (artist == null) {
+        throw StateError(
+          'Album ${album.id} references missing artist ${album.artistId}.',
+        );
+      }
+
+      final sortedPlays = List<Play>.of(plays)
+        ..sort((a, b) {
+          final aDate = DateTime.tryParse(a.playedAt);
+          final bDate = DateTime.tryParse(b.playedAt);
+          if (aDate == null && bDate == null) return a.id.compareTo(b.id);
+          if (aDate == null) return 1;
+          if (bDate == null) return -1;
+          return bDate.compareTo(aDate);
+        });
+
+      return AlbumDetailData(
+        album: album,
+        artist: artist,
+        plays: List.unmodifiable(sortedPlays),
+      );
+    });
+
 /// Most recently played distinct albums, newest first.
 final recentlyPlayedProvider = FutureProvider.autoDispose<List<Album>>((ref) {
   return ref.watch(playRepositoryProvider).getRecentlyPlayed(10);
@@ -290,6 +362,7 @@ class AlbumMutations extends Notifier<AsyncValue<void>> {
   void _invalidateAlbumData(String albumId) {
     ref.invalidate(albumsProvider);
     ref.invalidate(albumProvider(albumId));
+    ref.invalidate(albumDetailProvider(albumId));
     ref.invalidate(recentlyPlayedProvider);
     ref.invalidate(playCountProvider(albumId));
   }
