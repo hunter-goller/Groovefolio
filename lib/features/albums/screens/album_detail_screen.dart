@@ -43,55 +43,55 @@ class AlbumDetailScreen extends ConsumerWidget {
           leading: BackButton(onPressed: () => _goBack(context)),
           title: const Text('Record details'),
           actions: [
-          PopupMenuButton<_AlbumMenuAction>(
-            tooltip: 'Record actions',
-            onSelected: (action) => _showDeferredAction(context, action),
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: _AlbumMenuAction.edit,
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.edit_outlined),
-                  title: Text('Edit record'),
+            PopupMenuButton<_AlbumMenuAction>(
+              tooltip: 'Record actions',
+              onSelected: (action) => _showDeferredAction(context, action),
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: _AlbumMenuAction.edit,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.edit_outlined),
+                    title: Text('Edit record'),
+                  ),
                 ),
-              ),
-              PopupMenuItem(
-                value: _AlbumMenuAction.delete,
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.delete_outline_rounded),
-                  title: Text('Delete record'),
+                PopupMenuItem(
+                  value: _AlbumMenuAction.delete,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.delete_outline_rounded),
+                    title: Text('Delete record'),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
+              ],
+            ),
+          ],
+        ),
         body: SafeArea(
           top: false,
           child: detailAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => _DetailError(
-            onRetry: () => ref.invalidate(albumDetailProvider(albumId)),
-          ),
-          data: (detail) {
-            if (detail == null) {
-              return EmptyState(
-                icon: Icons.album_outlined,
-                title: 'Record not found',
-                subtitle:
-                    'This record may have been removed from your collection.',
-                ctaLabel: 'Back to collection',
-                onCtaTap: () => context.go(AppRoutes.collection),
-              );
-            }
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stackTrace) => _DetailError(
+              onRetry: () => ref.invalidate(albumDetailProvider(albumId)),
+            ),
+            data: (detail) {
+              if (detail == null) {
+                return EmptyState(
+                  icon: Icons.album_outlined,
+                  title: 'Record not found',
+                  subtitle:
+                      'This record may have been removed from your collection.',
+                  ctaLabel: 'Back to collection',
+                  onCtaTap: () => context.go(AppRoutes.collection),
+                );
+              }
 
-            return _AlbumDetailBody(
-              detail: detail,
-              onLogPlay: () => _openLogPlay(context, ref, detail),
-            );
-          },
-        ),
+              return _AlbumDetailBody(
+                detail: detail,
+                onLogPlay: () => _openLogPlay(context, ref, detail),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -144,9 +144,9 @@ class AlbumDetailScreen extends ConsumerWidget {
       _AlbumMenuAction.delete => 'Delete record',
     };
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature is coming soon.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$feature is coming soon.')));
   }
 }
 

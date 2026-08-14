@@ -31,9 +31,7 @@ class RouteTestButtons extends StatelessWidget {
           child: const Text('Add Record'),
         ),
         ElevatedButton(
-          onPressed: () => context.push(
-            AppRoutes.albumDetailPath('test-123'),
-          ),
+          onPressed: () => context.push(AppRoutes.albumDetailPath('test-123')),
           child: const Text('Album Detail'),
         ),
         ElevatedButton(
