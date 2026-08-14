@@ -6,10 +6,12 @@ import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
+import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/types/side_played.dart';
+import 'package:vinyl_app/widgets/shared/genre_chip.dart';
 import 'package:vinyl_app/widgets/ui/empty_state.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 import 'package:vinyl_app/widgets/ui/section_header.dart';
@@ -28,6 +30,7 @@ class AlbumDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detailAsync = ref.watch(albumDetailProvider(albumId));
+    final genresAsync = ref.watch(albumGenresProvider(albumId));
 
     final canPop = Navigator.of(context).canPop();
 
@@ -86,8 +89,15 @@ class AlbumDetailScreen extends ConsumerWidget {
                 );
               }
 
+              final genres =
+                  genresAsync.value
+                      ?.map((genre) => genre.name)
+                      .toList(growable: false) ??
+                  const <String>[];
+
               return _AlbumDetailBody(
                 detail: detail,
+                genres: genres,
                 onLogPlay: () => _openLogPlay(context, ref, detail),
               );
             },
@@ -153,9 +163,14 @@ class AlbumDetailScreen extends ConsumerWidget {
 enum _AlbumMenuAction { edit, delete }
 
 class _AlbumDetailBody extends StatelessWidget {
-  const _AlbumDetailBody({required this.detail, required this.onLogPlay});
+  const _AlbumDetailBody({
+    required this.detail,
+    required this.genres,
+    required this.onLogPlay,
+  });
 
   final AlbumDetailData detail;
+  final List<String> genres;
   final Future<void> Function() onLogPlay;
 
   @override
@@ -172,7 +187,7 @@ class _AlbumDetailBody extends StatelessWidget {
         tokens.space32,
       ),
       children: [
-        _AlbumIdentity(detail: detail),
+        _AlbumIdentity(detail: detail, genres: genres),
         SizedBox(height: tokens.space24),
         _ListeningSummary(detail: detail),
         SizedBox(height: tokens.space24),
@@ -204,9 +219,10 @@ class _AlbumDetailBody extends StatelessWidget {
 }
 
 class _AlbumIdentity extends StatelessWidget {
-  const _AlbumIdentity({required this.detail});
+  const _AlbumIdentity({required this.detail, required this.genres});
 
   final AlbumDetailData detail;
+  final List<String> genres;
 
   @override
   Widget build(BuildContext context) {
@@ -246,6 +262,16 @@ class _AlbumIdentity extends StatelessWidget {
               color: context.theme.colorScheme.primary,
               fontWeight: FontWeight.w600,
             ),
+          ),
+        ],
+        if (genres.isNotEmpty) ...[
+          SizedBox(height: tokens.space12),
+          Wrap(
+            key: const Key('album-detail-genres'),
+            alignment: WrapAlignment.center,
+            spacing: tokens.space4,
+            runSpacing: tokens.space4,
+            children: [for (final genre in genres) GenreChip(genre: genre)],
           ),
         ],
       ],

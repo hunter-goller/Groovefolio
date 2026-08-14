@@ -67,6 +67,45 @@ void main() {
     expect(tester.widget<FilledButton>(saveButtonFinder).onPressed, isNotNull);
   });
 
+  testWidgets('shows assigned genres', (tester) async {
+    await tester.pumpWidget(
+      _testApp(
+        playRepository: _FakePlayRepository(const []),
+        genreRepository: const _FakeGenreRepository([
+          Genre(
+            id: 'genre-jazz',
+            name: 'Jazz',
+            createdAt: '2026-08-14T00:00:00.000Z',
+          ),
+          Genre(
+            id: 'genre-hard-bop',
+            name: 'Hard Bop',
+            createdAt: '2026-08-14T00:00:00.000Z',
+          ),
+        ]),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Jazz'), findsOneWidget);
+    expect(find.text('Hard Bop'), findsOneWidget);
+    expect(find.byKey(const Key('album-detail-genres')), findsOneWidget);
+  });
+
+  testWidgets('hides the genre row when no genres are assigned', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _testApp(
+        playRepository: _FakePlayRepository(const []),
+        genreRepository: const _FakeGenreRepository([]),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('album-detail-genres')), findsNothing);
+  });
+
   testWidgets('shows a not-found state for a missing album', (tester) async {
     await tester.pumpWidget(
       _testApp(
@@ -83,12 +122,16 @@ void main() {
 Widget _testApp({
   String albumId = 'album-1',
   required IPlayRepository playRepository,
+  IGenreRepository? genreRepository,
 }) {
   return ProviderScope(
     overrides: [
       albumRepositoryProvider.overrideWithValue(_FakeAlbumRepository()),
       artistRepositoryProvider.overrideWithValue(_FakeArtistRepository()),
       playRepositoryProvider.overrideWithValue(playRepository),
+      genreRepositoryProvider.overrideWithValue(
+        genreRepository ?? const _FakeGenreRepository([]),
+      ),
     ],
     child: MaterialApp(
       theme: AppTheme.light,
@@ -204,4 +247,37 @@ class _FakePlayRepository implements IPlayRepository {
 
   @override
   Future<List<Album>> getRecentlyPlayed(int limit) async => const [];
+}
+
+class _FakeGenreRepository implements IGenreRepository {
+  const _FakeGenreRepository(this.genres);
+
+  final List<Genre> genres;
+
+  @override
+  Future<List<Genre>> findByAlbum(String albumId) async =>
+      albumId == 'album-1' ? List.unmodifiable(genres) : const [];
+
+  @override
+  Future<List<Genre>> findAll() async => List.unmodifiable(genres);
+
+  @override
+  Future<Genre?> findById(String id) async => null;
+
+  @override
+  Future<Genre?> findByName(String name) async => null;
+
+  @override
+  Future<Genre> findOrCreate(String name) => throw UnimplementedError();
+
+  @override
+  Future<void> setAlbumGenres(String albumId, Iterable<String> genreIds) =>
+      throw UnimplementedError();
+
+  @override
+  Future<int> removeFromAlbum(String albumId, String genreId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<int> delete(String genreId) => throw UnimplementedError();
 }
