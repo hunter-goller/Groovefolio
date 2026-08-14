@@ -67,11 +67,74 @@ void main() {
     expect(albumRepository.created.single.releaseYear, 1957);
     expect(find.text('Collection test'), findsOneWidget);
   });
+
+  testWidgets('persists selected genres for the created album', (tester) async {
+    final artistRepository = _FakeArtistRepository();
+    final albumRepository = _FakeAlbumRepository();
+    final genreRepository = _FakeGenreRepository(
+      initialGenres: [
+        Genre(
+          id: 'genre-jazz',
+          name: 'Jazz',
+          createdAt: '2026-08-14T00:00:00.000Z',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      _testApp(
+        artistRepository: artistRepository,
+        albumRepository: albumRepository,
+        genreRepository: genreRepository,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const Key('add-record-title')),
+        matching: find.byType(TextFormField),
+      ),
+      'Blue Train',
+    );
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const Key('add-record-artist')),
+        matching: find.byType(TextFormField),
+      ),
+      'John Coltrane',
+    );
+
+    await tester.ensureVisible(find.byKey(const Key('genre-add-chip')));
+    await tester.tap(find.byKey(const Key('genre-add-chip')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('genre-picker-field')),
+      '  Hard Bop  ',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('genre-create-chip')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hard Bop'), findsOneWidget);
+
+    tester.testTextInput.hide();
+    await tester.ensureVisible(find.text('Add to collection'));
+    await tester.tap(find.text('Add to collection'));
+    await tester.pumpAndSettle();
+
+    expect(genreRepository.findOrCreateNames, ['Hard Bop']);
+    expect(genreRepository.albumAssignments, {
+      'album-1': ['genre-2'],
+    });
+    expect(find.text('Collection test'), findsOneWidget);
+  });
 }
 
 Widget _testApp({
   IArtistRepository? artistRepository,
   IAlbumRepository? albumRepository,
+  IGenreRepository? genreRepository,
 }) {
   final router = GoRouter(
     initialLocation: AppRoutes.addAlbum,
@@ -95,6 +158,9 @@ Widget _testApp({
       ),
       albumRepositoryProvider.overrideWithValue(
         albumRepository ?? _FakeAlbumRepository(),
+      ),
+      genreRepositoryProvider.overrideWithValue(
+        genreRepository ?? _FakeGenreRepository(),
       ),
     ],
     child: MaterialApp.router(
@@ -173,4 +239,74 @@ class _FakeAlbumRepository implements IAlbumRepository {
 
   @override
   Future<bool> update(Album album) async => false;
+}
+
+class _FakeGenreRepository implements IGenreRepository {
+  _FakeGenreRepository({List<Genre> initialGenres = const []})
+    : genres = List<Genre>.of(initialGenres);
+
+  final List<Genre> genres;
+  final List<String> findOrCreateNames = [];
+  final Map<String, List<String>> albumAssignments = {};
+
+  @override
+  Future<int> delete(String genreId) async {
+    final before = genres.length;
+    genres.removeWhere((genre) => genre.id == genreId);
+    return before - genres.length;
+  }
+
+  @override
+  Future<List<Genre>> findAll() async => List.unmodifiable(genres);
+
+  @override
+  Future<List<Genre>> findByAlbum(String albumId) async {
+    final ids = albumAssignments[albumId] ?? const <String>[];
+    return genres.where((genre) => ids.contains(genre.id)).toList();
+  }
+
+  @override
+  Future<Genre?> findById(String id) async {
+    for (final genre in genres) {
+      if (genre.id == id) return genre;
+    }
+    return null;
+  }
+
+  @override
+  Future<Genre?> findByName(String name) async {
+    final normalized = name.trim().toLowerCase();
+    for (final genre in genres) {
+      if (genre.name.toLowerCase() == normalized) return genre;
+    }
+    return null;
+  }
+
+  @override
+  Future<Genre> findOrCreate(String name) async {
+    final normalized = name.trim();
+    findOrCreateNames.add(normalized);
+    final existing = await findByName(normalized);
+    if (existing != null) return existing;
+
+    final genre = Genre(
+      id: 'genre-${genres.length + 1}',
+      name: normalized,
+      createdAt: '2026-08-14T00:00:00.000Z',
+    );
+    genres.add(genre);
+    return genre;
+  }
+
+  @override
+  Future<int> removeFromAlbum(String albumId, String genreId) async {
+    final ids = albumAssignments[albumId];
+    if (ids == null || !ids.remove(genreId)) return 0;
+    return 1;
+  }
+
+  @override
+  Future<void> setAlbumGenres(String albumId, Iterable<String> genreIds) async {
+    albumAssignments[albumId] = List<String>.of(genreIds);
+  }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/repositories/album_repository.dart';
 import 'package:vinyl_app/repositories/artist_repository.dart';
+import 'package:vinyl_app/repositories/genre_repository.dart';
 import 'package:vinyl_app/repositories/play_repository.dart';
 import 'package:vinyl_app/services/play_logging_service.dart';
 import 'package:vinyl_app/types/side_played.dart';
@@ -24,7 +25,8 @@ class DevSeedResult {
 ///
 /// This intentionally uses the real repositories and PlayLoggingService rather
 /// than inserting raw Drift companions. It is safe to run repeatedly:
-/// existing seeded albums are reused, and plays are only created for seeded
+/// existing seeded albums are reused, missing seed genres are added without
+/// removing user-added genre mappings, and plays are only created for seeded
 /// albums that do not already have any play history.
 Future<DevSeedResult> seedCollectionForDev(AppDatabase db) async {
   if (!kDebugMode) {
@@ -33,6 +35,7 @@ Future<DevSeedResult> seedCollectionForDev(AppDatabase db) async {
 
   final artistRepository = ArtistRepository(db);
   final albumRepository = AlbumRepository(db);
+  final genreRepository = GenreRepository(db);
   final playRepository = PlayRepository(db);
   final playLoggingService = PlayLoggingService(
     albumRepository: albumRepository,
@@ -72,6 +75,12 @@ Future<DevSeedResult> seedCollectionForDev(AppDatabase db) async {
       reusedAlbums++;
     }
 
+    await _ensureSeedGenres(
+      genreRepository: genreRepository,
+      albumId: album.id,
+      genreNames: spec.genres,
+    );
+
     final existingPlays = await playRepository.findByAlbum(album.id);
     if (existingPlays.isNotEmpty) {
       continue;
@@ -95,12 +104,29 @@ Future<DevSeedResult> seedCollectionForDev(AppDatabase db) async {
   );
 }
 
+Future<void> _ensureSeedGenres({
+  required GenreRepository genreRepository,
+  required String albumId,
+  required List<String> genreNames,
+}) async {
+  final existingGenres = await genreRepository.findByAlbum(albumId);
+  final genreIds = existingGenres.map((genre) => genre.id).toSet();
+
+  for (final name in genreNames) {
+    final genre = await genreRepository.findOrCreate(name);
+    genreIds.add(genre.id);
+  }
+
+  await genreRepository.setAlbumGenres(albumId, genreIds);
+}
+
 class _SeedAlbum {
   const _SeedAlbum({
     required this.artist,
     required this.title,
     required this.releaseYear,
     required this.label,
+    required this.genres,
     required this.playAges,
   });
 
@@ -108,6 +134,7 @@ class _SeedAlbum {
   final String title;
   final int releaseYear;
   final String label;
+  final List<String> genres;
   final List<Duration> playAges;
 }
 
@@ -117,6 +144,7 @@ const _seedAlbums = <_SeedAlbum>[
     title: 'Random Access Memories',
     releaseYear: 2013,
     label: 'Columbia',
+    genres: ['Electronic', 'Disco', 'Funk'],
     playAges: [
       Duration(hours: 2),
       Duration(days: 5),
@@ -130,6 +158,7 @@ const _seedAlbums = <_SeedAlbum>[
     title: 'Blue Train',
     releaseYear: 1957,
     label: 'Blue Note',
+    genres: ['Jazz', 'Hard Bop'],
     playAges: [Duration(days: 1), Duration(days: 18), Duration(days: 63)],
   ),
   _SeedAlbum(
@@ -137,6 +166,7 @@ const _seedAlbums = <_SeedAlbum>[
     title: 'Wildflowers',
     releaseYear: 1994,
     label: 'Warner Bros.',
+    genres: ['Rock', 'Heartland Rock'],
     playAges: [Duration(days: 2)],
   ),
   _SeedAlbum(
@@ -144,6 +174,7 @@ const _seedAlbums = <_SeedAlbum>[
     title: 'Kind of Blue',
     releaseYear: 1959,
     label: 'Columbia',
+    genres: ['Jazz', 'Modal Jazz'],
     playAges: [
       Duration(days: 4),
       Duration(days: 24),
@@ -156,6 +187,7 @@ const _seedAlbums = <_SeedAlbum>[
     title: 'The Rise and Fall of Ziggy Stardust and the Spiders from Mars',
     releaseYear: 1972,
     label: 'RCA',
+    genres: ['Glam Rock', 'Rock'],
     playAges: [Duration(days: 9), Duration(days: 88)],
   ),
   _SeedAlbum(
@@ -163,6 +195,7 @@ const _seedAlbums = <_SeedAlbum>[
     title: 'Rumours',
     releaseYear: 1977,
     label: 'Warner Bros.',
+    genres: ['Rock', 'Soft Rock'],
     playAges: [Duration(days: 16)],
   ),
   _SeedAlbum(
@@ -170,6 +203,7 @@ const _seedAlbums = <_SeedAlbum>[
     title: 'Wish You Were Here',
     releaseYear: 1975,
     label: 'Harvest',
+    genres: ['Progressive Rock', 'Art Rock'],
     playAges: [],
   ),
 ];
