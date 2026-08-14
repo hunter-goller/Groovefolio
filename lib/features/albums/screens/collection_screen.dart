@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
@@ -68,10 +69,37 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     ref.read(collectionFiltersProvider.notifier).setSearchQuery('');
   }
 
+  void _openLogPlaySheet(BuildContext context) {
+    final tokens = context.tokens;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: tokens.background,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+          ),
+          child: const FractionallySizedBox(
+            heightFactor: 0.92,
+            child: LogPlayScreen(isBottomSheet: true),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final albumsAsync = ref.watch(albumsProvider);
     final filters = ref.watch(collectionFiltersProvider);
+    final hasAlbums = albumsAsync.when(
+      data: (albums) => albums.isNotEmpty,
+      loading: () => false,
+      error: (error, stackTrace) => false,
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Collection')),
@@ -96,6 +124,14 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
           ),
         ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: hasAlbums
+          ? FloatingActionButton.extended(
+              onPressed: () => _openLogPlaySheet(context),
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: const Text('Log play'),
+            )
+          : null,
       bottomNavigationBar: BottomNavBar(
         currentIndex: 0,
         onTap: (index) {
@@ -144,11 +180,15 @@ class _CollectionBody extends StatelessWidget {
       child: ListView(
         key: const PageStorageKey<String>('collection-list'),
         physics: const AlwaysScrollableScrollPhysics(),
+        // Keep the final collection action clear of the persistent Log play FAB.
+        // Scaffold already lays the body above the bottom navigation bar; this
+        // extra clearance accounts for the extended FAB itself plus breathing
+        // room, so Add record can scroll completely above it.
         padding: EdgeInsets.fromLTRB(
           tokens.space16,
           tokens.space8,
           tokens.space16,
-          tokens.space32 * 2,
+          (tokens.space32 * 3) + tokens.space16,
         ),
         children: [
           if (albums.isNotEmpty || hasSearch) ...[
