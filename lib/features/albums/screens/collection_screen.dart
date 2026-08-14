@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
+import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/widgets/shared/album_list_tile.dart';
@@ -61,6 +62,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
 
   Future<void> _refresh() async {
     ref.invalidate(albumsProvider);
+    ref.invalidate(albumGenresProvider);
     await ref.read(albumsProvider.future);
   }
 
@@ -147,6 +149,31 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   }
 }
 
+class _CollectionAlbumTile extends ConsumerWidget {
+  const _CollectionAlbumTile({required this.album});
+
+  final CollectionAlbum album;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final genresAsync = ref.watch(albumGenresProvider(album.id));
+    final genres =
+        genresAsync.value?.map((genre) => genre.name).toList(growable: false) ??
+        const <String>[];
+
+    return AlbumListTile(
+      title: album.title,
+      artist: album.artistName,
+      releaseYear: album.album.releaseYear,
+      artworkPath: album.album.artworkPath,
+      playCount: album.playCount,
+      lastPlayedAt: album.lastPlayedAt,
+      genres: genres,
+      onTap: () => context.push(AppRoutes.albumDetailPath(album.id)),
+    );
+  }
+}
+
 class _CollectionBody extends StatelessWidget {
   const _CollectionBody({
     required this.albums,
@@ -215,15 +242,7 @@ class _CollectionBody extends StatelessWidget {
                   : '${albums.length} records',
             ),
             for (final album in albums) ...[
-              AlbumListTile(
-                title: album.title,
-                artist: album.artistName,
-                releaseYear: album.album.releaseYear,
-                artworkPath: album.album.artworkPath,
-                playCount: album.playCount,
-                lastPlayedAt: album.lastPlayedAt,
-                onTap: () => context.push(AppRoutes.albumDetailPath(album.id)),
-              ),
+              _CollectionAlbumTile(album: album),
               SizedBox(height: tokens.space8),
             ],
             SizedBox(height: tokens.space8),

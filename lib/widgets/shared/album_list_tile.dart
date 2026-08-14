@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
+import 'package:vinyl_app/widgets/shared/genre_chip.dart';
 
 /// Primary Collection row for one album.
 class AlbumListTile extends StatelessWidget {
@@ -14,6 +15,7 @@ class AlbumListTile extends StatelessWidget {
     this.releaseYear,
     this.artworkPath,
     this.lastPlayedAt,
+    this.genres = const <String>[],
     super.key,
   });
 
@@ -23,6 +25,7 @@ class AlbumListTile extends StatelessWidget {
   final int? releaseYear;
   final String? artworkPath;
   final DateTime? lastPlayedAt;
+  final List<String> genres;
   final VoidCallback onTap;
 
   @override
@@ -104,6 +107,17 @@ class AlbumListTile extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+                      if (genres.isNotEmpty) ...[
+                        SizedBox(height: tokens.space8),
+                        Wrap(
+                          key: const Key('album-list-genres'),
+                          spacing: tokens.space4,
+                          runSpacing: tokens.space4,
+                          children: [
+                            for (final genre in genres) GenreChip(genre: genre),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
