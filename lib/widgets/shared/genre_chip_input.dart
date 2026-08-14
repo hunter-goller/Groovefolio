@@ -142,6 +142,7 @@ class _GenrePickerDialogState extends State<_GenrePickerDialog> {
         );
 
     return AlertDialog(
+      scrollable: true,
       title: const Text('Add genre'),
       content: SizedBox(
         width: 360,
