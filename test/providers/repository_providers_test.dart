@@ -26,6 +26,16 @@ void main() {
       expect(container.read(artistRepositoryProvider), same(fake));
     });
 
+    test('genreRepositoryProvider can be overridden', () {
+      final fake = _FakeGenreRepository();
+      final container = ProviderContainer(
+        overrides: [genreRepositoryProvider.overrideWithValue(fake)],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(genreRepositoryProvider), same(fake));
+    });
+
     test('playRepositoryProvider can be overridden', () {
       final fake = _FakePlayRepository();
       final container = ProviderContainer(
@@ -128,4 +138,32 @@ class _FakeNfcTagRepository implements INfcTagRepository {
 
   @override
   Future<NfcTag?> findByTagId(String nfcTagId) => throw UnimplementedError();
+}
+
+class _FakeGenreRepository implements IGenreRepository {
+  @override
+  Future<int> delete(String genreId) => throw UnimplementedError();
+
+  @override
+  Future<List<Genre>> findAll() => throw UnimplementedError();
+
+  @override
+  Future<List<Genre>> findByAlbum(String albumId) => throw UnimplementedError();
+
+  @override
+  Future<Genre?> findById(String id) => throw UnimplementedError();
+
+  @override
+  Future<Genre?> findByName(String name) => throw UnimplementedError();
+
+  @override
+  Future<Genre> findOrCreate(String name) => throw UnimplementedError();
+
+  @override
+  Future<int> removeFromAlbum(String albumId, String genreId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> setAlbumGenres(String albumId, Iterable<String> genreIds) =>
+      throw UnimplementedError();
 }
