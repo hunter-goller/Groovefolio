@@ -125,6 +125,57 @@ final albumsProvider = FutureProvider.autoDispose<List<CollectionAlbum>>((
   return collectionAlbums;
 });
 
+/// Album search rows for selection flows such as Log Play.
+///
+/// Unlike [albumsProvider], this provider is independent of Collection filter
+/// state so a search performed in Log Play never changes the Collection screen.
+final albumSearchProvider = FutureProvider.autoDispose
+    .family<List<CollectionAlbum>, String>((ref, query) async {
+      final normalizedQuery = query.trim();
+      final albumRepository = ref.watch(albumRepositoryProvider);
+      final artistRepository = ref.watch(artistRepositoryProvider);
+      final playRepository = ref.watch(playRepositoryProvider);
+
+      final albumRows = normalizedQuery.isEmpty
+          ? await albumRepository.findAll()
+          : await albumRepository.search(normalizedQuery);
+
+      if (albumRows.isEmpty) {
+        return const [];
+      }
+
+      final artistsFuture = artistRepository.findAll();
+      final playsFuture = playRepository.findAll();
+      final artists = await artistsFuture;
+      final plays = await playsFuture;
+
+      final artistsById = {for (final artist in artists) artist.id: artist};
+      final playSummaries = _summarizePlays(plays);
+      final rows = <CollectionAlbum>[];
+
+      for (final album in albumRows) {
+        final artist = artistsById[album.artistId];
+        if (artist == null) {
+          throw StateError(
+            'Album ${album.id} references missing artist ${album.artistId}.',
+          );
+        }
+
+        final summary = playSummaries[album.id];
+        rows.add(
+          CollectionAlbum(
+            album: album,
+            artist: artist,
+            playCount: summary?.count ?? 0,
+            lastPlayedAt: summary?.lastPlayedAt,
+          ),
+        );
+      }
+
+      rows.sort(_compareTitles);
+      return rows;
+    });
+
 /// Single album lookup used by details/edit flows.
 final albumProvider = FutureProvider.autoDispose.family<Album?, String>((
   ref,
