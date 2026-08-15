@@ -21,9 +21,11 @@ void main() {
 
     expect(find.text('Blue Train'), findsOneWidget);
     expect(find.text('John Coltrane'), findsOneWidget);
-    expect(find.text('1957  •  Blue Note'), findsOneWidget);
-    expect(find.text('TOTAL PLAYS'), findsOneWidget);
-    expect(find.text('2'), findsOneWidget);
+    expect(find.text('1957'), findsAtLeastNWidgets(1));
+    expect(find.text('Blue Note'), findsAtLeastNWidgets(1));
+    expect(find.text('YOUR STATS'), findsOneWidget);
+    expect(find.text('Times played'), findsOneWidget);
+    expect(find.text('2'), findsAtLeastNWidgets(1));
     expect(find.text('Log another play'), findsOneWidget);
 
     await tester.drag(
@@ -87,9 +89,20 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Jazz'), findsOneWidget);
-    expect(find.text('Hard Bop'), findsOneWidget);
-    expect(find.byKey(const Key('album-detail-genres')), findsOneWidget);
+    final heroGenres = find.byKey(const Key('album-detail-genres'));
+    expect(heroGenres, findsOneWidget);
+    expect(
+      find.descendant(of: heroGenres, matching: find.text('Jazz')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: heroGenres, matching: find.text('Hard Bop')),
+      findsOneWidget,
+    );
+    // The approved detail layout intentionally repeats genres in the Details
+    // card, so the screen contains two display instances of each genre.
+    expect(find.text('Jazz'), findsNWidgets(2));
+    expect(find.text('Hard Bop'), findsNWidgets(2));
   });
 
   testWidgets('hides the genre row when no genres are assigned', (

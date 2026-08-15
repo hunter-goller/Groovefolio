@@ -5,7 +5,7 @@ import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/widgets/shared/genre_chip.dart';
 
-/// Primary Collection row for one album.
+/// Compact Collection row matching the approved Vinyl App mockup.
 class AlbumListTile extends StatelessWidget {
   const AlbumListTile({
     required this.title,
@@ -31,84 +31,49 @@ class AlbumListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final lastPlayedLabel = _relativeTimeLabel(lastPlayedAt);
+    final lastPlayedLabel = _relativeTimeLabel(lastPlayedAt) ?? 'Not played';
     final playLabel = playCount == 1 ? '1 play' : '$playCount plays';
-    final details = [
-      if (releaseYear != null) '$releaseYear',
-      playLabel,
-    ].join('  •  ');
 
     return Semantics(
       button: true,
       label: '$title by $artist',
       child: Material(
-        color: tokens.surface,
-        borderRadius: BorderRadius.circular(tokens.radiusMedium),
-        clipBehavior: Clip.antiAlias,
+        color: Colors.transparent,
         child: InkWell(
+          borderRadius: BorderRadius.circular(tokens.radiusSmall),
           onTap: onTap,
           child: Padding(
-            padding: EdgeInsets.all(tokens.space12),
+            padding: EdgeInsets.symmetric(vertical: tokens.space8),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 _AlbumArtwork(path: artworkPath),
                 SizedBox(width: tokens.space12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: context.theme.textTheme.titleMedium
-                                  ?.copyWith(
-                                    color: tokens.text,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                            ),
-                          ),
-                          if (lastPlayedLabel != null) ...[
-                            SizedBox(width: tokens.space4),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 72),
-                              child: Text(
-                                lastPlayedLabel,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.end,
-                                style: context.theme.textTheme.labelSmall
-                                    ?.copyWith(color: tokens.textMuted),
-                              ),
-                            ),
-                          ],
-                        ],
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.theme.textTheme.titleSmall?.copyWith(
+                          color: tokens.text,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       SizedBox(height: tokens.space4),
                       Text(
                         artist,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: context.theme.textTheme.bodyMedium?.copyWith(
+                        style: context.theme.textTheme.bodySmall?.copyWith(
                           color: tokens.textMuted,
                         ),
                       ),
-                      SizedBox(height: tokens.space8),
-                      Text(
-                        details,
-                        style: context.theme.textTheme.labelMedium?.copyWith(
-                          color: context.theme.colorScheme.primary.withValues(
-                            alpha: 0.82,
-                          ),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
                       if (genres.isNotEmpty) ...[
-                        SizedBox(height: tokens.space8),
+                        SizedBox(height: tokens.space4),
                         Wrap(
                           key: const Key('album-list-genres'),
                           spacing: tokens.space4,
@@ -121,11 +86,41 @@ class AlbumListTile extends StatelessWidget {
                     ],
                   ),
                 ),
+                SizedBox(width: tokens.space8),
+                SizedBox(
+                  width: 76,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        lastPlayedLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: context.theme.textTheme.labelSmall?.copyWith(
+                          color: tokens.textMuted,
+                        ),
+                      ),
+                      SizedBox(height: tokens.space4),
+                      Text(
+                        playLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: context.theme.textTheme.labelMedium?.copyWith(
+                          color: context.theme.colorScheme.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 SizedBox(width: tokens.space4),
                 Icon(
                   Icons.chevron_right_rounded,
                   color: tokens.textMuted,
-                  size: 22,
+                  size: 18,
                 ),
               ],
             ),
@@ -154,13 +149,13 @@ class _AlbumArtwork extends StatelessWidget {
         child: Icon(
           Icons.album_rounded,
           color: AppThemeTokens.accent,
-          size: 28,
+          size: 24,
         ),
       ),
     );
 
     return SizedBox.square(
-      dimension: 64,
+      dimension: 58,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(tokens.radiusSmall),
         child: normalizedPath == null || normalizedPath.isEmpty
@@ -179,23 +174,11 @@ String? _relativeTimeLabel(DateTime? date) {
   if (date == null) return null;
 
   final difference = DateTime.now().toUtc().difference(date.toUtc());
-  if (difference.isNegative || difference.inMinutes < 1) {
-    return 'Just now';
-  }
-  if (difference.inHours < 1) {
-    return '${difference.inMinutes}m ago';
-  }
-  if (difference.inDays < 1) {
-    return '${difference.inHours}h ago';
-  }
-  if (difference.inDays == 1) {
-    return 'Yesterday';
-  }
-  if (difference.inDays < 7) {
-    return '${difference.inDays}d ago';
-  }
-  if (difference.inDays < 35) {
-    return '${difference.inDays ~/ 7}w ago';
-  }
+  if (difference.isNegative || difference.inMinutes < 1) return 'Just now';
+  if (difference.inHours < 1) return '${difference.inMinutes}m ago';
+  if (difference.inDays < 1) return '${difference.inHours}h ago';
+  if (difference.inDays == 1) return 'Yesterday';
+  if (difference.inDays < 7) return '${difference.inDays}d ago';
+  if (difference.inDays < 35) return '${difference.inDays ~/ 7}w ago';
   return '${difference.inDays ~/ 30}mo ago';
 }
