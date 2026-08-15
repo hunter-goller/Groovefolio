@@ -39,6 +39,27 @@ class MonthlyPlays {
   final int playCount;
 }
 
+/// Play-weighted listening share for one genre.
+class GenreStat {
+  const GenreStat({
+    required this.genre,
+    required this.playCount,
+    required this.share,
+  });
+
+  final Genre genre;
+  final int playCount;
+
+  /// Fraction of all genre-attributed plays represented by this genre.
+  ///
+  /// This is normalized to the 0.0-1.0 range so UI progress indicators can
+  /// consume it directly.
+  final double share;
+
+  /// Percentage form of [share], in the 0-100 range.
+  double get percentage => share * 100;
+}
+
 /// Play-derived statistics for one album.
 class AlbumStats {
   const AlbumStats({
@@ -69,11 +90,13 @@ class StatsService {
   StatsService({
     required this._albumRepository,
     required this._playRepository,
+    required this._genreRepository,
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now;
 
   final IAlbumRepository _albumRepository;
   final IPlayRepository _playRepository;
+  final IGenreRepository _genreRepository;
   final DateTime Function() _now;
 
   /// Returns collection totals and the average number of plays per week.
@@ -161,6 +184,82 @@ class StatsService {
     ]);
   }
 
+  /// Returns play-weighted genre shares for the collection.
+  ///
+  /// Each play contributes once to every genre assigned to its album. For
+  /// example, one play of an album tagged Jazz + Hard Bop contributes one
+  /// count to Jazz and one count to Hard Bop. Plays for albums without genre
+  /// assignments are intentionally excluded.
+  ///
+  /// Results are ordered by descending attributed play count, then
+  /// case-insensitive genre name, then genre ID for deterministic ties.
+  Future<List<GenreStat>> getGenreBreakdown() async {
+    final plays = await _playRepository.findAll();
+    if (plays.isEmpty) return const [];
+
+    final playCountsByAlbum = <String, int>{};
+    for (final play in plays) {
+      playCountsByAlbum.update(
+        play.albumId,
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
+    }
+
+    final genreCounts = <String, _GenreCount>{};
+    final assignments = await Future.wait([
+      for (final entry in playCountsByAlbum.entries)
+        _genresForAlbum(entry.key, entry.value),
+    ]);
+
+    for (final assignment in assignments) {
+      for (final genre in assignment.genres) {
+        final existing = genreCounts[genre.id];
+        genreCounts[genre.id] = _GenreCount(
+          genre: genre,
+          playCount: (existing?.playCount ?? 0) + assignment.playCount,
+        );
+      }
+    }
+
+    if (genreCounts.isEmpty) return const [];
+
+    final totalAttributedPlays = genreCounts.values.fold<int>(
+      0,
+      (total, stat) => total + stat.playCount,
+    );
+    final stats =
+        [
+          for (final count in genreCounts.values)
+            GenreStat(
+              genre: count.genre,
+              playCount: count.playCount,
+              share: count.playCount / totalAttributedPlays,
+            ),
+        ]..sort((left, right) {
+          final byCount = right.playCount.compareTo(left.playCount);
+          if (byCount != 0) return byCount;
+
+          final byName = left.genre.name.toLowerCase().compareTo(
+            right.genre.name.toLowerCase(),
+          );
+          if (byName != 0) return byName;
+          return left.genre.id.compareTo(right.genre.id);
+        });
+
+    return List.unmodifiable(stats);
+  }
+
+  Future<_AlbumGenreAssignment> _genresForAlbum(
+    String albumId,
+    int playCount,
+  ) async {
+    return _AlbumGenreAssignment(
+      genres: await _genreRepository.findByAlbum(albumId),
+      playCount: playCount,
+    );
+  }
+
   /// Returns play-derived stats for [albumId], or null when the album is gone.
   Future<AlbumStats?> getAlbumStats(String albumId) async {
     final normalizedAlbumId = albumId.trim();
@@ -226,5 +325,20 @@ StatsService statsService(Ref ref) {
   return StatsService(
     albumRepository: ref.watch(albumRepositoryProvider),
     playRepository: ref.watch(playRepositoryProvider),
+    genreRepository: ref.watch(genreRepositoryProvider),
   );
+}
+
+class _GenreCount {
+  const _GenreCount({required this.genre, required this.playCount});
+
+  final Genre genre;
+  final int playCount;
+}
+
+class _AlbumGenreAssignment {
+  const _AlbumGenreAssignment({required this.genres, required this.playCount});
+
+  final List<Genre> genres;
+  final int playCount;
 }
