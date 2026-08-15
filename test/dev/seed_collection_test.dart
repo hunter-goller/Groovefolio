@@ -5,18 +5,21 @@ import 'package:vinyl_app/dev/seed_collection.dart';
 import 'package:vinyl_app/repositories/album_repository.dart';
 import 'package:vinyl_app/repositories/artist_repository.dart';
 import 'package:vinyl_app/repositories/genre_repository.dart';
+import 'package:vinyl_app/repositories/play_repository.dart';
 
 void main() {
   late AppDatabase db;
   late AlbumRepository albumRepository;
   late ArtistRepository artistRepository;
   late GenreRepository genreRepository;
+  late PlayRepository playRepository;
 
   setUp(() {
     db = AppDatabase(NativeDatabase.memory());
     albumRepository = AlbumRepository(db);
     artistRepository = ArtistRepository(db);
     genreRepository = GenreRepository(db);
+    playRepository = PlayRepository(db);
   });
 
   tearDown(() async {
@@ -64,9 +67,9 @@ void main() {
       final first = await seedCollectionForDev(db);
       final second = await seedCollectionForDev(db);
 
-      expect(first.createdAlbums, 7);
+      expect(first.createdAlbums, 60);
       expect(second.createdAlbums, 0);
-      expect(second.reusedAlbums, 7);
+      expect(second.reusedAlbums, 60);
       expect(second.createdPlays, 0);
 
       final genres = await genreRepository.findAll();
@@ -120,4 +123,44 @@ void main() {
       'Art Rock',
     });
   });
+
+  test('seed backfills fixed 2024 and 2025 Stats history idempotently', () async {
+    await seedCollectionForDev(db);
+
+    final blueTrain = await findAlbum('John Coltrane', 'Blue Train');
+    final firstPass = await playRepository.findByAlbum(blueTrain.id);
+    final playedAt = firstPass.map((play) => play.playedAt).toSet();
+
+    expect(playedAt, contains('2024-01-20T20:00:00.000Z'));
+    expect(playedAt, contains('2025-02-14T20:00:00.000Z'));
+
+    final countAfterFirstSeed = firstPass.length;
+    final second = await seedCollectionForDev(db);
+    final secondPass = await playRepository.findByAlbum(blueTrain.id);
+
+    expect(second.createdPlays, 0);
+    expect(secondPass.length, countAfterFirstSeed);
+  });
+
+  test('seed creates a broad 60-record development collection', () async {
+    final result = await seedCollectionForDev(db);
+    final albums = await albumRepository.findAll();
+    final genres = await genreRepository.findAll();
+
+    expect(result.createdAlbums, 60);
+    expect(albums, hasLength(60));
+    expect(genres.length, greaterThanOrEqualTo(25));
+
+    expect(
+      albums.map((album) => album.title),
+      containsAll({
+        'Nevermind',
+        'Illmatic',
+        'Master of Puppets',
+        'folklore',
+        'Back to Black',
+      }),
+    );
+  });
+
 }
