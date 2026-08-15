@@ -31,6 +31,7 @@ class StatsDashboardData {
     required this.genres,
     required this.mostPlayed,
     required this.firstVinyl,
+    required this.firstVinylArtistName,
   });
 
   final CollectionSummary summary;
@@ -38,10 +39,14 @@ class StatsDashboardData {
   final List<GenreStat> genres;
   final List<StatsRankedAlbum> mostPlayed;
   final Album? firstVinyl;
+  final String? firstVinylArtistName;
 }
 
-final statsDashboardProvider = FutureProvider.autoDispose
-    .family<StatsDashboardData, StatsRange>((ref, range) async {
+final statsDashboardProvider =
+    FutureProvider.autoDispose.family<StatsDashboardData, StatsRange>((
+      ref,
+      range,
+    ) async {
       final service = ref.watch(statsServiceProvider);
       final artistRepository = ref.watch(artistRepositoryProvider);
       final currentYear = DateTime.now().year;
@@ -60,9 +65,7 @@ final statsDashboardProvider = FutureProvider.autoDispose
       final ranked = await rankedFuture;
       final firstVinyl = await firstVinylFuture;
       final artists = await artistsFuture;
-      final artistsById = {
-        for (final artist in artists) artist.id: artist.name,
-      };
+      final artistsById = {for (final artist in artists) artist.id: artist.name};
 
       return StatsDashboardData(
         summary: summary,
@@ -77,6 +80,9 @@ final statsDashboardProvider = FutureProvider.autoDispose
             ),
         ],
         firstVinyl: firstVinyl,
+        firstVinylArtistName: firstVinyl == null
+            ? null
+            : artistsById[firstVinyl.artistId] ?? 'Unknown artist',
       );
     });
 
@@ -94,6 +100,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
   Widget build(BuildContext context) {
     final currentYear = DateTime.now().year;
     final dataAsync = ref.watch(statsDashboardProvider(_range));
+    final tokens = context.tokens;
 
     return Scaffold(
       appBar: AppBar(
@@ -114,6 +121,28 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
               ],
               selected: {_range},
               showSelectedIcon: false,
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return AppThemeTokens.accent.withValues(alpha: 0.18);
+                  }
+                  return Colors.transparent;
+                }),
+                foregroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return AppThemeTokens.accent;
+                  }
+                  return tokens.text;
+                }),
+                side: WidgetStateProperty.resolveWith((states) {
+                  final selected = states.contains(WidgetState.selected);
+                  return BorderSide(
+                    color: selected
+                        ? AppThemeTokens.accent.withValues(alpha: 0.78)
+                        : tokens.textMuted.withValues(alpha: 0.55),
+                  );
+                }),
+              ),
               onSelectionChanged: (selection) {
                 setState(() => _range = selection.single);
               },
@@ -170,7 +199,8 @@ class _StatsBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final currentMonthPlays = data.months[DateTime.now().month - 1].playCount;
+    final currentMonthPlays =
+        data.months[DateTime.now().month - 1].playCount;
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -184,17 +214,22 @@ class _StatsBody extends StatelessWidget {
         _SummaryGrid(
           summary: data.summary,
           currentMonthPlays: currentMonthPlays,
+          range: range,
+          currentYear: currentYear,
         ),
         if (data.firstVinyl != null) ...[
           SizedBox(height: tokens.space16),
-          _FirstVinylCard(album: data.firstVinyl!),
+          _FirstVinylCard(
+            album: data.firstVinyl!,
+            artistName: data.firstVinylArtistName ?? 'Unknown artist',
+          ),
         ],
         SizedBox(height: tokens.space24),
         if (data.summary.totalPlays == 0)
           const _NoPlaysCard()
         else ...[
           _StatsSectionCard(
-            title: 'Plays by month',
+            title: 'Plays in $currentYear',
             trailing: Text(
               '$currentYear',
               style: context.theme.textTheme.labelMedium?.copyWith(
@@ -206,8 +241,11 @@ class _StatsBody extends StatelessWidget {
           SizedBox(height: tokens.space16),
           if (data.genres.isNotEmpty)
             _StatsSectionCard(
-              title: 'Plays by genre',
-              child: GenreBreakdownList(stats: data.genres),
+              title: 'Listening by genre',
+              child: _ExpandableGenreBreakdown(
+                key: ValueKey(range),
+                stats: data.genres,
+              ),
             ),
           if (data.genres.isNotEmpty) SizedBox(height: tokens.space16),
           if (data.mostPlayed.isNotEmpty)
@@ -216,7 +254,10 @@ class _StatsBody extends StatelessWidget {
               child: Column(
                 children: [
                   for (var i = 0; i < data.mostPlayed.length; i++) ...[
-                    _RankedAlbumRow(rank: i + 1, item: data.mostPlayed[i]),
+                    _RankedAlbumRow(
+                      rank: i + 1,
+                      item: data.mostPlayed[i],
+                    ),
                     if (i != data.mostPlayed.length - 1)
                       Divider(
                         height: tokens.space24,
@@ -233,10 +274,17 @@ class _StatsBody extends StatelessWidget {
 }
 
 class _SummaryGrid extends StatelessWidget {
-  const _SummaryGrid({required this.summary, required this.currentMonthPlays});
+  const _SummaryGrid({
+    required this.summary,
+    required this.currentMonthPlays,
+    required this.range,
+    required this.currentYear,
+  });
 
   final CollectionSummary summary;
   final int currentMonthPlays;
+  final StatsRange range;
+  final int currentYear;
 
   @override
   Widget build(BuildContext context) {
@@ -256,10 +304,12 @@ class _SummaryGrid extends StatelessWidget {
         _StatTile(
           label: 'TOTAL PLAYS',
           value: '${summary.totalPlays}',
-          detail: 'selected range',
+          detail: range == StatsRange.currentYear
+              ? 'in $currentYear'
+              : 'all time',
         ),
         _StatTile(
-          label: 'THIS MONTH',
+          label: _monthName(DateTime.now().month).toUpperCase(),
           value: '$currentMonthPlays',
           detail: 'plays',
         ),
@@ -291,7 +341,9 @@ class _StatTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: tokens.surface,
         borderRadius: BorderRadius.circular(tokens.radiusLarge),
-        border: Border.all(color: tokens.textMuted.withValues(alpha: 0.13)),
+        border: Border.all(
+          color: tokens.textMuted.withValues(alpha: 0.13),
+        ),
       ),
       child: Padding(
         padding: EdgeInsets.all(tokens.space12),
@@ -342,9 +394,13 @@ class _StatTile extends StatelessWidget {
 }
 
 class _FirstVinylCard extends StatelessWidget {
-  const _FirstVinylCard({required this.album});
+  const _FirstVinylCard({
+    required this.album,
+    required this.artistName,
+  });
 
   final Album album;
+  final String artistName;
 
   @override
   Widget build(BuildContext context) {
@@ -363,7 +419,10 @@ class _FirstVinylCard extends StatelessWidget {
         padding: EdgeInsets.all(tokens.space16),
         child: Row(
           children: [
-            const Icon(Icons.album_rounded, color: AppThemeTokens.accent),
+            const Icon(
+              Icons.album_rounded,
+              color: AppThemeTokens.accent,
+            ),
             SizedBox(width: tokens.space12),
             Expanded(
               child: Column(
@@ -386,19 +445,78 @@ class _FirstVinylCard extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  if (added != null)
-                    Text(
-                      'Added ${_monthName(added.month)} ${added.year}',
-                      style: context.theme.textTheme.bodySmall?.copyWith(
-                        color: tokens.textMuted,
-                      ),
+                  Text(
+                    added == null
+                        ? artistName
+                        : '$artistName · Added ${_monthName(added.month)} '
+                              '${added.year}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.theme.textTheme.bodySmall?.copyWith(
+                      color: tokens.textMuted,
                     ),
+                  ),
                 ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+
+class _ExpandableGenreBreakdown extends StatefulWidget {
+  const _ExpandableGenreBreakdown({
+    required this.stats,
+    super.key,
+  });
+
+  final List<GenreStat> stats;
+
+  @override
+  State<_ExpandableGenreBreakdown> createState() =>
+      _ExpandableGenreBreakdownState();
+}
+
+class _ExpandableGenreBreakdownState
+    extends State<_ExpandableGenreBreakdown> {
+  static const _collapsedCount = 6;
+
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final canExpand = widget.stats.length > _collapsedCount;
+    final visibleStats = _expanded || !canExpand
+        ? widget.stats
+        : widget.stats.take(_collapsedCount).toList(growable: false);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GenreBreakdownList(stats: visibleStats),
+        if (canExpand) ...[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => setState(() => _expanded = !_expanded),
+              icon: Icon(
+                _expanded
+                    ? Icons.keyboard_arrow_up_rounded
+                    : Icons.keyboard_arrow_down_rounded,
+              ),
+              label: Text(
+                _expanded
+                    ? 'Show less'
+                    : 'Show all (${widget.stats.length})',
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -421,7 +539,9 @@ class _StatsSectionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: tokens.surface,
         borderRadius: BorderRadius.circular(tokens.radiusLarge),
-        border: Border.all(color: tokens.textMuted.withValues(alpha: 0.13)),
+        border: Border.all(
+          color: tokens.textMuted.withValues(alpha: 0.13),
+        ),
       ),
       child: Padding(
         padding: EdgeInsets.all(tokens.space16),
@@ -520,7 +640,10 @@ class _MonthlyBarChart extends StatelessWidget {
 }
 
 class _RankedAlbumRow extends StatelessWidget {
-  const _RankedAlbumRow({required this.rank, required this.item});
+  const _RankedAlbumRow({
+    required this.rank,
+    required this.item,
+  });
 
   final int rank;
   final StatsRankedAlbum item;
@@ -599,7 +722,11 @@ class _NoPlaysCard extends StatelessWidget {
       padding: EdgeInsets.symmetric(vertical: tokens.space32),
       child: Column(
         children: [
-          Icon(Icons.bar_chart_rounded, size: 42, color: tokens.textMuted),
+          Icon(
+            Icons.bar_chart_rounded,
+            size: 42,
+            color: tokens.textMuted,
+          ),
           SizedBox(height: tokens.space12),
           Text(
             'No plays yet',
@@ -639,7 +766,10 @@ class _StatsErrorState extends StatelessWidget {
             SizedBox(height: tokens.space12),
             const Text('Could not load stats'),
             SizedBox(height: tokens.space12),
-            OutlinedButton(onPressed: onRetry, child: const Text('Try again')),
+            OutlinedButton(
+              onPressed: onRetry,
+              child: const Text('Try again'),
+            ),
           ],
         ),
       ),
@@ -647,32 +777,20 @@ class _StatsErrorState extends StatelessWidget {
   }
 }
 
-String _monthInitial(int month) => const [
-  'J',
-  'F',
-  'M',
-  'A',
-  'M',
-  'J',
-  'J',
-  'A',
-  'S',
-  'O',
-  'N',
-  'D',
-][month - 1];
+String _monthInitial(int month) =>
+    const ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'][month - 1];
 
 String _monthName(int month) => const [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-][month - 1];
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ][month - 1];
