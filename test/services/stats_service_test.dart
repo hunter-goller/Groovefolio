@@ -27,6 +27,21 @@ void main() {
     releaseYear: 1969,
     createdAt: '2026-01-03T00:00:00.000Z',
   );
+  const jazz = Genre(
+    id: 'genre-jazz',
+    name: 'Jazz',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  );
+  const modalJazz = Genre(
+    id: 'genre-modal-jazz',
+    name: 'Modal Jazz',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  );
+  const rock = Genre(
+    id: 'genre-rock',
+    name: 'Rock',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  );
 
   group('StatsService', () {
     test(
@@ -124,6 +139,84 @@ void main() {
     });
 
     test(
+      'genre breakdown is play-weighted across multi-genre albums',
+      () async {
+        final service = _service(
+          albums: [kindOfBlue, blueTrain],
+          plays: [
+            _play('play-1', kindOfBlue.id, '2026-08-01T12:00:00.000Z'),
+            _play('play-2', kindOfBlue.id, '2026-08-02T12:00:00.000Z'),
+            _play('play-3', blueTrain.id, '2026-08-03T12:00:00.000Z'),
+          ],
+          genresByAlbum: {
+            kindOfBlue.id: [jazz, modalJazz],
+            blueTrain.id: [jazz],
+          },
+        );
+
+        final stats = await service.getGenreBreakdown();
+
+        expect(stats, hasLength(2));
+        expect(stats[0].genre, jazz);
+        expect(stats[0].playCount, 3);
+        expect(stats[0].share, closeTo(0.6, 0.0001));
+        expect(stats[0].percentage, closeTo(60, 0.0001));
+        expect(stats[1].genre, modalJazz);
+        expect(stats[1].playCount, 2);
+        expect(stats[1].share, closeTo(0.4, 0.0001));
+        expect(
+          stats.fold<double>(0, (total, stat) => total + stat.percentage),
+          closeTo(100, 0.0001),
+        );
+      },
+    );
+
+    test(
+      'genre breakdown ignores unplayed and genre-less albums and sorts ties',
+      () async {
+        final service = _service(
+          albums: [kindOfBlue, blueTrain, abbeyRoad],
+          plays: [
+            _play('play-1', kindOfBlue.id, '2026-08-01T12:00:00.000Z'),
+            _play('play-2', blueTrain.id, '2026-08-02T12:00:00.000Z'),
+          ],
+          genresByAlbum: {
+            kindOfBlue.id: [rock, jazz],
+            // Blue Train is played but intentionally has no genres.
+            // Abbey Road has a genre but no plays.
+            abbeyRoad.id: [modalJazz],
+          },
+        );
+
+        final stats = await service.getGenreBreakdown();
+
+        expect(stats.map((stat) => stat.genre.name), ['Jazz', 'Rock']);
+        expect(stats.map((stat) => stat.playCount), [1, 1]);
+        expect(stats.map((stat) => stat.percentage), [50, 50]);
+      },
+    );
+
+    test(
+      'genre breakdown returns empty when no plays are attributed',
+      () async {
+        final noPlays = _service(
+          albums: [kindOfBlue],
+          plays: const [],
+          genresByAlbum: {
+            kindOfBlue.id: [jazz],
+          },
+        );
+        final noGenres = _service(
+          albums: [kindOfBlue],
+          plays: [_play('play-1', kindOfBlue.id, '2026-08-01T12:00:00.000Z')],
+        );
+
+        expect(await noPlays.getGenreBreakdown(), isEmpty);
+        expect(await noGenres.getGenreBreakdown(), isEmpty);
+      },
+    );
+
+    test(
       'album stats returns totals, side counts, and first/last plays',
       () async {
         final service = _service(
@@ -189,10 +282,14 @@ void main() {
       final playRepository = _FakePlayRepository([
         _play('play-1', kindOfBlue.id, '2026-08-10T12:00:00.000Z'),
       ]);
+      final genreRepository = _FakeGenreRepository({
+        kindOfBlue.id: [jazz],
+      });
       final container = ProviderContainer(
         overrides: [
           albumRepositoryProvider.overrideWithValue(albumRepository),
           playRepositoryProvider.overrideWithValue(playRepository),
+          genreRepositoryProvider.overrideWithValue(genreRepository),
         ],
       );
       addTearDown(container.dispose);
@@ -210,11 +307,13 @@ void main() {
 StatsService _service({
   required Iterable<Album> albums,
   required Iterable<Play> plays,
+  Map<String, List<Genre>> genresByAlbum = const {},
   DateTime Function()? now,
 }) {
   return StatsService(
     albumRepository: _FakeAlbumRepository(albums),
     playRepository: _FakePlayRepository(plays),
+    genreRepository: _FakeGenreRepository(genresByAlbum),
     now: now ?? () => DateTime.parse('2026-08-15T12:00:00.000Z'),
   );
 }
@@ -265,6 +364,44 @@ class _FakeAlbumRepository implements IAlbumRepository {
 
   @override
   Future<bool> update(Album album) => throw UnimplementedError();
+}
+
+class _FakeGenreRepository implements IGenreRepository {
+  _FakeGenreRepository(Map<String, List<Genre>> genresByAlbum)
+    : _genresByAlbum = {
+        for (final entry in genresByAlbum.entries)
+          entry.key: List<Genre>.of(entry.value),
+      };
+
+  final Map<String, List<Genre>> _genresByAlbum;
+
+  @override
+  Future<List<Genre>> findByAlbum(String albumId) async {
+    return List.unmodifiable(_genresByAlbum[albumId] ?? const <Genre>[]);
+  }
+
+  @override
+  Future<int> delete(String genreId) => throw UnimplementedError();
+
+  @override
+  Future<List<Genre>> findAll() => throw UnimplementedError();
+
+  @override
+  Future<Genre?> findById(String id) => throw UnimplementedError();
+
+  @override
+  Future<Genre?> findByName(String name) => throw UnimplementedError();
+
+  @override
+  Future<Genre> findOrCreate(String name) => throw UnimplementedError();
+
+  @override
+  Future<int> removeFromAlbum(String albumId, String genreId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> setAlbumGenres(String albumId, Iterable<String> genreIds) =>
+      throw UnimplementedError();
 }
 
 class _FakePlayRepository implements IPlayRepository {
