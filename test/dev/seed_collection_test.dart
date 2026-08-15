@@ -124,23 +124,26 @@ void main() {
     });
   });
 
-  test('seed backfills fixed 2024 and 2025 Stats history idempotently', () async {
-    await seedCollectionForDev(db);
+  test(
+    'seed backfills fixed 2024 and 2025 Stats history idempotently',
+    () async {
+      await seedCollectionForDev(db);
 
-    final blueTrain = await findAlbum('John Coltrane', 'Blue Train');
-    final firstPass = await playRepository.findByAlbum(blueTrain.id);
-    final playedAt = firstPass.map((play) => play.playedAt).toSet();
+      final blueTrain = await findAlbum('John Coltrane', 'Blue Train');
+      final firstPass = await playRepository.findByAlbum(blueTrain.id);
+      final playedAt = firstPass.map((play) => play.playedAt).toSet();
 
-    expect(playedAt, contains('2024-01-20T20:00:00.000Z'));
-    expect(playedAt, contains('2025-02-14T20:00:00.000Z'));
+      expect(playedAt, contains('2024-01-20T20:00:00.000Z'));
+      expect(playedAt, contains('2025-02-14T20:00:00.000Z'));
 
-    final countAfterFirstSeed = firstPass.length;
-    final second = await seedCollectionForDev(db);
-    final secondPass = await playRepository.findByAlbum(blueTrain.id);
+      final countAfterFirstSeed = firstPass.length;
+      final second = await seedCollectionForDev(db);
+      final secondPass = await playRepository.findByAlbum(blueTrain.id);
 
-    expect(second.createdPlays, 0);
-    expect(secondPass.length, countAfterFirstSeed);
-  });
+      expect(second.createdPlays, 0);
+      expect(secondPass.length, countAfterFirstSeed);
+    },
+  );
 
   test('seed creates a broad 60-record development collection', () async {
     final result = await seedCollectionForDev(db);
@@ -162,5 +165,4 @@ void main() {
       }),
     );
   });
-
 }
