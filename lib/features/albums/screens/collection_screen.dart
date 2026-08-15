@@ -218,7 +218,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
           },
         ),
       ),
-      floatingActionButton: hasAlbums
+      floatingActionButton: hasAlbums && !_showSearch
           ? FloatingActionButton.extended(
               onPressed: () => context.push(AppRoutes.addAlbum),
               icon: const Icon(Icons.add_rounded),
@@ -393,7 +393,7 @@ class _CollectionBody extends StatelessWidget {
   };
 }
 
-class _CollectionFilterControls extends StatefulWidget {
+class _CollectionFilterControls extends StatelessWidget {
   const _CollectionFilterControls({
     required this.selectedSort,
     required this.selectedGenre,
@@ -407,73 +407,35 @@ class _CollectionFilterControls extends StatefulWidget {
   final VoidCallback onGenrePressed;
 
   @override
-  State<_CollectionFilterControls> createState() =>
-      _CollectionFilterControlsState();
-}
-
-class _CollectionFilterControlsState extends State<_CollectionFilterControls> {
-  late final ScrollController _scrollController;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController = ScrollController();
-  }
-
-  @override
-  void didUpdateWidget(covariant _CollectionFilterControls oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.selectedGenre != oldWidget.selectedGenre) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _revealGenreFilter());
-    }
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _revealGenreFilter() {
-    if (!mounted || !_scrollController.hasClients) return;
-
-    final target = widget.selectedGenre == null
-        ? _scrollController.position.minScrollExtent
-        : _scrollController.position.maxScrollExtent;
-
-    _scrollController.animateTo(
-      target,
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+
+    // Keep the primary sort controls anchored at the left. The row remains
+    // horizontally scrollable on narrower phones, but changing the genre must
+    // never auto-scroll Recent/A-Z/Most played off-screen.
     return SingleChildScrollView(
-      controller: _scrollController,
+      key: const Key('collection-filter-scroll'),
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
           for (final option in _sortOptions) ...[
             ChoiceChip(
-              selected: option.value == widget.selectedSort,
+              selected: option.value == selectedSort,
               showCheckmark: false,
-              onSelected: (_) => widget.onSortChanged(option.value),
+              onSelected: (_) => onSortChanged(option.value),
               label: Text(option.label),
               selectedColor: AppThemeTokens.accent,
               backgroundColor: tokens.surface,
               side: BorderSide(
-                color: option.value == widget.selectedSort
+                color: option.value == selectedSort
                     ? AppThemeTokens.accent
                     : tokens.textMuted.withValues(alpha: 0.24),
               ),
               labelStyle: context.theme.textTheme.labelLarge?.copyWith(
-                color: option.value == widget.selectedSort
+                color: option.value == selectedSort
                     ? Colors.black
                     : tokens.textMuted,
-                fontWeight: option.value == widget.selectedSort
+                fontWeight: option.value == selectedSort
                     ? FontWeight.w600
                     : FontWeight.w500,
               ),
@@ -482,22 +444,27 @@ class _CollectionFilterControlsState extends State<_CollectionFilterControls> {
           ],
           ChoiceChip(
             key: const Key('collection-genre-filter'),
-            selected: widget.selectedGenre != null,
+            selected: selectedGenre != null,
             showCheckmark: false,
-            onSelected: (_) => widget.onGenrePressed(),
-            label: Text(widget.selectedGenre ?? 'Genre'),
+            onSelected: (_) => onGenrePressed(),
+            label: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 104),
+              child: Text(
+                selectedGenre ?? 'Genre',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
             selectedColor: AppThemeTokens.accent,
             backgroundColor: tokens.surface,
             side: BorderSide(
-              color: widget.selectedGenre != null
+              color: selectedGenre != null
                   ? AppThemeTokens.accent
                   : tokens.textMuted.withValues(alpha: 0.24),
             ),
             labelStyle: context.theme.textTheme.labelLarge?.copyWith(
-              color: widget.selectedGenre != null
-                  ? Colors.black
-                  : tokens.textMuted,
-              fontWeight: widget.selectedGenre != null
+              color: selectedGenre != null ? Colors.black : tokens.textMuted,
+              fontWeight: selectedGenre != null
                   ? FontWeight.w600
                   : FontWeight.w500,
             ),

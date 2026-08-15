@@ -48,6 +48,86 @@ void main() {
     expect(find.byKey(const Key('album-list-genres')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('genre selection keeps primary sort controls anchored', (
+    tester,
+  ) async {
+    // Use a width where the default four controls fit, but selecting a long
+    // genre can make the row wider than the viewport. This isolates the
+    // regression we care about: selection must not auto-scroll the primary
+    // sort controls off the left edge.
+    await tester.binding.setSurfaceSize(const Size(540, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          albumRepositoryProvider.overrideWithValue(_FakeAlbumRepository()),
+          artistRepositoryProvider.overrideWithValue(_FakeArtistRepository()),
+          playRepositoryProvider.overrideWithValue(_FakePlayRepository()),
+          genreRepositoryProvider.overrideWithValue(
+            const _FakeGenreRepository([
+              Genre(
+                id: 'genre-progressive-rock',
+                name: 'Progressive Rock',
+                createdAt: '2026-08-14T00:00:00.000Z',
+              ),
+            ]),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          home: const CollectionScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('collection-genre-filter')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Progressive Rock'));
+    await tester.pumpAndSettle();
+
+    final recentChip = find.widgetWithText(ChoiceChip, 'Recent');
+    expect(recentChip, findsOneWidget);
+    expect(tester.getTopLeft(recentChip).dx, greaterThanOrEqualTo(0));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('hides Add record FAB while collection search is open', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          albumRepositoryProvider.overrideWithValue(_FakeAlbumRepository()),
+          artistRepositoryProvider.overrideWithValue(_FakeArtistRepository()),
+          playRepositoryProvider.overrideWithValue(_FakePlayRepository()),
+          genreRepositoryProvider.overrideWithValue(
+            const _FakeGenreRepository([]),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          home: const CollectionScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+    await tester.tap(find.byTooltip('Search collection'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('collection-search-field')), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 class _FakeAlbumRepository implements IAlbumRepository {
