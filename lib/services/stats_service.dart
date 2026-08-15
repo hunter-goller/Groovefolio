@@ -104,9 +104,9 @@ class StatsService {
   /// The average uses the time between the first logged play and [now], with
   /// a minimum one-week window so a brand-new collection does not report an
   /// exaggerated rate after only a few hours or days.
-  Future<CollectionSummary> getCollectionSummary() async {
+  Future<CollectionSummary> getCollectionSummary({int? year}) async {
     final albums = await _albumRepository.findAll();
-    final plays = await _playRepository.findAll();
+    final plays = _filterPlaysByYear(await _playRepository.findAll(), year);
 
     if (plays.isEmpty) {
       return CollectionSummary(
@@ -137,11 +137,11 @@ class StatsService {
   ///
   /// Ties are resolved alphabetically by title and then by ID so results stay
   /// stable across runs and database implementations.
-  Future<List<RankedAlbum>> getMostPlayedAlbums(int limit) async {
+  Future<List<RankedAlbum>> getMostPlayedAlbums(int limit, {int? year}) async {
     if (limit <= 0) return const [];
 
     final albums = await _albumRepository.findAll();
-    final plays = await _playRepository.findAll();
+    final plays = _filterPlaysByYear(await _playRepository.findAll(), year);
     final counts = <String, int>{};
     for (final play in plays) {
       counts.update(play.albumId, (count) => count + 1, ifAbsent: () => 1);
@@ -193,8 +193,8 @@ class StatsService {
   ///
   /// Results are ordered by descending attributed play count, then
   /// case-insensitive genre name, then genre ID for deterministic ties.
-  Future<List<GenreStat>> getGenreBreakdown() async {
-    final plays = await _playRepository.findAll();
+  Future<List<GenreStat>> getGenreBreakdown({int? year}) async {
+    final plays = _filterPlaysByYear(await _playRepository.findAll(), year);
     if (plays.isEmpty) return const [];
 
     final playCountsByAlbum = <String, int>{};
@@ -260,6 +260,38 @@ class StatsService {
     );
   }
 
+  /// Returns the first vinyl added to the app collection.
+  ///
+  /// This is derived from the earliest Album.createdAt rather than stored
+  /// separately, so it remains correct if collection data changes.
+  Future<Album?> getFirstVinyl() async {
+    final albums = await _albumRepository.findAll();
+    if (albums.isEmpty) return null;
+
+    final ordered = List<Album>.of(albums)
+      ..sort((left, right) {
+        final leftCreated = DateTime.tryParse(left.createdAt);
+        final rightCreated = DateTime.tryParse(right.createdAt);
+
+        if (leftCreated != null && rightCreated != null) {
+          final byDate = leftCreated.compareTo(rightCreated);
+          if (byDate != 0) return byDate;
+        } else if (leftCreated != null) {
+          return -1;
+        } else if (rightCreated != null) {
+          return 1;
+        }
+
+        final byTitle = left.title.toLowerCase().compareTo(
+          right.title.toLowerCase(),
+        );
+        if (byTitle != 0) return byTitle;
+        return left.id.compareTo(right.id);
+      });
+
+    return ordered.first;
+  }
+
   /// Returns play-derived stats for [albumId], or null when the album is gone.
   Future<AlbumStats?> getAlbumStats(String albumId) async {
     final normalizedAlbumId = albumId.trim();
@@ -314,6 +346,13 @@ class StatsService {
       firstPlayedAt: playedAt.first,
       lastPlayedAt: playedAt.last,
     );
+  }
+
+  List<Play> _filterPlaysByYear(List<Play> plays, int? year) {
+    if (year == null) return plays;
+    return plays
+        .where((play) => _parsedPlayedAt(play).toLocal().year == year)
+        .toList(growable: false);
   }
 
   DateTime _parsedPlayedAt(Play play) => DateTime.parse(play.playedAt);
