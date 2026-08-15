@@ -1,5 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:vinyl_app/theme/theme_helpers.dart';
+
+/// Returns a deterministic palette slot for a genre name.
+///
+/// The same normalized name always maps to the same slot, which keeps genre
+/// colors stable across Collection, Album Detail, Add Record, and Discover.
+int genreColorIndex(String genre) {
+  final normalized = genre.trim().toLowerCase();
+  var hash = 17;
+  for (final unit in normalized.codeUnits) {
+    hash = ((hash * 31) + unit) & 0x7fffffff;
+  }
+  return hash % _genrePalette.length;
+}
+
+const _genrePalette = <Color>[
+  Color(0xFF42A5F5), // blue
+  Color(0xFFAB6BFF), // purple
+  Color(0xFF40C878), // green
+  Color(0xFFFFB52E), // amber
+  Color(0xFF26C6DA), // cyan
+  Color(0xFFEC6AA7), // pink
+];
 
 /// Small reusable genre pill used anywhere album genres are displayed.
 class GenreChip extends StatelessWidget {
@@ -16,35 +37,49 @@ class GenreChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    final borderRadius = BorderRadius.circular(12);
-    final chip = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        border: Border.all(color: tokens.textMuted.withValues(alpha: 0.28)),
-        borderRadius: borderRadius,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Flexible(
-            child: Text(
-              genre,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textScaler: TextScaler.noScaling,
-              style: TextStyle(
-                color: tokens.text,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
+    final baseColor = _genrePalette[genreColorIndex(genre)];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final foreground = isDark
+        ? Color.lerp(baseColor, Colors.white, 0.16)!
+        : Color.lerp(baseColor, Colors.black, 0.28)!;
+    final borderRadius = BorderRadius.circular(10);
+
+    final chip = ConstrainedBox(
+      // Keep a single unusually long genre from forcing its parent to
+      // overflow. Incoming constraints can still make the chip narrower;
+      // the label will ellipsize while the remove affordance remains visible.
+      constraints: const BoxConstraints(maxWidth: 180),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: baseColor.withValues(alpha: isDark ? 0.16 : 0.11),
+          border: Border.all(color: baseColor.withValues(alpha: 0.52)),
+          borderRadius: borderRadius,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              fit: FlexFit.loose,
+              child: Text(
+                genre,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textScaler: TextScaler.noScaling,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 10,
+                  height: 1.15,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
-          if (removable) ...[
-            const SizedBox(width: 4),
-            Icon(Icons.close_rounded, size: 10, color: tokens.textMuted),
+            if (removable) ...[
+              const SizedBox(width: 4),
+              Icon(Icons.close_rounded, size: 11, color: foreground),
+            ],
           ],
-        ],
+        ),
       ),
     );
 

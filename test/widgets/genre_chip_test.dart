@@ -57,15 +57,21 @@ void main() {
     expect(removeCount, 2);
   });
 
-  testWidgets('genre text stays 11px at fixed scale', (tester) async {
+  testWidgets('genre text stays compact at fixed scale', (tester) async {
     await tester.pumpWidget(
       buildSubject(const GenreChip(genre: 'Alternative'), textScaleFactor: 2.5),
     );
 
     final text = tester.widget<Text>(find.text('Alternative'));
-    expect(text.style?.fontSize, 11);
-    expect(text.style?.fontWeight, FontWeight.w500);
+    expect(text.style?.fontSize, 10);
+    expect(text.style?.fontWeight, FontWeight.w600);
     expect(text.textScaler, TextScaler.noScaling);
+  });
+
+  test('genre colors are deterministic after normalization', () {
+    expect(genreColorIndex('Jazz'), genreColorIndex(' jazz '));
+    expect(genreColorIndex('HARD BOP'), genreColorIndex('hard bop'));
+    expect(genreColorIndex('Jazz'), isNot(genreColorIndex('Hard Bop')));
   });
 
   testWidgets('identical genres produce identical chip geometry', (

@@ -21,7 +21,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(AppBar, 'Collection'), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'My collection'), findsOneWidget);
     expect(find.byKey(const Key('collection-empty-state')), findsOneWidget);
     expect(find.byKey(const Key('collection-search-field')), findsNothing);
     expect(find.text('Recent'), findsNothing);

@@ -16,12 +16,8 @@ import 'package:vinyl_app/widgets/ui/empty_state.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 import 'package:vinyl_app/widgets/ui/section_header.dart';
 
-/// MVP album detail page.
-///
-/// VinylApp-048 intentionally focuses on the core collection/listening loop:
-/// identity, play-derived summary, recent history, and logging another play.
-/// The richer Wrapped-style charts/recommendations remain separate follow-up
-/// work once StatsService exists.
+/// Album detail screen aligned with the richer approved mockup while using
+/// only metadata currently backed by the local database.
 class AlbumDetailScreen extends ConsumerWidget {
   const AlbumDetailScreen({required this.albumId, super.key});
 
@@ -31,20 +27,17 @@ class AlbumDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final detailAsync = ref.watch(albumDetailProvider(albumId));
     final genresAsync = ref.watch(albumGenresProvider(albumId));
-
     final canPop = Navigator.of(context).canPop();
 
     return PopScope(
       canPop: canPop,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          context.go(AppRoutes.collection);
-        }
+        if (!didPop) context.go(AppRoutes.collection);
       },
       child: Scaffold(
         appBar: AppBar(
           leading: BackButton(onPressed: () => _goBack(context)),
-          title: const Text('Record details'),
+          title: const Text('Album Details'),
           actions: [
             PopupMenuButton<_AlbumMenuAction>(
               tooltip: 'Record actions',
@@ -111,10 +104,9 @@ class AlbumDetailScreen extends ConsumerWidget {
     final navigator = Navigator.of(context);
     if (navigator.canPop()) {
       navigator.pop();
-      return;
+    } else {
+      context.go(AppRoutes.collection);
     }
-
-    context.go(AppRoutes.collection);
   }
 
   Future<void> _openLogPlay(
@@ -123,28 +115,24 @@ class AlbumDetailScreen extends ConsumerWidget {
     AlbumDetailData detail,
   ) async {
     final tokens = context.tokens;
-
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: tokens.background,
-      builder: (sheetContext) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+        ),
+        child: FractionallySizedBox(
+          heightFactor: 0.92,
+          child: LogPlayScreen(
+            isBottomSheet: true,
+            initialAlbum: detail.collectionAlbum,
           ),
-          child: FractionallySizedBox(
-            heightFactor: 0.92,
-            child: LogPlayScreen(
-              isBottomSheet: true,
-              initialAlbum: detail.collectionAlbum,
-            ),
-          ),
-        );
-      },
+        ),
+      ),
     );
-
     ref.invalidate(albumDetailProvider(detail.album.id));
   }
 
@@ -153,7 +141,6 @@ class AlbumDetailScreen extends ConsumerWidget {
       _AlbumMenuAction.edit => 'Edit record',
       _AlbumMenuAction.delete => 'Delete record',
     };
-
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text('$feature is coming soon.')));
@@ -187,16 +174,16 @@ class _AlbumDetailBody extends StatelessWidget {
         tokens.space32,
       ),
       children: [
-        _AlbumIdentity(detail: detail, genres: genres),
+        _AlbumHero(detail: detail, genres: genres),
         SizedBox(height: tokens.space24),
+        _DetailSection(detail: detail, genres: genres),
+        SizedBox(height: tokens.space16),
         _ListeningSummary(detail: detail),
-        SizedBox(height: tokens.space24),
+        SizedBox(height: tokens.space16),
         PrimaryButton(
           label: detail.playCount == 0 ? 'Log first play' : 'Log another play',
           icon: Icons.play_arrow_rounded,
-          onPressed: () async {
-            await onLogPlay();
-          },
+          onPressed: () async => onLogPlay(),
         ),
         SizedBox(height: tokens.space24),
         SectionHeader(
@@ -218,8 +205,8 @@ class _AlbumDetailBody extends StatelessWidget {
   }
 }
 
-class _AlbumIdentity extends StatelessWidget {
-  const _AlbumIdentity({required this.detail, required this.genres});
+class _AlbumHero extends StatelessWidget {
+  const _AlbumHero({required this.detail, required this.genres});
 
   final AlbumDetailData detail;
   final List<String> genres;
@@ -228,60 +215,195 @@ class _AlbumIdentity extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final album = detail.album;
-    final metadata = [
-      if (album.releaseYear != null) '${album.releaseYear}',
-      if (album.label?.trim().isNotEmpty ?? false) album.label!.trim(),
-    ];
-
-    return Column(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _AlbumArtwork(path: album.artworkPath),
-        SizedBox(height: tokens.space16),
-        Text(
-          album.title,
-          textAlign: TextAlign.center,
-          style: context.theme.textTheme.headlineSmall?.copyWith(
-            color: tokens.text,
-            fontWeight: FontWeight.w800,
+        SizedBox(width: tokens.space16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                album.title,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: context.theme.textTheme.headlineSmall?.copyWith(
+                  color: tokens.text,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              SizedBox(height: tokens.space4),
+              Text(
+                detail.artist.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.theme.textTheme.titleMedium?.copyWith(
+                  color: tokens.textMuted,
+                ),
+              ),
+              if (album.releaseYear != null) ...[
+                SizedBox(height: tokens.space8),
+                _MetaLine(label: 'Year', value: '${album.releaseYear}'),
+              ],
+              if (album.label?.trim().isNotEmpty ?? false) ...[
+                SizedBox(height: tokens.space4),
+                _MetaLine(label: 'Label', value: album.label!.trim()),
+              ],
+              if (genres.isNotEmpty) ...[
+                SizedBox(height: tokens.space8),
+                Wrap(
+                  key: const Key('album-detail-genres'),
+                  spacing: tokens.space4,
+                  runSpacing: tokens.space4,
+                  children: [
+                    for (final genre in genres) GenreChip(genre: genre),
+                  ],
+                ),
+              ],
+            ],
           ),
         ),
-        SizedBox(height: tokens.space4),
+      ],
+    );
+  }
+}
+
+class _MetaLine extends StatelessWidget {
+  const _MetaLine({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return RichText(
+      text: TextSpan(
+        style: context.theme.textTheme.bodySmall?.copyWith(color: tokens.text),
+        children: [
+          TextSpan(
+            text: '$label\n',
+            style: TextStyle(color: tokens.textMuted, fontSize: 10),
+          ),
+          TextSpan(text: value),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailSection extends StatelessWidget {
+  const _DetailSection({required this.detail, required this.genres});
+  final AlbumDetailData detail;
+  final List<String> genres;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final album = detail.album;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         Text(
-          detail.artist.name,
-          textAlign: TextAlign.center,
-          style: context.theme.textTheme.titleMedium?.copyWith(
+          'DETAILS',
+          style: context.theme.textTheme.labelSmall?.copyWith(
             color: tokens.textMuted,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
           ),
         ),
-        if (metadata.isNotEmpty) ...[
-          SizedBox(height: tokens.space8),
+        SizedBox(height: tokens.space8),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: tokens.surface,
+            borderRadius: BorderRadius.circular(tokens.radiusMedium),
+          ),
+          child: Column(
+            children: [
+              if (album.label?.trim().isNotEmpty ?? false)
+                _DetailRow(label: 'Label', value: album.label!.trim()),
+              if (album.releaseYear != null)
+                _DetailRow(
+                  label: 'Release year',
+                  value: '${album.releaseYear}',
+                ),
+              if (genres.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: tokens.space12,
+                    vertical: tokens.space12,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 92,
+                        child: Text(
+                          'Genres',
+                          style: context.theme.textTheme.bodySmall?.copyWith(
+                            color: tokens.textMuted,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Wrap(
+                          alignment: WrapAlignment.end,
+                          spacing: tokens.space4,
+                          runSpacing: tokens.space4,
+                          children: [
+                            for (final genre in genres) GenreChip(genre: genre),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: tokens.space12,
+        vertical: tokens.space12,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: context.theme.textTheme.bodySmall?.copyWith(
+                color: tokens.textMuted,
+              ),
+            ),
+          ),
           Text(
-            metadata.join('  •  '),
-            textAlign: TextAlign.center,
-            style: context.theme.textTheme.labelLarge?.copyWith(
-              color: context.theme.colorScheme.primary,
+            value,
+            style: context.theme.textTheme.bodySmall?.copyWith(
+              color: tokens.text,
               fontWeight: FontWeight.w600,
             ),
           ),
         ],
-        if (genres.isNotEmpty) ...[
-          SizedBox(height: tokens.space12),
-          Wrap(
-            key: const Key('album-detail-genres'),
-            alignment: WrapAlignment.center,
-            spacing: tokens.space4,
-            runSpacing: tokens.space4,
-            children: [for (final genre in genres) GenreChip(genre: genre)],
-          ),
-        ],
-      ],
+      ),
     );
   }
 }
 
 class _AlbumArtwork extends StatelessWidget {
   const _AlbumArtwork({this.path});
-
   final String? path;
 
   @override
@@ -291,21 +413,20 @@ class _AlbumArtwork extends StatelessWidget {
     final placeholder = DecoratedBox(
       decoration: BoxDecoration(
         color: tokens.surfaceElevated,
-        borderRadius: BorderRadius.circular(tokens.radiusLarge),
+        borderRadius: BorderRadius.circular(tokens.radiusMedium),
       ),
       child: const Center(
         child: Icon(
           Icons.album_rounded,
           color: AppThemeTokens.accent,
-          size: 72,
+          size: 54,
         ),
       ),
     );
-
     return SizedBox.square(
-      dimension: 196,
+      dimension: 142,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(tokens.radiusLarge),
+        borderRadius: BorderRadius.circular(tokens.radiusMedium),
         child: normalizedPath == null || normalizedPath.isEmpty
             ? placeholder
             : Image.file(
@@ -320,28 +441,36 @@ class _AlbumArtwork extends StatelessWidget {
 
 class _ListeningSummary extends StatelessWidget {
   const _ListeningSummary({required this.detail});
-
   final AlbumDetailData detail;
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: _MetricCard(
-            label: 'TOTAL PLAYS',
-            value: '${detail.playCount}',
-            icon: Icons.play_circle_outline_rounded,
+        Text(
+          'YOUR STATS',
+          style: context.theme.textTheme.labelSmall?.copyWith(
+            color: tokens.textMuted,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
           ),
         ),
-        SizedBox(width: tokens.space12),
-        Expanded(
-          child: _MetricCard(
-            label: 'LAST PLAYED',
-            value: _relativeTimeLabel(detail.lastPlayedAt),
-            icon: Icons.schedule_rounded,
+        SizedBox(height: tokens.space8),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: tokens.surface,
+            borderRadius: BorderRadius.circular(tokens.radiusMedium),
+          ),
+          child: Column(
+            children: [
+              _DetailRow(label: 'Times played', value: '${detail.playCount}'),
+              _DetailRow(
+                label: 'Last played',
+                value: _relativeTimeLabel(detail.lastPlayedAt),
+              ),
+            ],
           ),
         ),
       ],
@@ -349,70 +478,14 @@ class _ListeningSummary extends StatelessWidget {
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        borderRadius: BorderRadius.circular(tokens.radiusMedium),
-        border: Border.all(color: tokens.textMuted.withValues(alpha: 0.16)),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(tokens.space16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: context.theme.colorScheme.primary, size: 20),
-            SizedBox(height: tokens.space12),
-            Text(
-              label,
-              style: context.theme.textTheme.labelSmall?.copyWith(
-                color: tokens.textMuted,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.7,
-              ),
-            ),
-            SizedBox(height: tokens.space4),
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.theme.textTheme.titleLarge?.copyWith(
-                color: tokens.text,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _PlayHistoryTile extends StatelessWidget {
   const _PlayHistoryTile({required this.play});
-
   final Play play;
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final playedAt = DateTime.tryParse(play.playedAt)?.toLocal();
-    final side = play.sidePlayed;
-
     return DecoratedBox(
       decoration: BoxDecoration(
         color: tokens.surface,
@@ -447,7 +520,7 @@ class _PlayHistoryTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _sideLabel(side),
+                    _sideLabel(play.sidePlayed),
                     style: context.theme.textTheme.bodyMedium?.copyWith(
                       color: tokens.text,
                       fontWeight: FontWeight.w700,
@@ -474,11 +547,9 @@ class _PlayHistoryTile extends StatelessWidget {
 
 class _NoPlayHistory extends StatelessWidget {
   const _NoPlayHistory();
-
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-
     return DecoratedBox(
       decoration: BoxDecoration(
         color: tokens.surface,
@@ -507,7 +578,6 @@ class _NoPlayHistory extends StatelessWidget {
 
 class _DetailError extends StatelessWidget {
   const _DetailError({required this.onRetry});
-
   final VoidCallback onRetry;
 
   @override
@@ -522,17 +592,14 @@ class _DetailError extends StatelessWidget {
   }
 }
 
-String _sideLabel(SidePlayed side) {
-  return switch (side) {
-    SidePlayed.full => 'Full album',
-    SidePlayed.sideA => 'Side A',
-    SidePlayed.sideB => 'Side B',
-  };
-}
+String _sideLabel(SidePlayed side) => switch (side) {
+  SidePlayed.full => 'Full album',
+  SidePlayed.sideA => 'Side A',
+  SidePlayed.sideB => 'Side B',
+};
 
 String _relativeTimeLabel(DateTime? date) {
   if (date == null) return 'Never';
-
   final difference = DateTime.now().difference(date.toLocal());
   if (difference.isNegative || difference.inMinutes < 1) return 'Just now';
   if (difference.inHours < 1) return '${difference.inMinutes}m ago';

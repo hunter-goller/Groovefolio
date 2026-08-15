@@ -140,6 +140,10 @@ class _GenrePickerDialogState extends State<_GenrePickerDialog> {
         !availableSuggestions.any(
           (genre) => genre.toLowerCase() == enteredGenre.toLowerCase(),
         );
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    // Keep the suggestion viewport aligned to whole chip rows when the
+    // keyboard is visible. The list remains scrollable for additional genres.
+    final suggestionMaxHeight = keyboardOpen ? 168.0 : 280.0;
 
     return AlertDialog(
       scrollable: true,
@@ -170,8 +174,9 @@ class _GenrePickerDialogState extends State<_GenrePickerDialog> {
             if (availableSuggestions.isNotEmpty || canAddEntered) ...[
               SizedBox(height: tokens.space12),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 220),
+                constraints: BoxConstraints(maxHeight: suggestionMaxHeight),
                 child: SingleChildScrollView(
+                  padding: EdgeInsets.only(bottom: tokens.space8),
                   child: Wrap(
                     spacing: tokens.space8,
                     runSpacing: tokens.space8,
