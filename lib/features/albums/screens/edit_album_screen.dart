@@ -3,12 +3,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/artwork_storage_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
+import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
 import 'package:vinyl_app/widgets/shared/genre_chip_input.dart';
 import 'package:vinyl_app/widgets/ui/empty_state.dart';
 import 'package:vinyl_app/widgets/ui/labeled_text_field.dart';
@@ -32,6 +35,7 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
 
   Album? _loadedAlbum;
   List<String> _selectedGenres = const [];
+  File? _selectedArtwork;
   bool _initialized = false;
   bool _isSubmitting = false;
   bool _rewriteNfc = false;
@@ -65,6 +69,23 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
     _initialized = true;
   }
 
+  Future<void> _pickArtwork() async {
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 92,
+        maxWidth: 1600,
+      );
+      if (picked == null || !mounted) return;
+      setState(() => _selectedArtwork = File(picked.path));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Couldn’t choose artwork: $error')),
+      );
+    }
+  }
+
   Future<void> _save() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
@@ -73,6 +94,11 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
     if (existing == null) return;
 
     setState(() => _isSubmitting = true);
+    File? previousArtworkFile;
+    List<int>? previousArtworkBytes;
+    String? writtenArtworkPath;
+    var wroteArtwork = false;
+
     try {
       final artist = await ref
           .read(artistRepositoryProvider)
@@ -81,13 +107,29 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
       final yearText = _yearController.text.trim();
       final labelText = _labelController.text.trim();
 
+      var artworkPath = existing.artworkPath;
+      if (_selectedArtwork != null) {
+        final artworkStorage = ref.read(artworkStorageServiceProvider);
+        previousArtworkFile = artworkStorage.artworkFile(existing.artworkPath);
+        if (previousArtworkFile != null) {
+          previousArtworkBytes = await previousArtworkFile.readAsBytes();
+        }
+
+        artworkPath = await artworkStorage.saveArtwork(
+          _selectedArtwork!,
+          existing.id,
+        );
+        writtenArtworkPath = artworkPath;
+        wroteArtwork = true;
+      }
+
       final updatedAlbum = Album(
         id: existing.id,
         title: _titleController.text.trim(),
         artistId: artist.id,
         releaseYear: yearText.isEmpty ? null : int.parse(yearText),
         label: labelText.isEmpty ? null : labelText,
-        artworkPath: existing.artworkPath,
+        artworkPath: artworkPath,
         purchaseDate: existing.purchaseDate,
         purchasePriceCents: existing.purchasePriceCents,
         createdAt: existing.createdAt,
@@ -116,6 +158,20 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
       if (!mounted) return;
       context.go(AppRoutes.albumDetailPath(existing.id));
     } catch (error) {
+      if (wroteArtwork && writtenArtworkPath != null) {
+        final artworkStorage = ref.read(artworkStorageServiceProvider);
+        if (previousArtworkFile != null &&
+            previousArtworkBytes != null &&
+            previousArtworkFile.path == writtenArtworkPath) {
+          await previousArtworkFile.writeAsBytes(
+            previousArtworkBytes,
+            flush: true,
+          );
+        } else {
+          await artworkStorage.deleteArtwork(writtenArtworkPath);
+        }
+      }
+
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -171,6 +227,10 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
                     ?.map((genre) => genre.name)
                     .toList(growable: false) ??
                 const <String>[];
+            final existingArtwork = ref
+                .read(artworkStorageServiceProvider)
+                .artworkFile(detail.album.artworkPath);
+            final displayArtwork = _selectedArtwork ?? existingArtwork;
 
             return Form(
               key: _formKey,
@@ -187,7 +247,14 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _ArtworkPreview(path: detail.album.artworkPath),
+                        ArtworkPicker(
+                          key: const Key('edit-record-artwork'),
+                          image: displayArtwork,
+                          size: 102,
+                          height: 132,
+                          enabled: !isSaving,
+                          onTap: _pickArtwork,
+                        ),
                         SizedBox(width: context.tokens.space12),
                         Expanded(
                           child: Column(
@@ -331,47 +398,6 @@ final _albumNfcProvider = FutureProvider.autoDispose.family<NfcTag?, String>((
 ) {
   return ref.watch(nfcTagRepositoryProvider).findByAlbum(albumId);
 });
-
-class _ArtworkPreview extends StatelessWidget {
-  const _ArtworkPreview({required this.path});
-
-  final String? path;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    final normalized = path?.trim();
-    final hasArtwork = normalized != null && normalized.isNotEmpty;
-
-    return Container(
-      width: 102,
-      height: 132,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        borderRadius: BorderRadius.circular(tokens.radiusMedium),
-        border: Border.all(color: tokens.textMuted.withValues(alpha: 0.2)),
-      ),
-      child: hasArtwork
-          ? Image.file(
-              File(normalized),
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
-                  const _ArtworkFallback(),
-            )
-          : const _ArtworkFallback(),
-    );
-  }
-}
-
-class _ArtworkFallback extends StatelessWidget {
-  const _ArtworkFallback();
-
-  @override
-  Widget build(BuildContext context) {
-    return Icon(Icons.album_rounded, size: 42, color: context.tokens.textMuted);
-  }
-}
 
 class _SectionCard extends StatelessWidget {
   const _SectionCard({required this.child});

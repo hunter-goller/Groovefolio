@@ -1,11 +1,17 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/artwork_storage_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
+import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
 import 'package:vinyl_app/widgets/shared/genre_chip_input.dart';
 import 'package:vinyl_app/widgets/ui/labeled_text_field.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
@@ -25,6 +31,7 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
   late final TextEditingController _yearController;
   late final TextEditingController _labelController;
   List<String> _selectedGenres = const [];
+  File? _selectedArtwork;
   bool _isSubmitting = false;
 
   @override
@@ -43,6 +50,23 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
     _yearController.dispose();
     _labelController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickArtwork() async {
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 92,
+        maxWidth: 1600,
+      );
+      if (picked == null || !mounted) return;
+      setState(() => _selectedArtwork = File(picked.path));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Couldn’t choose artwork: $error')),
+      );
+    }
   }
 
   Future<void> _save() async {
@@ -64,6 +88,40 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
             releaseYear: yearText.isEmpty ? null : int.parse(yearText),
             label: labelText.isEmpty ? null : labelText,
           );
+
+      if (_selectedArtwork != null) {
+        String? artworkPath;
+        try {
+          artworkPath = await ref
+              .read(artworkStorageServiceProvider)
+              .saveArtwork(_selectedArtwork!, album.id);
+          final albumWithArtwork = Album(
+            id: album.id,
+            title: album.title,
+            artistId: album.artistId,
+            releaseYear: album.releaseYear,
+            label: album.label,
+            artworkPath: artworkPath,
+            purchaseDate: album.purchaseDate,
+            purchasePriceCents: album.purchasePriceCents,
+            createdAt: album.createdAt,
+          );
+          final updated = await ref
+              .read(albumMutationsProvider.notifier)
+              .update(albumWithArtwork);
+          if (!updated) {
+            throw StateError('Artwork could not be linked to the record.');
+          }
+        } catch (_) {
+          if (artworkPath != null) {
+            await ref
+                .read(artworkStorageServiceProvider)
+                .deleteArtwork(artworkPath);
+          }
+          await ref.read(albumMutationsProvider.notifier).delete(album.id);
+          rethrow;
+        }
+      }
 
       if (_selectedGenres.isNotEmpty) {
         final genreRepository = ref.read(genreRepositoryProvider);
@@ -126,7 +184,14 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _ArtworkPlaceholder(enabled: !isSaving),
+                    ArtworkPicker(
+                      key: const Key('add-record-artwork'),
+                      image: _selectedArtwork,
+                      size: 102,
+                      height: 132,
+                      enabled: !isSaving,
+                      onTap: _pickArtwork,
+                    ),
                     SizedBox(width: tokens.space12),
                     Expanded(
                       child: Column(
@@ -246,51 +311,6 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
       return 'Enter a year from 1900 to $maxYear';
     }
     return null;
-  }
-}
-
-class _ArtworkPlaceholder extends StatelessWidget {
-  const _ArtworkPlaceholder({required this.enabled});
-
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    return SizedBox(
-      width: 102,
-      height: 132,
-      child: OutlinedButton(
-        onPressed: enabled
-            ? () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Artwork picker is coming soon.')),
-              )
-            : null,
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.all(8),
-          side: BorderSide(
-            color: tokens.textMuted.withValues(alpha: 0.35),
-            style: BorderStyle.solid,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(tokens.radiusMedium),
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.add_a_photo_outlined, color: tokens.textMuted),
-            const SizedBox(height: 8),
-            Text(
-              'Add art',
-              style: context.theme.textTheme.labelMedium?.copyWith(
-                color: tokens.textMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

@@ -8,6 +8,7 @@ import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/types/side_played.dart';
+import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
 
 void main() {
   testWidgets('prefills album artist and assigned genres', (tester) async {
@@ -23,6 +24,8 @@ void main() {
     expect(_fieldText(tester, 'edit-record-label'), 'Blue Note');
     expect(find.text('Jazz'), findsOneWidget);
     expect(find.text('Hard Bop'), findsOneWidget);
+    expect(find.byType(ArtworkPicker), findsOneWidget);
+    expect(find.byKey(const Key('edit-record-artwork')), findsOneWidget);
   });
 
   testWidgets('editing only title preserves other album fields and genres', (

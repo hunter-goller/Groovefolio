@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:vinyl_app/db/app_database.dart';
+import 'package:vinyl_app/dev/dev_seed_artwork_source.dart';
 import 'package:vinyl_app/repositories/album_repository.dart';
 import 'package:vinyl_app/repositories/artist_repository.dart';
 import 'package:vinyl_app/repositories/genre_repository.dart';
@@ -7,18 +8,46 @@ import 'package:vinyl_app/repositories/play_repository.dart';
 import 'package:vinyl_app/services/play_logging_service.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
-/// Result returned by [seedCollectionForDev].
+/// Result returned by development seed operations.
 class DevSeedResult {
   const DevSeedResult({
     required this.createdAlbums,
     required this.reusedAlbums,
     required this.createdPlays,
+    this.downloadedArtwork = 0,
+    this.missingArtwork = 0,
+    this.removedAlbums = 0,
   });
 
   final int createdAlbums;
   final int reusedAlbums;
   final int createdPlays;
+  final int downloadedArtwork;
+  final int missingArtwork;
+  final int removedAlbums;
 }
+
+class DevSeedProgress {
+  const DevSeedProgress({
+    required this.stage,
+    required this.completedAlbums,
+    required this.totalAlbums,
+    this.currentAlbum,
+    this.downloadedArtwork = 0,
+    this.missingArtwork = 0,
+  });
+
+  final String stage;
+  final int completedAlbums;
+  final int totalAlbums;
+  final String? currentAlbum;
+  final int downloadedArtwork;
+  final int missingArtwork;
+
+  double get fraction => totalAlbums == 0 ? 0 : completedAlbums / totalAlbums;
+}
+
+typedef DevSeedProgressCallback = void Function(DevSeedProgress progress);
 
 /// Populates the production-on-device database with a broad realistic
 /// collection for visual and Stats development.
@@ -29,7 +58,12 @@ class DevSeedResult {
 /// removing user-added genre mappings, recent relative plays are only created
 /// for seeded albums with no history, and fixed historical Stats test plays
 /// are backfilled idempotently when missing.
-Future<DevSeedResult> seedCollectionForDev(AppDatabase db) async {
+Future<DevSeedResult> seedCollectionForDev(
+  AppDatabase db, {
+  DevSeedArtworkSource? artworkSource,
+  DevSeedProgressCallback? onProgress,
+  int albumLimit = 10,
+}) async {
   if (!kDebugMode) {
     throw StateError('Development seed data may only run in debug builds.');
   }
@@ -47,11 +81,17 @@ Future<DevSeedResult> seedCollectionForDev(AppDatabase db) async {
   var createdAlbums = 0;
   var reusedAlbums = 0;
   var createdPlays = 0;
+  var downloadedArtwork = 0;
+  var missingArtwork = 0;
 
   final albums = await albumRepository.findAll();
   final knownAlbums = [...albums];
+  final selectedSeedAlbums = _seedAlbums
+      .take(albumLimit <= 0 ? 1 : albumLimit)
+      .toList(growable: false);
 
-  for (final spec in _seedAlbums) {
+  for (var specIndex = 0; specIndex < selectedSeedAlbums.length; specIndex++) {
+    final spec = selectedSeedAlbums[specIndex];
     final artist = await artistRepository.findOrCreate(spec.artist);
 
     Album? album;
@@ -76,19 +116,67 @@ Future<DevSeedResult> seedCollectionForDev(AppDatabase db) async {
       reusedAlbums++;
     }
 
+    var seededAlbum = album;
+
+    if (artworkSource != null &&
+        (seededAlbum.artworkPath == null ||
+            seededAlbum.artworkPath!.trim().isEmpty)) {
+      try {
+        final artworkPath = await artworkSource.saveArtworkForAlbum(
+          artist: spec.artist,
+          title: spec.title,
+          releaseYear: spec.releaseYear,
+          albumId: seededAlbum.id,
+        );
+
+        if (artworkPath == null) {
+          missingArtwork++;
+        } else {
+          final albumWithArtwork = Album(
+            id: seededAlbum.id,
+            title: seededAlbum.title,
+            artistId: seededAlbum.artistId,
+            releaseYear: seededAlbum.releaseYear,
+            label: seededAlbum.label,
+            artworkPath: artworkPath,
+            purchaseDate: seededAlbum.purchaseDate,
+            purchasePriceCents: seededAlbum.purchasePriceCents,
+            createdAt: seededAlbum.createdAt,
+          );
+          final updated = await albumRepository.update(albumWithArtwork);
+          if (!updated) {
+            await artworkSource.deleteArtwork(artworkPath);
+            throw StateError(
+              'Could not attach downloaded artwork to ${seededAlbum.title}.',
+            );
+          }
+          seededAlbum = albumWithArtwork;
+          downloadedArtwork++;
+        }
+      } catch (error) {
+        // Artwork is development polish, not a reason to leave the reset with
+        // a half-built database when a network request fails.
+        debugPrint(
+          'Dev seed artwork unavailable for ${spec.artist} — ${spec.title}: '
+          '$error',
+        );
+        missingArtwork++;
+      }
+    }
+
     await _ensureSeedGenres(
       genreRepository: genreRepository,
-      albumId: album.id,
+      albumId: seededAlbum.id,
       genreNames: spec.genres,
     );
 
-    final existingPlays = await playRepository.findByAlbum(album.id);
+    final existingPlays = await playRepository.findByAlbum(seededAlbum.id);
 
     if (existingPlays.isEmpty) {
       for (var index = 0; index < spec.playAges.length; index++) {
         final side = SidePlayed.values[index % SidePlayed.values.length];
         await playLoggingService.logPlay(
-          album.id,
+          seededAlbum.id,
           now.subtract(spec.playAges[index]),
           side,
         );
@@ -105,16 +193,88 @@ Future<DevSeedResult> seedCollectionForDev(AppDatabase db) async {
       }
 
       final side = SidePlayed.values[index % SidePlayed.values.length];
-      await playLoggingService.logPlay(album.id, playedAt, side);
+      await playLoggingService.logPlay(seededAlbum.id, playedAt, side);
       knownPlayedAt.add(normalizedPlayedAt);
       createdPlays++;
     }
+
+    onProgress?.call(
+      DevSeedProgress(
+        stage: 'Seeding collection',
+        completedAlbums: specIndex + 1,
+        totalAlbums: selectedSeedAlbums.length,
+        currentAlbum: '${spec.artist} — ${spec.title}',
+        downloadedArtwork: downloadedArtwork,
+        missingArtwork: missingArtwork,
+      ),
+    );
   }
 
   return DevSeedResult(
     createdAlbums: createdAlbums,
     reusedAlbums: reusedAlbums,
     createdPlays: createdPlays,
+    downloadedArtwork: downloadedArtwork,
+    missingArtwork: missingArtwork,
+  );
+}
+
+/// Destructively clears the on-device development database and creates a fresh
+/// deterministic seed collection. Existing artwork files referenced by Albums
+/// are removed before the rows are deleted.
+Future<DevSeedResult> resetAndSeedCollectionForDev(
+  AppDatabase db, {
+  required DevSeedArtworkSource artworkSource,
+  DevSeedProgressCallback? onProgress,
+  int albumLimit = 10,
+}) async {
+  if (!kDebugMode) {
+    throw StateError('Development seed data may only run in debug builds.');
+  }
+
+  final albumRepository = AlbumRepository(db);
+  final existingAlbums = await albumRepository.findAll();
+  final selectedAlbumCount = _seedAlbums
+      .take(albumLimit <= 0 ? 1 : albumLimit)
+      .length;
+
+  onProgress?.call(
+    DevSeedProgress(
+      stage: 'Clearing existing dev data',
+      completedAlbums: 0,
+      totalAlbums: selectedAlbumCount,
+    ),
+  );
+
+  for (final album in existingAlbums) {
+    await artworkSource.deleteArtwork(album.artworkPath);
+  }
+
+  await db.transaction(() async {
+    // Delete dependents first because Plays and NfcTags intentionally do not
+    // rely on database-level cascading.
+    await db.delete(db.albumGenres).go();
+    await db.delete(db.plays).go();
+    await db.delete(db.nfcTags).go();
+    await db.delete(db.albums).go();
+    await db.delete(db.genres).go();
+    await db.delete(db.artists).go();
+  });
+
+  final seeded = await seedCollectionForDev(
+    db,
+    artworkSource: artworkSource,
+    onProgress: onProgress,
+    albumLimit: albumLimit,
+  );
+
+  return DevSeedResult(
+    createdAlbums: seeded.createdAlbums,
+    reusedAlbums: seeded.reusedAlbums,
+    createdPlays: seeded.createdPlays,
+    downloadedArtwork: seeded.downloadedArtwork,
+    missingArtwork: seeded.missingArtwork,
+    removedAlbums: existingAlbums.length,
   );
 }
 
@@ -161,6 +321,184 @@ class _SeedAlbum {
 }
 
 const _seedAlbums = <_SeedAlbum>[
+  _SeedAlbum(
+    artist: 'Taylor Swift',
+    title: 'folklore',
+    releaseYear: 2020,
+    label: 'Republic',
+    genres: ['Indie Folk', 'Pop'],
+    playAges: [Duration(days: 8), Duration(days: 44)],
+    historicalPlayDates: [
+      '2025-05-17T20:00:00.000Z',
+      '2024-12-14T20:00:00.000Z',
+    ],
+  ),
+  _SeedAlbum(
+    artist: 'Taylor Swift',
+    title: 'Lover',
+    releaseYear: 2019,
+    label: 'Republic',
+    genres: ['Pop', 'Synth-Pop'],
+    playAges: [Duration(days: 18), Duration(days: 67)],
+    historicalPlayDates: [
+      '2025-07-18T20:00:00.000Z',
+      '2024-02-16T20:00:00.000Z',
+    ],
+  ),
+  _SeedAlbum(
+    artist: 'Taylor Swift',
+    title: '1989',
+    releaseYear: 2014,
+    label: 'Big Machine',
+    genres: ['Pop', 'Synth-Pop'],
+    playAges: [Duration(days: 9), Duration(days: 33), Duration(days: 88)],
+    historicalPlayDates: [
+      '2025-10-27T20:00:00.000Z',
+      '2024-08-10T20:00:00.000Z',
+    ],
+  ),
+  _SeedAlbum(
+    artist: 'Taylor Swift',
+    title: 'Midnights',
+    releaseYear: 2022,
+    label: 'Republic',
+    genres: ['Pop', 'Synth-Pop'],
+    playAges: [Duration(days: 5), Duration(days: 26), Duration(days: 73)],
+    historicalPlayDates: [
+      '2025-12-13T20:00:00.000Z',
+      '2024-11-03T20:00:00.000Z',
+    ],
+  ),
+  _SeedAlbum(
+    artist: 'Pink Floyd',
+    title: 'Wish You Were Here',
+    releaseYear: 1975,
+    label: 'Harvest',
+    genres: ['Progressive Rock', 'Art Rock'],
+    playAges: [],
+  ),
+  _SeedAlbum(
+    artist: 'Joni Mitchell',
+    title: 'Blue',
+    releaseYear: 1971,
+    label: 'Reprise',
+    genres: ['Folk', 'Singer-Songwriter'],
+    playAges: [Duration(days: 52)],
+    historicalPlayDates: [
+      '2025-06-21T20:00:00.000Z',
+      '2024-01-06T20:00:00.000Z',
+    ],
+  ),
+  _SeedAlbum(
+    artist: 'Nirvana',
+    title: 'Nevermind',
+    releaseYear: 1991,
+    label: 'DGC',
+    genres: ['Grunge', 'Alternative Rock'],
+    playAges: [Duration(days: 3), Duration(days: 27), Duration(days: 120)],
+    historicalPlayDates: [
+      '2025-02-08T20:00:00.000Z',
+      '2024-08-17T20:00:00.000Z',
+      '2023-11-04T20:00:00.000Z',
+    ],
+  ),
+  _SeedAlbum(
+    artist: 'Amy Winehouse',
+    title: 'Back to Black',
+    releaseYear: 2006,
+    label: 'Island',
+    genres: ['Soul', 'R&B'],
+    playAges: [Duration(days: 22)],
+    historicalPlayDates: [
+      '2025-11-22T20:00:00.000Z',
+      '2024-06-22T20:00:00.000Z',
+    ],
+  ),
+  _SeedAlbum(
+    artist: 'OutKast',
+    title: 'Aquemini',
+    releaseYear: 1998,
+    label: 'LaFace',
+    genres: ['Hip-Hop', 'Southern Hip-Hop'],
+    playAges: [Duration(days: 29)],
+    historicalPlayDates: [
+      '2025-08-09T20:00:00.000Z',
+      '2024-01-13T20:00:00.000Z',
+    ],
+  ),
+  _SeedAlbum(
+    artist: 'Stevie Wonder',
+    title: 'Songs in the Key of Life',
+    releaseYear: 1976,
+    label: 'Tamla',
+    genres: ['Soul', 'Funk', 'R&B'],
+    playAges: [Duration(days: 14), Duration(days: 83)],
+    historicalPlayDates: [
+      '2025-03-01T20:00:00.000Z',
+      '2024-09-21T20:00:00.000Z',
+      '2023-04-15T20:00:00.000Z',
+    ],
+  ),
+  _SeedAlbum(
+    artist: 'Johnny Cash',
+    title: 'At Folsom Prison',
+    releaseYear: 1968,
+    label: 'Columbia',
+    genres: ['Country', 'Americana'],
+    playAges: [Duration(days: 76)],
+    historicalPlayDates: [
+      '2025-03-22T20:00:00.000Z',
+      '2024-09-07T20:00:00.000Z',
+    ],
+  ),
+  _SeedAlbum(
+    artist: 'Bob Dylan',
+    title: 'Blood on the Tracks',
+    releaseYear: 1975,
+    label: 'Columbia',
+    genres: ['Folk Rock', 'Singer-Songwriter'],
+    playAges: [Duration(days: 62)],
+    historicalPlayDates: [
+      '2025-10-25T20:00:00.000Z',
+      '2024-05-11T20:00:00.000Z',
+    ],
+  ),
+  _SeedAlbum(
+    artist: 'Billie Eilish',
+    title: 'When We All Fall Asleep, Where Do We Go?',
+    releaseYear: 2019,
+    label: 'Darkroom',
+    genres: ['Pop', 'Electropop'],
+    playAges: [Duration(days: 47)],
+    historicalPlayDates: [
+      '2025-04-04T20:00:00.000Z',
+      '2023-10-21T20:00:00.000Z',
+    ],
+  ),
+  _SeedAlbum(
+    artist: 'Dolly Parton',
+    title: 'Jolene',
+    releaseYear: 1974,
+    label: 'RCA',
+    genres: ['Country', 'Country Pop'],
+    playAges: [Duration(days: 30)],
+    historicalPlayDates: [
+      '2025-08-02T20:00:00.000Z',
+      '2024-02-10T20:00:00.000Z',
+    ],
+  ),
+  _SeedAlbum(
+    artist: 'Iron Maiden',
+    title: 'The Number of the Beast',
+    releaseYear: 1982,
+    label: 'EMI',
+    genres: ['Metal', 'Heavy Metal'],
+    playAges: [Duration(days: 28)],
+    historicalPlayDates: [
+      '2025-08-16T20:00:00.000Z',
+      '2024-02-17T20:00:00.000Z',
+    ],
+  ),
   _SeedAlbum(
     artist: 'Daft Punk',
     title: 'Random Access Memories',
@@ -255,27 +593,6 @@ const _seedAlbums = <_SeedAlbum>[
       '2025-07-12T20:00:00.000Z',
       '2025-11-29T20:00:00.000Z',
       '2024-04-13T20:00:00.000Z',
-    ],
-  ),
-  _SeedAlbum(
-    artist: 'Pink Floyd',
-    title: 'Wish You Were Here',
-    releaseYear: 1975,
-    label: 'Harvest',
-    genres: ['Progressive Rock', 'Art Rock'],
-    playAges: [],
-  ),
-  _SeedAlbum(
-    artist: 'Nirvana',
-    title: 'Nevermind',
-    releaseYear: 1991,
-    label: 'DGC',
-    genres: ['Grunge', 'Alternative Rock'],
-    playAges: [Duration(days: 3), Duration(days: 27), Duration(days: 120)],
-    historicalPlayDates: [
-      '2025-02-08T20:00:00.000Z',
-      '2024-08-17T20:00:00.000Z',
-      '2023-11-04T20:00:00.000Z',
     ],
   ),
   _SeedAlbum(
@@ -392,19 +709,6 @@ const _seedAlbums = <_SeedAlbum>[
     ],
   ),
   _SeedAlbum(
-    artist: 'Stevie Wonder',
-    title: 'Songs in the Key of Life',
-    releaseYear: 1976,
-    label: 'Tamla',
-    genres: ['Soul', 'Funk', 'R&B'],
-    playAges: [Duration(days: 14), Duration(days: 83)],
-    historicalPlayDates: [
-      '2025-03-01T20:00:00.000Z',
-      '2024-09-21T20:00:00.000Z',
-      '2023-04-15T20:00:00.000Z',
-    ],
-  ),
-  _SeedAlbum(
     artist: 'Marvin Gaye',
     title: 'What\'s Going On',
     releaseYear: 1971,
@@ -513,18 +817,6 @@ const _seedAlbums = <_SeedAlbum>[
       '2025-03-29T20:00:00.000Z',
       '2024-05-04T20:00:00.000Z',
       '2023-06-17T20:00:00.000Z',
-    ],
-  ),
-  _SeedAlbum(
-    artist: 'OutKast',
-    title: 'Aquemini',
-    releaseYear: 1998,
-    label: 'LaFace',
-    genres: ['Hip-Hop', 'Southern Hip-Hop'],
-    playAges: [Duration(days: 29)],
-    historicalPlayDates: [
-      '2025-08-09T20:00:00.000Z',
-      '2024-01-13T20:00:00.000Z',
     ],
   ),
   _SeedAlbum(
@@ -649,18 +941,6 @@ const _seedAlbums = <_SeedAlbum>[
     ],
   ),
   _SeedAlbum(
-    artist: 'Iron Maiden',
-    title: 'The Number of the Beast',
-    releaseYear: 1982,
-    label: 'EMI',
-    genres: ['Metal', 'Heavy Metal'],
-    playAges: [Duration(days: 28)],
-    historicalPlayDates: [
-      '2025-08-16T20:00:00.000Z',
-      '2024-02-17T20:00:00.000Z',
-    ],
-  ),
-  _SeedAlbum(
     artist: 'Slayer',
     title: 'Reign in Blood',
     releaseYear: 1986,
@@ -757,30 +1037,6 @@ const _seedAlbums = <_SeedAlbum>[
     ],
   ),
   _SeedAlbum(
-    artist: 'Joni Mitchell',
-    title: 'Blue',
-    releaseYear: 1971,
-    label: 'Reprise',
-    genres: ['Folk', 'Singer-Songwriter'],
-    playAges: [Duration(days: 52)],
-    historicalPlayDates: [
-      '2025-06-21T20:00:00.000Z',
-      '2024-01-06T20:00:00.000Z',
-    ],
-  ),
-  _SeedAlbum(
-    artist: 'Bob Dylan',
-    title: 'Blood on the Tracks',
-    releaseYear: 1975,
-    label: 'Columbia',
-    genres: ['Folk Rock', 'Singer-Songwriter'],
-    playAges: [Duration(days: 62)],
-    historicalPlayDates: [
-      '2025-10-25T20:00:00.000Z',
-      '2024-05-11T20:00:00.000Z',
-    ],
-  ),
-  _SeedAlbum(
     artist: 'Neil Young',
     title: 'Harvest',
     releaseYear: 1972,
@@ -790,42 +1046,6 @@ const _seedAlbums = <_SeedAlbum>[
     historicalPlayDates: [
       '2024-07-27T20:00:00.000Z',
       '2023-03-18T20:00:00.000Z',
-    ],
-  ),
-  _SeedAlbum(
-    artist: 'Johnny Cash',
-    title: 'At Folsom Prison',
-    releaseYear: 1968,
-    label: 'Columbia',
-    genres: ['Country', 'Americana'],
-    playAges: [Duration(days: 76)],
-    historicalPlayDates: [
-      '2025-03-22T20:00:00.000Z',
-      '2024-09-07T20:00:00.000Z',
-    ],
-  ),
-  _SeedAlbum(
-    artist: 'Dolly Parton',
-    title: 'Jolene',
-    releaseYear: 1974,
-    label: 'RCA',
-    genres: ['Country', 'Country Pop'],
-    playAges: [Duration(days: 30)],
-    historicalPlayDates: [
-      '2025-08-02T20:00:00.000Z',
-      '2024-02-10T20:00:00.000Z',
-    ],
-  ),
-  _SeedAlbum(
-    artist: 'Taylor Swift',
-    title: 'folklore',
-    releaseYear: 2020,
-    label: 'Republic',
-    genres: ['Indie Folk', 'Pop'],
-    playAges: [Duration(days: 8), Duration(days: 44)],
-    historicalPlayDates: [
-      '2025-05-17T20:00:00.000Z',
-      '2024-12-14T20:00:00.000Z',
     ],
   ),
   _SeedAlbum(
@@ -862,30 +1082,6 @@ const _seedAlbums = <_SeedAlbum>[
     historicalPlayDates: [
       '2025-06-13T20:00:00.000Z',
       '2024-01-20T20:00:00.000Z',
-    ],
-  ),
-  _SeedAlbum(
-    artist: 'Amy Winehouse',
-    title: 'Back to Black',
-    releaseYear: 2006,
-    label: 'Island',
-    genres: ['Soul', 'R&B'],
-    playAges: [Duration(days: 22)],
-    historicalPlayDates: [
-      '2025-11-22T20:00:00.000Z',
-      '2024-06-22T20:00:00.000Z',
-    ],
-  ),
-  _SeedAlbum(
-    artist: 'Billie Eilish',
-    title: 'When We All Fall Asleep, Where Do We Go?',
-    releaseYear: 2019,
-    label: 'Darkroom',
-    genres: ['Pop', 'Electropop'],
-    playAges: [Duration(days: 47)],
-    historicalPlayDates: [
-      '2025-04-04T20:00:00.000Z',
-      '2023-10-21T20:00:00.000Z',
     ],
   ),
   _SeedAlbum(
