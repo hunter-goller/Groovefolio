@@ -8,6 +8,7 @@ import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/album_deletion_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/types/side_played.dart';
@@ -46,7 +47,7 @@ class AlbumDetailScreen extends ConsumerWidget {
                   case _AlbumMenuAction.edit:
                     context.push(AppRoutes.editAlbumPath(albumId));
                   case _AlbumMenuAction.delete:
-                    _showDeferredAction(context, action);
+                    _confirmDelete(context, ref);
                 }
               },
               itemBuilder: (context) => const [
@@ -143,14 +144,58 @@ class AlbumDetailScreen extends ConsumerWidget {
     ref.invalidate(albumDetailProvider(detail.album.id));
   }
 
-  void _showDeferredAction(BuildContext context, _AlbumMenuAction action) {
-    final feature = switch (action) {
-      _AlbumMenuAction.edit => 'Edit record',
-      _AlbumMenuAction.delete => 'Delete record',
-    };
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$feature is coming soon.')));
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    try {
+      final detail = await ref.read(albumDetailProvider(albumId).future);
+      if (detail == null || !context.mounted) return;
+
+      final playLabel = detail.playCount == 1
+          ? '1 play'
+          : '${detail.playCount} plays';
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('Delete ${detail.album.title}?'),
+          content: Text(
+            'This will also delete all $playLabel logged for this record. '
+            'This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              key: const Key('delete-record-cancel'),
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              key: const Key('delete-record-confirm'),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(dialogContext).colorScheme.error,
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true || !context.mounted) return;
+
+      await ref.read(albumDeletionServiceProvider).deleteAlbum(albumId);
+
+      ref.invalidate(albumsProvider);
+      ref.invalidate(albumProvider(albumId));
+      ref.invalidate(albumDetailProvider(albumId));
+      ref.invalidate(albumGenresProvider(albumId));
+      ref.invalidate(recentlyPlayedProvider);
+
+      if (!context.mounted) return;
+      context.go(AppRoutes.collection);
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Couldn’t delete record: $error')));
+    }
   }
 }
 
