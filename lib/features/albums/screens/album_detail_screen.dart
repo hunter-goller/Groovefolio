@@ -41,7 +41,14 @@ class AlbumDetailScreen extends ConsumerWidget {
           actions: [
             PopupMenuButton<_AlbumMenuAction>(
               tooltip: 'Record actions',
-              onSelected: (action) => _showDeferredAction(context, action),
+              onSelected: (action) {
+                switch (action) {
+                  case _AlbumMenuAction.edit:
+                    context.push(AppRoutes.editAlbumPath(albumId));
+                  case _AlbumMenuAction.delete:
+                    _showDeferredAction(context, action);
+                }
+              },
               itemBuilder: (context) => const [
                 PopupMenuItem(
                   value: _AlbumMenuAction.edit,
