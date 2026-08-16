@@ -4,6 +4,7 @@ import 'package:vinyl_app/repositories/album_repository.dart';
 import 'package:vinyl_app/repositories/nfc_tag_repository.dart';
 import 'package:vinyl_app/repositories/play_repository.dart';
 import 'package:vinyl_app/services/album_deletion_service.dart';
+import 'package:vinyl_app/services/artwork_storage_service.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
 void main() {
@@ -17,6 +18,7 @@ void main() {
       albumRepository: albumRepository,
       playRepository: playRepository,
       nfcTagRepository: nfcRepository,
+      artworkStorageService: _Artwork(events),
     ).deleteAlbum('album-1');
 
     expect(result.deletedPlayCount, 2);
@@ -28,6 +30,7 @@ void main() {
       'delete-play-play-2',
       'find-nfc',
       'delete-nfc',
+      'delete-artwork',
       'delete-album',
     ]);
   });
@@ -38,6 +41,7 @@ void main() {
       albumRepository: _Albums(events),
       playRepository: _Plays(events, const []),
       nfcTagRepository: _Nfc(events, linked: false),
+      artworkStorageService: _Artwork(events),
     ).deleteAlbum('album-1');
 
     expect(result.deletedPlayCount, 0);
@@ -53,6 +57,7 @@ void main() {
         albumRepository: _Albums(events),
         playRepository: _Plays(events, [_play('play-1')], failDelete: true),
         nfcTagRepository: _Nfc(events, linked: true),
+        artworkStorageService: _Artwork(events),
       );
 
       await expectLater(
@@ -71,6 +76,7 @@ void main() {
       albumRepository: _Albums(events),
       playRepository: _Plays(events, const []),
       nfcTagRepository: _Nfc(events, linked: false),
+      artworkStorageService: _Artwork(events),
     );
 
     await expectLater(service.deleteAlbum('  '), throwsArgumentError);
@@ -82,6 +88,7 @@ Album get _album => const Album(
   id: 'album-1',
   title: 'Blue Train',
   artistId: 'artist-1',
+  artworkPath: '/fake/artwork/album-1.jpg',
   createdAt: '2026-01-01T00:00:00.000Z',
 );
 
@@ -202,4 +209,15 @@ class _Nfc implements INfcTagRepository {
 
   @override
   Future<NfcTag?> findByTagId(String nfcTagId) async => null;
+}
+
+class _Artwork extends ArtworkStorageService {
+  _Artwork(this.events);
+
+  final List<String> events;
+
+  @override
+  Future<void> deleteArtwork(String? artworkPath) async {
+    events.add('delete-artwork');
+  }
 }
