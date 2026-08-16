@@ -39,6 +39,14 @@ class MonthlyPlays {
   final int playCount;
 }
 
+/// One calendar year in an all-time listening series.
+class YearlyPlays {
+  const YearlyPlays({required this.year, required this.playCount});
+
+  final int year;
+  final int playCount;
+}
+
 /// Play-weighted listening share for one genre.
 class GenreStat {
   const GenreStat({
@@ -181,6 +189,28 @@ class StatsService {
     return List.unmodifiable([
       for (var month = 1; month <= 12; month += 1)
         MonthlyPlays(year: year, month: month, playCount: counts[month - 1]),
+    ]);
+  }
+
+  /// Returns every calendar year represented by play history, oldest first.
+  ///
+  /// Unlike [getPlaysByMonth], this does not synthesize empty years between
+  /// the first and last play. The all-time chart represents actual years in
+  /// which listening activity exists.
+  Future<List<YearlyPlays>> getPlaysByYear() async {
+    final plays = await _playRepository.findAll();
+    if (plays.isEmpty) return const [];
+
+    final counts = <int, int>{};
+    for (final play in plays) {
+      final year = _parsedPlayedAt(play).toLocal().year;
+      counts.update(year, (count) => count + 1, ifAbsent: () => 1);
+    }
+
+    final years = counts.keys.toList()..sort();
+    return List.unmodifiable([
+      for (final year in years)
+        YearlyPlays(year: year, playCount: counts[year]!),
     ]);
   }
 

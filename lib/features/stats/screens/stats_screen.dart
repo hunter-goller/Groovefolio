@@ -28,6 +28,7 @@ class StatsDashboardData {
   const StatsDashboardData({
     required this.summary,
     required this.months,
+    required this.years,
     required this.genres,
     required this.mostPlayed,
     required this.firstVinyl,
@@ -36,6 +37,7 @@ class StatsDashboardData {
 
   final CollectionSummary summary;
   final List<MonthlyPlays> months;
+  final List<YearlyPlays> years;
   final List<GenreStat> genres;
   final List<StatsRankedAlbum> mostPlayed;
   final Album? firstVinyl;
@@ -51,6 +53,7 @@ final statsDashboardProvider = FutureProvider.autoDispose
 
       final summaryFuture = service.getCollectionSummary(year: filteredYear);
       final monthsFuture = service.getPlaysByMonth(currentYear);
+      final yearsFuture = service.getPlaysByYear();
       final genresFuture = service.getGenreBreakdown(year: filteredYear);
       final rankedFuture = service.getMostPlayedAlbums(5, year: filteredYear);
       final firstVinylFuture = service.getFirstVinyl();
@@ -58,6 +61,7 @@ final statsDashboardProvider = FutureProvider.autoDispose
 
       final summary = await summaryFuture;
       final months = await monthsFuture;
+      final years = await yearsFuture;
       final genres = await genresFuture;
       final ranked = await rankedFuture;
       final firstVinyl = await firstVinylFuture;
@@ -69,6 +73,7 @@ final statsDashboardProvider = FutureProvider.autoDispose
       return StatsDashboardData(
         summary: summary,
         months: months,
+        years: years,
         genres: genres,
         mostPlayed: [
           for (final item in ranked)
@@ -226,16 +231,28 @@ class _StatsBody extends StatelessWidget {
         if (data.summary.totalPlays == 0)
           const _NoPlaysCard()
         else ...[
-          _StatsSectionCard(
-            title: 'Plays in $currentYear',
-            trailing: Text(
-              '$currentYear',
-              style: context.theme.textTheme.labelMedium?.copyWith(
-                color: tokens.textMuted,
+          if (range == StatsRange.currentYear)
+            _StatsSectionCard(
+              title: 'Plays in $currentYear',
+              trailing: Text(
+                '$currentYear',
+                style: context.theme.textTheme.labelMedium?.copyWith(
+                  color: tokens.textMuted,
+                ),
               ),
+              child: _MonthlyBarChart(months: data.months),
+            )
+          else
+            _StatsSectionCard(
+              title: 'Plays by year',
+              trailing: Text(
+                'All time',
+                style: context.theme.textTheme.labelMedium?.copyWith(
+                  color: tokens.textMuted,
+                ),
+              ),
+              child: _YearlyBarChart(years: data.years),
             ),
-            child: _MonthlyBarChart(months: data.months),
-          ),
           SizedBox(height: tokens.space16),
           if (data.genres.isNotEmpty)
             _StatsSectionCard(
@@ -613,6 +630,109 @@ class _MonthlyBarChart extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _YearlyBarChart extends StatelessWidget {
+  const _YearlyBarChart({required this.years});
+
+  final List<YearlyPlays> years;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    if (years.isEmpty) {
+      return SizedBox(
+        height: 110,
+        child: Center(
+          child: Text(
+            'No listening history yet',
+            style: context.theme.textTheme.bodyMedium?.copyWith(
+              color: tokens.textMuted,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final maxPlays = years.fold<int>(
+      0,
+      (max, year) => year.playCount > max ? year.playCount : max,
+    );
+    final chartWidth = years.length <= 5 ? null : years.length * 72.0;
+
+    final chart = SizedBox(
+      width: chartWidth,
+      height: 160,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (final year in years)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${year.playCount}',
+                      style: context.theme.textTheme.labelSmall?.copyWith(
+                        color: tokens.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final target = maxPlays == 0
+                              ? 0.0
+                              : year.playCount / maxPlays;
+                          return Align(
+                            alignment: Alignment.bottomCenter,
+                            child: TweenAnimationBuilder<double>(
+                              key: ValueKey(
+                                'stats-year-animation-${year.year}',
+                              ),
+                              tween: Tween(begin: 0, end: target),
+                              duration: const Duration(milliseconds: 450),
+                              curve: Curves.easeOutCubic,
+                              builder: (context, value, child) => Container(
+                                key: Key('stats-year-bar-${year.year}'),
+                                height: constraints.maxHeight * value,
+                                constraints: const BoxConstraints(minHeight: 2),
+                                decoration: BoxDecoration(
+                                  color: AppThemeTokens.accent,
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${year.year}',
+                      key: Key('stats-year-label-${year.year}'),
+                      maxLines: 1,
+                      style: context.theme.textTheme.labelSmall?.copyWith(
+                        color: tokens.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    if (chartWidth == null) return chart;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: chart,
     );
   }
 }
