@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vinyl_app/features/albums/screens/add_record_screen.dart';
 import 'package:vinyl_app/features/albums/screens/album_detail_screen.dart';
 import 'package:vinyl_app/features/albums/screens/collection_screen.dart';
+import 'package:vinyl_app/features/albums/screens/edit_album_screen.dart';
 import 'package:vinyl_app/features/discover/screens/discover_screen.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/features/stats/screens/stats_screen.dart';
@@ -48,6 +49,13 @@ GoRouter router(Ref ref) {
         builder: (context, state) {
           final albumId = state.pathParameters['id']!;
           return AlbumDetailScreen(albumId: albumId);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.editAlbum,
+        builder: (context, state) {
+          final albumId = state.pathParameters['id']!;
+          return EditAlbumScreen(albumId: albumId);
         },
       ),
       GoRoute(
