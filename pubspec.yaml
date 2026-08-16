@@ -23,6 +23,9 @@ dependencies:
   path_provider: ^2.1.6
   image_picker: ^1.1.2
   uuid: ^4.6.0
+  crypto: ^3.0.7
+  flutter_secure_storage: 10.3.1
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
