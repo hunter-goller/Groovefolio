@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
+import 'package:vinyl_app/services/artwork_storage_service.dart';
 
 class AlbumDeletionResult {
   const AlbumDeletionResult({
@@ -21,11 +22,13 @@ class AlbumDeletionService {
     required this._albumRepository,
     required this._playRepository,
     required this._nfcTagRepository,
+    required this._artworkStorageService,
   });
 
   final IAlbumRepository _albumRepository;
   final IPlayRepository _playRepository;
   final INfcTagRepository _nfcTagRepository;
+  final ArtworkStorageService _artworkStorageService;
 
   Future<AlbumDeletionResult> deleteAlbum(String albumId) async {
     final normalizedId = albumId.trim();
@@ -62,6 +65,8 @@ class AlbumDeletionService {
       deletedNfcAssociation = true;
     }
 
+    await _artworkStorageService.deleteArtwork(album.artworkPath);
+
     final deletedAlbum = await _albumRepository.delete(normalizedId);
     if (deletedAlbum != 1) {
       throw StateError('Could not delete record.');
@@ -79,5 +84,6 @@ final albumDeletionServiceProvider = Provider<AlbumDeletionService>((ref) {
     albumRepository: ref.watch(albumRepositoryProvider),
     playRepository: ref.watch(playRepositoryProvider),
     nfcTagRepository: ref.watch(nfcTagRepositoryProvider),
+    artworkStorageService: ref.watch(artworkStorageServiceProvider),
   );
 });
