@@ -13,7 +13,8 @@ Current routes:
 | `albumDetail` | `/album/:id` | Album Detail |
 | `editAlbum` | `/album/:id/edit` | Edit Record |
 | `logPlay` | `/play/log` | Log Play |
+| `settings` | `/settings` | Settings / Discogs connection |
 
 Use `AppRoutes` constants/helpers instead of hard-coded route strings.
 
-Discogs connection callback/settings routes are not on the Part-1 baseline; they belong to `VinylApp-106` Part 2.
+The OAuth return URI is `groovefolio://discogs-auth`. It is registered as a platform custom scheme and consumed by `app_links`; successful or failed callbacks route the user to `/settings`.

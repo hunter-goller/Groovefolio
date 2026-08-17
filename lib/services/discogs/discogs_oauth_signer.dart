@@ -27,6 +27,7 @@ class DiscogsOAuthSigner {
     String? tokenSecret,
     String? callback,
     String? verifier,
+    Map<String, String> additionalParameters = const {},
   }) {
     final oauth = <String, String>{
       'oauth_consumer_key': consumerKey,
@@ -40,7 +41,15 @@ class DiscogsOAuthSigner {
       'oauth_verifier': ?verifier,
     };
 
-    final parameters = <String, String>{...uri.queryParameters, ...oauth};
+    // OAuth 1.0 signatures cover query parameters, OAuth protocol parameters,
+    // and application/x-www-form-urlencoded body parameters. Keeping the body
+    // parameters separate from [oauth] lets callers sign a parameter without
+    // also duplicating it in the Authorization header.
+    final parameters = <String, String>{
+      ...uri.queryParameters,
+      ...additionalParameters,
+      ...oauth,
+    };
 
     final entries = parameters.entries.toList()
       ..sort((a, b) {
@@ -51,7 +60,16 @@ class DiscogsOAuthSigner {
     final parameterString = entries
         .map((e) => '${_encode(e.key)}=${_encode(e.value)}')
         .join('&');
-    final baseUri = uri.replace(query: '', fragment: '').toString();
+    // OAuth signs the request URI without query or fragment delimiters.
+    // Using uri.replace(query: '', fragment: '') produces a URI ending in
+    // `?#`, which changes the signature and causes Discogs to reject it.
+    final baseUri = Uri(
+      scheme: uri.scheme,
+      userInfo: uri.userInfo,
+      host: uri.host,
+      port: uri.hasPort ? uri.port : null,
+      path: uri.path,
+    ).toString();
     final baseString =
         '${method.toUpperCase()}&${_encode(baseUri)}&${_encode(parameterString)}';
     final key = '${_encode(consumerSecret)}&${_encode(tokenSecret ?? '')}';

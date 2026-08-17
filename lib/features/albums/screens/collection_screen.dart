@@ -173,6 +173,11 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
               _showSearch ? Icons.close_rounded : Icons.search_rounded,
             ),
           ),
+          IconButton(
+            tooltip: 'Settings',
+            onPressed: () => context.push(AppRoutes.settings),
+            icon: const Icon(Icons.settings_outlined),
+          ),
           const SizedBox(width: 4),
         ],
       ),

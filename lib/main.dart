@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/db/database_provider.dart';
+import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/routing/router.dart';
+import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/theme/theme_provider.dart';
 
@@ -11,6 +13,10 @@ Future<void> main() async {
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   final container = ProviderContainer();
+
+  // Instantiate app-links before the database bootstrap so a cold-start OAuth
+  // callback is retained while Drift opens and runs any migrations.
+  container.read(discogsAppLinksProvider);
 
   try {
     // Force Drift's LazyDatabase to open. The future only completes after
@@ -44,6 +50,23 @@ class MyApp extends ConsumerWidget {
 
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeControllerProvider);
+
+    if (ref.watch(discogsDeepLinksEnabledProvider)) {
+      ref.listen(discogsIncomingUriProvider, (previous, next) {
+        next.whenData((uri) {
+          final config = ref.read(discogsConfigProvider);
+          if (!config.matchesCallback(uri)) return;
+
+          // Route first so cold-start callbacks land on Settings immediately.
+          // The controller then completes the verifier exchange and the screen
+          // reacts to its state.
+          router.go(AppRoutes.settings);
+          ref
+              .read(discogsAuthorizationControllerProvider.notifier)
+              .handleCallback(uri);
+        });
+      });
+    }
 
     return MaterialApp.router(
       title: 'Groovefolio',
