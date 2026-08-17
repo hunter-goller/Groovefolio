@@ -1,67 +1,32 @@
 # Services
 
-## Status
+Services hold workflows/business rules that are broader than one repository.
 
-The service folder is scaffolded but empty. This document defines when a service
-should be introduced.
+## PlayLoggingService
+Validates the target album and creates a play through `IPlayRepository`.
 
-## Purpose
+## StatsService
+Computes:
+- collection summary
+- plays/week
+- most-played albums
+- monthly current-year series
+- yearly all-time series
+- genre breakdown
+- first vinyl
+- album-level play statistics
 
-A service coordinates a user action that spans multiple repositories, hardware
-adapters, or domain rules. It should not render UI and should not own Flutter
-widget state.
+## ArtworkStorageService
+Owns persisted artwork under the app documents directory. The Albums table stores only the returned path.
 
-```mermaid
-flowchart TD
-    UI[Screen action]
-    P[Feature provider]
-    S[Service]
-    AR[Album repository]
-    PR[Play repository]
-    NFC[NFC adapter]
+## AlbumDeletionService
+Coordinates deletion of:
+- play rows
+- linked NFC association
+- artwork file
+- album row
 
-    UI --> P
-    P --> S
-    S --> AR
-    S --> PR
-    S --> NFC
-```
+Album/genre join rows are removed by database cascade.
 
-## Planned services
-
-### PlayLoggingService
-
-Expected responsibilities:
-
-- Validate the target album.
-- Create exactly one play record.
-- Apply full/Side A/Side B information.
-- Update or expose recently played state.
-- Support a play initiated by an NFC scan.
-
-### StatisticsService
-
-May combine album and play repository results into higher-level metrics that do
-not map cleanly to a single SQL query.
-
-### RecommendationService
-
-Will interpret collection metadata and listening history to produce explainable
-recommendations and rediscovery suggestions.
-
-### NfcService
-
-Will wrap device capability checks, tag scanning/writing, album lookup, and hand
-off to `PlayLoggingService`.
-
-## When not to create a service
-
-Do not add a service that merely forwards one repository call. A provider may
-call a repository directly for a simple read or write. Services earn their place
-when they centralize rules or coordination that would otherwise be duplicated.
-
-## Testability
-
-Services should receive repository or adapter dependencies through constructors
-or providers. Tests should use fakes and verify outcomes without requiring a
-Flutter widget tree or physical NFC hardware.
+## DiscogsAuthService / DiscogsApiClient
+Part 1 provides OAuth 1.0a request/access-token exchange, identity lookup, secure user credential storage, typed failures, and injectable providers. UI callback wiring remains Part 2.

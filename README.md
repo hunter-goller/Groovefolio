@@ -1,296 +1,177 @@
-# Vinyl App 🎵
+# Groovefolio 🎵
 
-[![CI](https://github.com/hunter-goller/vinyl-app/actions/workflows/ci.yml/badge.svg)](https://github.com/hunter-goller/vinyl-app/actions/workflows/ci.yml)
-![Flutter](https://img.shields.io/badge/Flutter-stable-02569B?logo=flutter)
-![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart)
-![Status](https://img.shields.io/badge/status-pre--alpha-orange)
+[![CI](https://github.com/hunter-goller/Groovefolio/actions/workflows/ci.yml/badge.svg)](https://github.com/hunter-goller/Groovefolio/actions/workflows/ci.yml)
 
-Vinyl App is a local-first Flutter application for vinyl collectors. It is being
-designed to combine collection management, listening history, personal
-analytics, music discovery, and NFC-assisted play logging in one experience.
+Groovefolio is a local-first Flutter app for vinyl collectors. It combines collection management, listening history, statistics, album artwork, genres, and a growing Discogs integration while keeping the core collection usable offline and without a required account.
 
-Most collection tools focus on **what you own**. Vinyl App is intended to also
-show **how your records fit into your life**: what you return to, what you have
-forgotten, how your listening changes over time, and which records matter most
-to you.
+The repository is now named **Groovefolio**. Historical Trello tickets still use the `VinylApp-###` prefix, and the internal Dart package remains `vinyl_app`; those identifiers are intentionally preserved for continuity.
 
-> **Project status:** Pre-alpha. The four repository boundaries and repository
-> providers are implemented. VinylApp-017 adds PlayLoggingService as the first
-> business-workflow service. All user-facing screens are still placeholders.
-> VinylApp-018 contains an unmerged Collection UI prototype using fake data and
-> local state.
+## Current product state
 
-## Current progress
+Implemented on `main`:
 
-| Area | Status |
-| --- | --- |
-| Flutter project and repository structure | Complete |
-| Strict analysis and formatting rules | Complete |
-| GitHub Actions CI | Complete |
-| GoRouter navigation | Complete |
-| Riverpod foundation | Complete |
-| Drift/SQLite connection | Complete |
-| Artists table | Complete — VinylApp-010 |
-| Albums table and artist foreign key | Complete — VinylApp-009 |
-| Plays table and side tracking | Complete — VinylApp-011 |
-| v1 migration and Drift schema snapshot | Complete — VinylApp-012 |
-| AlbumRepository + provider | Complete — VinylApp-013 |
-| ArtistRepository + provider | Complete — VinylApp-014 |
-| PlayRepository + provider | Complete — VinylApp-015 |
-| NFC tag schema + v1→v2 migration | Complete — VinylApp-040 |
-| NfcTagRepository + provider | Complete — VinylApp-041 |
-| Repository provider completion | Complete — VinylApp-016 |
-| PlayLoggingService | Complete — VinylApp-017 |
-| Feature-level collection providers | Planned — VinylApp-043 |
-| Theme and design tokens | Deferred — VinylApp-008 |
-| Collection screen | On hold — VinylApp-018 |
-| Shared Collection widgets | Unmerged prototype work; not present on `main` |
+- collection browsing with search, genre filtering, and Recent / A–Z / Most played sorting
+- add, edit, view, and delete record flows
+- local album artwork picking and persistent artwork storage
+- many-to-many genres with reusable genre chips/input
+- manual play logging with date, time, and full/side A/side B tracking
+- album play history and play counts
+- collection statistics for the current year and all time
+- monthly and yearly play charts
+- listening-by-genre breakdown and most-played albums
+- local SQLite persistence through Drift with frozen v1 → v2 → v3 migrations
+- NFC tag persistence/repository groundwork
+- development reset/seed tooling with optional MusicBrainz/Cover Art Archive artwork lookup
+- Discogs OAuth 1.0a foundation, secure credential storage, typed failures, and Riverpod providers
 
-See the [implementation status](docs/implementation-status.md) and
-[roadmap](ROADMAP.md) for the exact dependency order.
+Still in progress or planned:
 
-## Product vision
+- Discogs browser authorization callback / connection UI (`VinylApp-106` Part 2)
+- Discogs search + Add Record autofill (`VinylApp-090`)
+- Discogs collection import (`VinylApp-107`)
+- track schema/import (`VinylApp-105`)
+- barcode lookup (`VinylApp-091`)
+- NFC write/read flows
+- Discover recommendations and explainable recommendation engine
+- release branding, icons, splash, accessibility, and Play Store polish
 
-### Collection management
+## Stack
 
-- Add, edit, search, filter, and remove records.
-- Store release, label, artwork, purchase, and condition information.
-- Open detailed album pages from the collection.
-- Optionally enrich records through a future Discogs integration.
-
-### Listening history
-
-- Log a full album, Side A, or Side B.
-- Browse play history by album and across the full collection.
-- Use NFC tags as a fast path for logging a record.
-
-### Statistics and discovery
-
-- Track most-played albums, artists, genres, and listening periods.
-- Surface records that have not been played recently.
-- Generate recommendations from collection metadata and listening history.
-
-### Album Wrapped
-
-Album Wrapped is the planned signature feature. Each record will have a
-personal listening story containing insights such as first and latest play,
-total plays, streaks, time-of-day or seasonal patterns, side preference,
-collection ranking, rediscovery moments, and related recommendations.
-
-## Technology stack
-
-| Concern | Technology |
-| --- | --- |
-| Application framework | Flutter and Dart |
-| Navigation | `go_router` |
-| State and dependency management | Riverpod with code generation |
-| Local persistence | Drift over SQLite |
-| Code generation | `build_runner`, Riverpod Generator, Drift Dev |
-| Quality checks | Flutter analyzer, formatter, tests |
-| Continuous integration | GitHub Actions |
-
-The intended release target is Android through Google Play. Flutter platform
-scaffolding is present for other platforms, but those targets are not currently
-planned releases.
+- Flutter / Dart
+- Riverpod + riverpod_generator
+- Drift / SQLite
+- go_router
+- GitHub Actions
+- `image_picker` + local filesystem artwork storage
+- `flutter_secure_storage` 10.3.1 for Discogs OAuth user credentials
+- `crypto` for OAuth 1.0a HMAC-SHA1 signing
+- `url_launcher` for the upcoming Discogs authorization flow
 
 ## Architecture
 
-### Current data-layer flow
-
-```mermaid
-flowchart TD
-    M[main.dart]
-    PS[ProviderScope]
-    RP[routerProvider]
-    DP[databaseProvider]
-    ARP[albumRepositoryProvider]
-    AIP[artistRepositoryProvider]
-    PRP[playRepositoryProvider]
-    NRP[nfcTagRepositoryProvider]
-    GR[GoRouter]
-    Screens[Placeholder screens]
-    AR[AlbumRepository]
-    AIR[ArtistRepository]
-    PR[PlayRepository]
-    NR[NfcTagRepository]
-    DB[AppDatabase]
-    Artists[Artists]
-    Albums[Albums]
-    Plays[Plays]
-    NfcTags[NfcTags — VinylApp-040]
-    SQLite[(SQLite)]
-
-    M --> PS
-    PS --> RP
-    PS --> DP
-    RP --> GR
-    GR --> Screens
-    ARP --> DP
-    ARP --> AR
-    AIP --> DP
-    AIP --> AIR
-    PRP --> DP
-    PRP --> PR
-    NRP --> DP
-    NRP --> NR
-    AR --> DB
-    AIR --> DB
-    PR --> DB
-    NR --> DB
-    DP --> DB
-    DB --> Artists
-    DB --> Albums
-    DB --> Plays
-    DB --> NfcTags
-    DB --> SQLite
-```
-
-### Target feature flow
-
-```mermaid
-flowchart TD
-    UI[Flutter screen or widget]
-    FP[Feature provider]
-    SP[Repository/service providers]
-    S[Service when orchestration is needed]
-    R[Repository]
-    D[Drift]
-    Q[(SQLite)]
-
-    UI --> FP
-    FP --> SP
-    FP --> S
-    FP --> R
-    S --> R
-    SP --> R
-    R --> D
-    D --> Q
-```
-
-`AlbumRepository`, `ArtistRepository`, `PlayRepository`, and `NfcTagRepository`
-are implemented and exposed through the repository-provider layer.
-`PlayLoggingService` is the first business-workflow service. Feature providers
-such as `albumsProvider` and `collectionFiltersProvider` are still planned.
-
-Read the [architecture overview](docs/architecture/overview.md).
-
-## Repository layout
+Groovefolio keeps persistence, business rules, and UI separated:
 
 ```text
-vinyl-app/
-├── .github/                 # CI workflow and pull-request template
-├── docs/                    # Technical and product documentation
-├── design/                  # Visual assets and future diagrams
-├── drift_schemas/           # Versioned Drift schema snapshots
-├── lib/
-│   ├── db/                  # Drift DB, migrations, Artists/Albums/Plays/NFC schema
-│   ├── features/            # Placeholder route-level screens
-│   ├── providers/           # Future shared feature providers
-│   ├── repositories/        # Album/Artist/Play/NFC repositories
-│   ├── routing/             # Route constants and GoRouter provider
-│   ├── services/            # Business workflows such as PlayLoggingService
-│   ├── theme/               # Empty scaffold; VinylApp-008 deferred
-│   ├── types/               # Shared persistence/domain enums such as SidePlayed
-│   ├── utils/               # Empty scaffold
-│   ├── widgets/             # Empty scaffold on main
-│   └── main.dart            # ProviderScope and app composition root
-├── test/                    # Database, migration, repository, routing, smoke tests
-├── CHANGELOG.md
-├── ROADMAP.md
-└── README.md
+UI / screens / shared widgets
+          ↓
+Riverpod feature providers
+          ↓
+Services (business workflows)
+          ↓
+Repository interfaces
+          ↓
+Drift repositories
+          ↓
+SQLite
 ```
 
-The widgets created on the VinylApp-018 prototype branch are not present in this
-layout because that branch was not merged.
+External integrations are isolated behind services/clients:
+
+```text
+UI
+ ↓
+DiscogsAuthService / future DiscogsService
+ ↓
+DiscogsApiClient
+ ↓
+OAuth signing + HTTP
+ ↓
+Discogs
+```
+
+Screens and services do not construct Drift companions directly. Repositories own IDs, timestamps, and persistence objects.
+
+## Database schema
+
+Current schema version: **v3**.
+
+```text
+v1  Artists ──< Albums ──< Plays
+v2                 └────  NfcTags (one tag per album)
+v3                 └────< AlbumGenres >──── Genres
+```
+
+- `Artists`: canonical artist rows
+- `Albums`: title, artist, year, label, artwork path, purchase metadata, created timestamp
+- `Plays`: album, played timestamp, side played, created timestamp
+- `NfcTags`: unique physical NFC tag ↔ unique album association
+- `Genres`: case-insensitive unique genre names
+- `AlbumGenres`: many-to-many album/genre join table
+
+The v1/v2/v3 migrations are intentionally frozen. New physical schema changes must create a new migration/version rather than rewriting history.
 
 ## Routes
 
-| Path | Current screen |
-| --- | --- |
-| `/` | Collection placeholder |
-| `/stats` | Statistics placeholder |
+| Route | Screen |
+|---|---|
+| `/` | Collection |
+| `/stats` | Stats |
 | `/discover` | Discover placeholder |
-| `/album/new` | Add Record placeholder |
-| `/album/:id` | Album Detail placeholder with path parameter |
-| `/play/log` | Log Play placeholder |
+| `/album/new` | Add Record |
+| `/album/:id` | Album Detail |
+| `/album/:id/edit` | Edit Record |
+| `/play/log` | Log Play |
 
-The routes resolve so navigation and path-parameter handling can be verified.
-External Android App Links are not configured.
+Discogs callback/settings routes will be added in `VinylApp-106` Part 2.
 
-## Local development
+## Getting started
 
-### Prerequisites
-
-- Flutter on the stable channel
-- A Dart SDK compatible with `^3.12.2`
-- Android Studio or another supported Flutter development environment
-- An Android emulator or physical device
-
-### Setup
-
-```bash
-git clone https://github.com/hunter-goller/vinyl-app.git
-cd vinyl-app
+```powershell
+git clone https://github.com/hunter-goller/Groovefolio.git
+cd Groovefolio
 flutter pub get
-dart run build_runner build
-flutter analyze
-flutter test
+dart run build_runner build --delete-conflicting-outputs
 flutter run
 ```
 
-Generated `*.g.dart` files are intentionally ignored. Regenerate them whenever a
-Drift schema or annotated Riverpod provider changes.
+For the full project verification workflow:
 
-See the [development setup guide](docs/development/setup.md).
-
-## Database migration workflow
-
-The immutable v1 baseline contains Artists, Albums, and Plays. VinylApp-040
-advances the current schema to v2 by adding `NfcTags` through an explicit
-v1 → v2 migration. Fresh installs create the current schema directly.
-
-`drift_schema_v1.json` remains the historical v1 snapshot. Before merging a
-schema-version change, regenerate code and export the new versioned snapshot:
-
-```bash
-dart run drift_dev schema dump lib/db/app_database.dart drift_schemas/
+```powershell
+.\tools\verify_vinylapp_012.ps1
 ```
 
-## Continuous integration
+The script formats Dart, regenerates code, runs the analyzer, runs tests, and exports the current Drift schema snapshot.
 
-Every pull request targeting `main`, every push to `main`, and manual workflow
-runs execute:
+See [docs/development/setup.md](docs/development/setup.md) for environment details.
 
-1. Dependency installation
-2. Drift and Riverpod code generation
-3. Formatting verification
-4. Static analysis
-5. Automated tests
-6. Drift schema-snapshot verification
-7. Debug APK build verification
+## Development seed
 
-See [CI documentation](docs/architecture/ci-cd.md).
+Normal debug seed:
+
+```powershell
+flutter run -t lib/dev/seed_main.dart
+```
+
+Destructive reset + artwork seed (default 10 albums):
+
+```powershell
+flutter run -t lib/dev/reset_seed_main.dart
+```
+
+Variable stress size:
+
+```powershell
+flutter run -t lib/dev/reset_seed_main.dart --dart-define=DEV_SEED_ALBUM_COUNT=60
+```
+
+The destructive reset deletes the current local development collection and referenced artwork before rebuilding seed data. See [docs/development/dev-seed.md](docs/development/dev-seed.md).
+
+## Discogs development configuration
+
+The merged `VinylApp-106` Part 1 foundation reads Discogs application credentials from compile-time defines. Do **not** commit real credentials.
+
+```powershell
+flutter run `
+  --dart-define=DISCOGS_CONSUMER_KEY=YOUR_KEY `
+  --dart-define=DISCOGS_CONSUMER_SECRET=YOUR_SECRET
+```
+
+The current OAuth callback URI is `groovefolio://discogs-auth`; platform callback handling arrives in `VinylApp-106` Part 2.
+
+User OAuth access credentials are stored with `flutter_secure_storage`. The application Consumer Key/Secret are development configuration for now; production secret handling must be revisited before public distribution.
+
+See [docs/integrations/discogs.md](docs/integrations/discogs.md).
 
 ## Documentation
 
-Start with the [documentation index](docs/README.md).
-
-- [Current implementation status](docs/implementation-status.md)
-- [Architecture overview](docs/architecture/overview.md)
-- [Project structure](docs/architecture/project-structure.md)
-- [Database](docs/architecture/database.md)
-- [Repository pattern](docs/architecture/repository-pattern.md)
-- [Routing](docs/architecture/routing.md)
-- [State management](docs/architecture/state-management.md)
-- [Testing](docs/development/testing.md)
-- [Architecture decisions](docs/decisions/README.md)
-- [Feature specifications](docs/features/README.md)
-- [Roadmap](ROADMAP.md)
-- [Changelog](CHANGELOG.md)
-
-## Project ownership
-
-Vinyl App is a personal application project being developed toward a polished
-Google Play release. The repository documentation is primarily an engineering
-record and product-development reference rather than an open-source contributor
-guide.
+Start at [docs/README.md](docs/README.md). The documentation set is organized into architecture, development, features, integrations, decisions, and design assets.

@@ -1,39 +1,19 @@
 # Recommendations
 
-- Current status: Planned
+Long-term Groovefolio goal: Spotify-like personalization for a physical record collection while explaining *why* each recommendation appears.
 
-## Goal
+Potential signals:
+- album genres
+- artist similarity
+- play frequency
+- recent listening
+- long-unplayed records
+- track metadata after the Tracks/Discogs work
+- collection gaps / related releases
 
-Produce explainable suggestions from collection metadata and play history rather
-than a black-box list.
+Example explanations:
+- “You have been playing a lot of soul lately.”
+- “Similar genre profile to records you recently played.”
+- “You own this but have not played it in six months.”
 
-## Candidate signals
-
-- Time since last play
-- Total play count
-- Recent artist, genre, or era preferences
-- Similarity to recently played records
-- Records owned but never played
-- Repetition avoidance
-- Seasonal or time-of-day patterns after enough history exists
-
-## Output contract
-
-A recommendation should include:
-
-- Album ID
-- Reason or explanation
-- Signal category
-- Confidence or priority when useful
-
-Example explanation:
-
-> You have not played this record in eight months, and it shares an artist with
-> two albums you played this week.
-
-## Architecture
-
-Recommendation logic belongs in a service and should consume repository
-interfaces. It must be testable with fixture data before a Discover UI is built.
-External metadata may enrich recommendations later but should not be required
-for basic rediscovery.
+Recommendations should remain deterministic/explainable enough that the UI can show the reasoning rather than presenting a black-box score only.

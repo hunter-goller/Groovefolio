@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Vinyl App design tokens that are not represented directly by [ColorScheme]
+/// Groovefolio design tokens that are not represented directly by [ColorScheme]
 /// or [TextTheme].
 ///
 /// Attach these to [ThemeData.extensions] so widgets can read spacing, radii,

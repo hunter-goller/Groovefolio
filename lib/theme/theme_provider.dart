@@ -3,7 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'theme_provider.g.dart';
 
-/// Controls whether Vinyl App follows the system theme or forces light/dark.
+/// Controls whether Groovefolio follows the system theme or forces light/dark.
 ///
 /// Persistence of a manual choice is intentionally out of scope for
 /// VinylApp-008. The provider owns the in-memory override for the app session.

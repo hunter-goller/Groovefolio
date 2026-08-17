@@ -14,7 +14,7 @@ void main() {
     final values = signer.authorizationParameters(
       method: 'POST',
       uri: Uri.parse('https://api.discogs.com/oauth/request_token'),
-      callback: 'vinylapp://discogs-auth',
+      callback: 'groovefolio://discogs-auth',
     );
 
     expect(values['oauth_consumer_key'], 'key');

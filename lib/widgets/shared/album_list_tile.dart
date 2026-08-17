@@ -5,7 +5,7 @@ import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/widgets/shared/genre_chip.dart';
 
-/// Compact Collection row matching the approved Vinyl App mockup.
+/// Compact Collection row matching the approved Groovefolio mockup.
 class AlbumListTile extends StatelessWidget {
   const AlbumListTile({
     required this.title,

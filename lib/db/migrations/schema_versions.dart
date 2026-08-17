@@ -1,4 +1,4 @@
-/// Schema version numbers for the Vinyl App database.
+/// Schema version numbers for the Groovefolio database.
 ///
 /// Keep these constants stable once a version has shipped. Add a new constant
 /// for every physical schema change and point [current] at the newest version.

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 
-/// Application-wide Material themes for Vinyl App.
+/// Application-wide Material themes for Groovefolio.
 abstract final class AppTheme {
   static ThemeData get light =>
       _build(brightness: Brightness.light, tokens: AppThemeTokens.light);

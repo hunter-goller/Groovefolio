@@ -1,33 +1,21 @@
 # NFC
 
-- Current status: Planned
+Groovefolio has the persistence foundation for NFC but not the production device flow yet.
 
-## Goal
+## Implemented
+- schema v2 `NfcTags`
+- one unique tag per album / one album per physical tag constraint
+- `NfcTagRepository`
+- lookup by NFC tag ID and album ID
+- delete association
+- album deletion cleans up linked NFC association
+- UI placeholders/prompts for future NFC behavior
 
-Allow a physical NFC tag associated with a record to open a fast play-logging
-flow.
+## Still needed
+- Android NFC permissions/manifest setup
+- tag write service/flow
+- scan handling
+- foreground scan → album lookup → auto log play
+- clear user feedback for unsupported/invalid tags
 
-## Intended flow
-
-1. Confirm the device supports NFC.
-2. Associate a tag identifier with an album.
-3. Scan a tag.
-4. Resolve the album locally.
-5. Show a confirmation screen or prompt.
-6. Log the play through PlayLoggingService.
-
-## Requirements
-
-- Core app features remain usable without NFC.
-- Unsupported devices receive a clear fallback.
-- Scans do not create a play without an intentional confirmation policy.
-- Tag identifiers and album associations are stored locally.
-- Permission and platform errors are represented explicitly.
-- Tests use an adapter or fake scanner rather than physical hardware wherever
-  possible.
-
-## Security and privacy
-
-Do not place sensitive collection details directly on a tag. Store only the
-minimum identifier needed to resolve a local association. Document platform
-permission requirements before release.
+The NFC payload/association design should continue to keep the local database as the source of truth.

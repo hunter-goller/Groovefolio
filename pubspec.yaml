@@ -1,5 +1,5 @@
 name: vinyl_app
-description: "A local-first vinyl collection and listening tracker."
+description: "Groovefolio — a local-first vinyl collection and listening tracker."
 publish_to: "none"
 
 version: 1.0.0+1

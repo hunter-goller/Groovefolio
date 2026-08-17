@@ -1,82 +1,36 @@
-# Vinyl App Documentation
+# Groovefolio documentation
 
-This directory is the documentation source for Vinyl App. It is written in
-Markdown so the project architecture, implementation status, feature plans, and
-release workflow stay close to the code.
-
-Vinyl App is a personal application project, not an open-source project. These
-docs are optimized for project continuity, engineering decisions, release
-preparation, and portfolio presentation rather than external contributor
-onboarding.
+This directory is the living technical and product documentation for Groovefolio.
 
 ## Start here
 
-- [Current implementation status](implementation-status.md)
+- [Implementation status](implementation-status.md)
 - [Architecture overview](architecture/overview.md)
+- [Database](architecture/database.md)
 - [Project structure](architecture/project-structure.md)
 - [Development setup](development/setup.md)
+- [Testing](development/testing.md)
+- [Development seed](development/dev-seed.md)
+- [Features](features/README.md)
+- [Discogs integration](integrations/discogs.md)
 - [Roadmap](../ROADMAP.md)
-- [Changelog](../CHANGELOG.md)
 
-## Architecture
+## Naming
 
-| Document | Question answered |
-| --- | --- |
-| [Overview](architecture/overview.md) | How is the application organized now, and what is the target flow? |
-| [Project structure](architecture/project-structure.md) | What belongs in each folder? |
-| [Dependency graph](architecture/dependency-graph.md) | Which layers and tickets unblock Collection? |
-| [Routing](architecture/routing.md) | How are routes declared and resolved? |
-| [State management](architecture/state-management.md) | Which Riverpod providers exist and which are planned? |
-| [Database](architecture/database.md) | How is local data stored, versioned, and tested? |
-| [Repository pattern](architecture/repository-pattern.md) | How do repositories separate Drift from feature code? |
-| [Services](architecture/services.md) | Where will multi-step business logic live? |
-| [CI/CD](architecture/ci-cd.md) | What does GitHub Actions verify? |
+The product and repository are **Groovefolio**:
 
-## Development
+`https://github.com/hunter-goller/Groovefolio`
 
-| Document | Purpose |
-| --- | --- |
-| [Setup](development/setup.md) | Install dependencies and run the app |
-| [Code generation](development/code-generation.md) | Regenerate Riverpod and Drift code |
-| [Coding standards](development/coding-standards.md) | Follow project conventions |
-| [Git workflow](development/git-workflow.md) | Create branches and merge work |
-| [Pull requests](development/pull-requests.md) | Prepare reviewable changes |
-| [Testing](development/testing.md) | Understand current and planned tests |
-| [Documentation maintenance](development/documentation-maintenance.md) | Keep docs synchronized with implementation |
-| [Release process](development/release-process.md) | Prepare future versioned releases |
-| [Google Play readiness](development/google-play-readiness.md) | Track polish, release, listing, and privacy tasks |
+Several technical/historical identifiers intentionally remain unchanged:
 
-## Architecture decisions
+- Dart package/import namespace: `vinyl_app`
+- Android application ID: `com.huntergoller.vinyl_app`
+- SQLite filename: `vinyl_app_db.sqlite`
+- verification script: `tools/verify_vinylapp_012.ps1`
+- Trello/history IDs: `VinylApp-###`
 
-The [ADR index](decisions/README.md) records durable technical decisions:
+Do not interpret these as stale branding; changing them has different migration/identity consequences than changing the visible product name.
 
-- Flutter application framework
-- Riverpod for state and dependency management
-- Drift and SQLite for local persistence
-- GoRouter for navigation
-- Feature-oriented presentation with shared application layers
-- Direct native Drift connection setup
+## Documentation policy
 
-## Feature specifications
-
-The [feature index](features/README.md) separates current implementation from
-target product behavior.
-
-## Documentation baseline
-
-The current documented baseline includes:
-
-- VinylApp-001 through 007 complete.
-- VinylApp-008 deferred.
-- VinylApp-009 through 015 complete.
-- VinylApp-040 adds the NFC schema as v2 on top of the frozen v1 baseline.
-- Artists, Albums, Plays, and NFC tag mappings in Drift.
-- Committed v1 and v2 Drift schema snapshots.
-- `AlbumRepository`, `ArtistRepository`, `PlayRepository`, and the VinylApp-041
-  `NfcTagRepository` change set plus their Riverpod providers implemented.
-- VinylApp-016 is the next core data-layer task after VinylApp-041.
-- All user-facing feature screens remain placeholders.
-- VinylApp-018 remains an unmerged fake-data prototype and is on hold.
-
-When code and documentation disagree, the merged repository is the source of
-truth. A branch, ZIP, mockup, or prototype must be labeled as such until merged.
+Living docs describe the current `main` branch. Historical patch notes under `Patch_Notes/` describe the state at the time of those tickets and are not authoritative for current architecture.

@@ -1,138 +1,45 @@
 # Changelog
 
-All notable changes to Vinyl App are recorded in this file.
+All notable Groovefolio changes are recorded here. Historical ticket IDs retain the `VinylApp-###` prefix.
 
-The project is pre-release, so current entries describe development milestones
-rather than stable public versions. The format is based on Keep a Changelog.
+## Unreleased
 
-## [Unreleased]
+### Branding and documentation
+- Adopted **Groovefolio** as the user-facing product name.
+- Renamed the GitHub repository to `hunter-goller/Groovefolio`.
+- Refreshed architecture, feature, development, roadmap, setup, testing, and design documentation against the current schema-v3 application.
+- Preserved the internal Dart package (`vinyl_app`), Android application ID, database filename, verification script name, and historical Trello IDs.
 
-### Added
+### Discogs foundation — VinylApp-106 Part 1
+- Added OAuth 1.0a signing and request/access-token exchange boundaries.
+- Added typed Discogs API/auth/network/rate-limit failures.
+- Added secure OAuth credential storage using `flutter_secure_storage` 10.3.1.
+- Added Riverpod providers for configuration, API client, credential store, auth service, and account state.
+- Added deterministic OAuth signer tests.
+- Pinned secure storage to the stable 10.3.1 release so Android remains compatible with the project's SDK 36 toolchain.
 
-- VinylApp-017 PlayLoggingService with album validation and a generated
-  `playLoggingServiceProvider`.
-- Fake-repository service tests covering exactly-one-play creation, immediate
-  play-count visibility through the overridden repository provider, missing
-  albums, and blank album IDs.
+### Artwork and development data
+- Added reusable artwork picker and persistent artwork storage.
+- Added artwork replacement support to Add/Edit Record.
+- Added destructive dev reset/seed runner with optional MusicBrainz/Cover Art Archive artwork lookup.
+- Default dev reset targets 10 albums; `DEV_SEED_ALBUM_COUNT` supports larger stress datasets.
 
-### Architecture
+### Collection and statistics
+- Added complete Add/Edit/Detail/Delete record workflows.
+- Added many-to-many genre schema/repository/providers and genre UI.
+- Added current-year/all-time statistics, monthly/yearly charts, genre breakdown, first vinyl, and most-played rankings.
 
-- Play logging now flows through a business service that depends only on
-  repository interfaces; it does not construct Drift companions or query Drift.
-- Last-played state remains derived from Play history, and future NFC scan flows
-  can resolve an album before invoking the same service.
+## Historical milestones
 
-### Added
+- VinylApp-001–007: Flutter setup, analysis, CI, routing, Riverpod, Drift foundation.
+- VinylApp-009–017: Artists/Albums/Plays persistence, repositories, providers, play logging service.
+- VinylApp-040–041: NFC schema v2 and repository.
+- VinylApp-098–103: schema v3 genres and genre-aware UI/statistics.
+- VinylApp-046: production Stats screen.
+- VinylApp-039: Edit Record.
+- VinylApp-080: coordinated album deletion flow.
+- VinylApp-104: all-time yearly plays chart.
+- VinylApp-038: ArtworkStorageService.
+- VinylApp-060: ArtworkPicker and artwork integration.
 
-- Flutter application scaffold and cross-platform runner projects.
-- Strict Dart analyzer and lint configuration.
-- GitHub pull-request template and protected-branch workflow.
-- GitHub Actions pipeline for code generation, formatting, analysis, tests,
-  Drift schema verification, and debug APK build verification.
-- Central route constants and a Riverpod-provided GoRouter instance.
-- Placeholder routes for Collection, Statistics, Discover, Add Record, Album
-  Detail, and Log Play.
-- Riverpod `ProviderScope` at the application root.
-- Long-lived Riverpod database provider with disposal handling.
-- Drift database backed by a SQLite file in the application documents
-  directory.
-- Injectable `QueryExecutor` support for in-memory database tests.
-- Artists table and generated `Artist` data class.
-- Albums table and generated `Album` data class.
-- Plays table with `SidePlayed` persistence for full record, Side A, and Side B.
-- Enforced foreign-key relationships from albums to artists and plays to albums.
-- Initial v1 Drift migration through `migrateToV1()`.
-- Central `SchemaVersions` constants wired to `AppDatabase.schemaVersion`.
-- Version-controlled `drift_schema_v1.json` schema snapshot.
-- In-memory migration test proving empty database → v1 table creation and schema
-  version.
-- `IAlbumRepository` and Drift-backed `AlbumRepository` with `findAll()`,
-  `findById()`, `create()`, `update()`, `delete()`, and `search(query)`.
-- Case-insensitive album search across album title and artist name.
-- `albumRepositoryProvider` for dependency injection through Riverpod.
-- In-memory AlbumRepository tests covering CRUD and search behavior.
-- `IArtistRepository` and Drift-backed `ArtistRepository` with `findOrCreate()`,
-  `findById()`, and `findAll()`.
-- Case-insensitive, idempotent artist deduplication with trimmed artist names.
-- `artistRepositoryProvider` for Riverpod dependency injection.
-- In-memory ArtistRepository tests covering creation, lookup, listing, and
-  deduplication.
-- `IPlayRepository` and Drift-backed `PlayRepository` with `create()`,
-  `findByAlbum()`, `findAll()`, `deleteById()`, `getPlayCountByAlbum()`, and
-  `getRecentlyPlayed(limit)`.
-- `playRepositoryProvider` for Riverpod dependency injection.
-- `INfcTagRepository` and Drift-backed `NfcTagRepository` with `create()`,
-  `findByTagId()`, `findByAlbum()`, and `delete()`.
-- `nfcTagRepositoryProvider` for Riverpod dependency injection.
-- Central `repository_providers.dart` import surface for all four repository
-  interfaces/providers.
-- ProviderContainer override tests covering Album, Artist, Play, and NFC-tag
-  repository dependencies.
-- In-memory NfcTagRepository tests covering creation, tag lookup, album lookup,
-  deletion, not-found behavior, and input validation.
-- VinylApp-040 `NfcTags` table with unique NFC tag IDs and a unique Album foreign key, enforcing one registered tag per album.
-- Schema version 2 with an explicit v1 → v2 NFC-table migration and upgrade test.
-- In-memory PlayRepository tests covering persistence, per-album ordering,
-  deletion, play counts, distinct recently played albums, limits, and
-  `SidePlayed` enum round-trips.
-- Database, table, router-provider, and application smoke tests.
-- Phase 1 repository, architecture, feature, and development documentation.
-- A current-implementation status page that distinguishes merged work from
-  unmerged prototypes.
-
-### Changed
-
-- Migrated the project from an earlier React Native prototype to Flutter.
-- Replaced the default Flutter counter example with a Riverpod and GoRouter app
-  composition root.
-- Deferred the custom theme until the data layer is stable and polished screen
-  development begins.
-- Used Drift's native `LazyDatabase` and
-  `NativeDatabase.createInBackground` APIs instead of `drift_flutter`
-  convenience helpers.
-- Pinned `drift` and `drift_dev` to compatible `2.34.0` versions while the
-  migration tooling is established.
-- CI now verifies that the committed Drift schema snapshot matches the current
-  database schema.
-- Clarified that VinylApp-018 and its prototype widgets are not merged into
-  `main` and do not count as completed functionality.
-- Clarified that VinylApp-016 completes the repository-provider layer even
-  though VinylApp-013 through VinylApp-015 introduce the Album, Artist, and Play
-  repository providers.
-
-- Repository creation APIs now keep generated IDs, timestamps, and Drift
-  companion construction inside AlbumRepository and PlayRepository.
-- Fresh databases create the current schema directly; the historical v1 helper
-  remains an immutable v1 definition.
-
-### Fixed
-
-- Corrected album table tests to use Drift's generated `AlbumsCompanion` type.
-- Preserved the `SidePlayed` import required by generated Drift database code.
-- Removed obsolete `--delete-conflicting-outputs` examples from project
-  documentation and workflow guidance.
-- Corrected documentation that could otherwise imply the Collection prototype
-  or shared widgets were already part of the application.
-- Removed the stale PlayRepository performance TODO after `getRecentlyPlayed()`
-  moved to SQL aggregation.
-- Corrected startup documentation to reflect the production `LazyDatabase`
-  connection behavior.
-
-## Not included on `main`
-
-The following are not changelog additions because they only exist on an
-unmerged VinylApp-018 prototype branch:
-
-- Collection UI backed by `fakeAlbums`
-- `AlbumListTile`
-- `BottomNavBar`
-- `GenreChip`
-- `SummaryBar`
-- `EmptyState`
-- `FilterChipRow`
-- `PrimaryButton`
-- `SectionHeader`
-
-## Release history
-
-No public releases have been published yet.
+Detailed historical notes for selected older tickets remain under `docs/Patch_Notes/`.

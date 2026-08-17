@@ -1,140 +1,54 @@
-# Architecture Overview
+# Architecture overview
 
-## Purpose
+Groovefolio is a local-first Flutter application. SQLite is the primary store for the user's collection and listening history; external integrations enhance that local experience.
 
-Vinyl App is a local-first Flutter application. Its architecture keeps UI,
-state, business workflows, and persistence separate enough to test and evolve
-independently without creating abstractions before they are needed.
+## Layers
 
-## Current architecture
-
-The codebase now contains the application composition root, Riverpod-provided
-router and database, the full v1 Drift schema, migration infrastructure, and the
-AlbumRepository and ArtistRepository implementations.
-
-```mermaid
-flowchart TD
-    M[main.dart]
-    PS[ProviderScope]
-    DBP[databaseProvider]
-    RP[routerProvider]
-    ARP[albumRepositoryProvider]
-    AIP[artistRepositoryProvider]
-    GR[GoRouter]
-    FS[Placeholder feature screens]
-    AR[AlbumRepository]
-    AIR[ArtistRepository]
-    DB[AppDatabase]
-    A[Artists]
-    AL[Albums]
-    P[Plays]
-    SQ[(SQLite)]
-
-    M --> PS
-    PS --> DBP
-    PS --> RP
-    RP --> GR
-    GR --> FS
-    ARP --> DBP
-    ARP --> AR
-    AIP --> DBP
-    AIP --> AIR
-    AR --> DB
-    AIR --> DB
-    DBP --> DB
-    DB --> A
-    DB --> AL
-    DB --> P
-    DB --> SQ
+```text
+Screens / widgets
+      ↓
+Feature providers / controllers
+      ↓
+Services (business workflows)
+      ↓
+Repository interfaces
+      ↓
+Drift repository implementations
+      ↓
+AppDatabase / SQLite
 ```
 
-`main.dart` eagerly watches the database provider so the connection is opened at
-application startup. It also watches the router provider and passes the router
-to `MaterialApp.router`.
+External API path:
 
-`AlbumRepository` and `ArtistRepository` are not yet connected to a real
-feature screen. They establish persistence boundaries that later providers and
-services will consume.
-
-## Target architecture
-
-```mermaid
-flowchart TD
-    UI[Screen or feature widget]
-    FP[Feature provider / notifier]
-    SV[Service when orchestration is needed]
-    REPO[Repository interface and implementation]
-    DRIFT[Drift database]
-    SQLITE[(SQLite)]
-
-    UI --> FP
-    FP --> SV
-    FP --> REPO
-    SV --> REPO
-    REPO --> DRIFT
-    DRIFT --> SQLITE
+```text
+UI / future feature service
+      ↓
+DiscogsAuthService / future DiscogsService
+      ↓
+DiscogsApiClient
+      ↓
+OAuth signer + HTTP
+      ↓
+Discogs API
 ```
 
-A provider may call a repository directly for a simple read or write. A service
-is appropriate when one action coordinates several repositories, hardware APIs,
-or domain rules.
+## Boundary rules
 
-## Layer responsibilities
+- Widgets do not construct Drift companions.
+- Repositories own IDs, timestamps, queries, and Drift persistence objects.
+- Services coordinate business rules that span repositories/filesystem/external APIs.
+- Riverpod providers expose dependencies and feature state to UI.
+- SQLite remains usable when Discogs is disconnected.
+- External JSON is mapped into typed integration models before UI consumes it.
 
-### Presentation
+## Current service examples
 
-Feature screens and widgets render state, capture user intent, and navigate.
-They should not contain SQL or multi-step business workflows.
+- `PlayLoggingService`: validates an album and writes a play.
+- `StatsService`: computes collection/listening aggregates from repositories.
+- `ArtworkStorageService`: owns persisted artwork filesystem paths.
+- `AlbumDeletionService`: coordinates plays, NFC association, artwork, and album deletion.
+- `DiscogsAuthService`: owns the OAuth authorization lifecycle above `DiscogsApiClient`.
 
-### Providers
+## Why local-first
 
-Riverpod providers expose dependencies and feature state. Current dependency
-providers are `routerProvider`, `databaseProvider`, `albumRepositoryProvider`,
-`artistRepositoryProvider`, `playRepositoryProvider`, and the VinylApp-041
-`nfcTagRepositoryProvider` change set. Feature-level collection providers are
-still planned.
-
-### Services
-
-Services coordinate business workflows that span multiple dependencies. The
-folder is scaffolded but still empty. VinylApp-017 will introduce
-`PlayLoggingService`.
-
-### Repositories
-
-Repositories define persistence operations in application language while hiding
-Drift queries from UI and services. AlbumRepository, ArtistRepository,
-PlayRepository, and the VinylApp-041 NfcTagRepository change set are
-implemented.
-
-### Database
-
-Drift owns table definitions, generated row/companion types, SQL execution, and
-migrations. SQLite is the local source of truth. Version 1 contains Artists, Albums, and
-Plays. VinylApp-040 introduces version 2 by adding NfcTags while preserving the
-v1 baseline; both versions are captured in committed schema snapshots.
-
-## Architectural principles
-
-1. **Local-first:** Core collection and play tracking must work without a
-   network connection.
-2. **Incremental structure:** Add abstractions when a real dependency or testing
-   need exists.
-3. **Testable boundaries:** Dependencies are exposed through Riverpod and the
-   database accepts an injected executor.
-4. **Single source of route paths:** Navigation paths belong in `AppRoutes`.
-5. **Generated code is disposable:** Riverpod and Drift generated files are
-   regenerated, ignored by Git, and never edited manually.
-6. **Versioned persistence:** Schema changes require migration and schema
-   snapshot discipline.
-7. **Documentation follows implementation:** Planned features are explicitly
-   labeled as planned instead of being described as complete.
-
-## Related documents
-
-- [Dependency graph](dependency-graph.md)
-- [Project structure](project-structure.md)
-- [State management](state-management.md)
-- [Database](database.md)
-- [Repository pattern](repository-pattern.md)
-- [Services](services.md)
+Collection browsing, editing, play logging, and stats should not depend on a network account. This also gives future recommendation logic a stable local history to work from.
