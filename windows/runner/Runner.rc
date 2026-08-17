@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.huntergoller" "\0"
-            VALUE "FileDescription", "vinyl_app" "\0"
+            VALUE "FileDescription", "Groovefolio" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "vinyl_app" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.huntergoller. All rights reserved." "\0"
             VALUE "OriginalFilename", "vinyl_app.exe" "\0"
-            VALUE "ProductName", "vinyl_app" "\0"
+            VALUE "ProductName", "Groovefolio" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

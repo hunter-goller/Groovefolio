@@ -2,8 +2,8 @@ class DiscogsConfig {
   const DiscogsConfig({
     required this.consumerKey,
     required this.consumerSecret,
-    this.callbackUri = 'vinylapp://discogs-auth',
-    this.userAgent = 'VinylApp/0.1',
+    this.callbackUri = 'groovefolio://discogs-auth',
+    this.userAgent = 'Groovefolio/0.1',
   });
 
   final String consumerKey;

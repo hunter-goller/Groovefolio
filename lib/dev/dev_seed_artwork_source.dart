@@ -31,7 +31,7 @@ class MusicBrainzDevSeedArtworkSource implements DevSeedArtworkSource {
        _client = client ?? HttpClient();
 
   static const _userAgent =
-      'VinylAppDevSeed/1.0 (https://github.com/hunter-goller/vinyl-app)';
+      'GroovefolioDevSeed/1.0 (https://github.com/hunter-goller/Groovefolio)';
   static const _musicBrainzDelay = Duration(milliseconds: 1100);
 
   final ArtworkStorageService _artworkStorageService;

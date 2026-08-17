@@ -41,7 +41,7 @@ class _SeedResultApp extends StatelessWidget {
                   const Icon(Icons.check_circle_outline, size: 72),
                   const SizedBox(height: 24),
                   const Text(
-                    'Vinyl App dev data seeded',
+                    'Groovefolio dev data seeded',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),

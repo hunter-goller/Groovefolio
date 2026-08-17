@@ -1,42 +1,29 @@
-# Album Details
+# Album detail, edit, and delete
 
-- Route: `/album/:id`
-- Current status: Placeholder screen receives and displays the ID
+## Album Detail
+Route: `/album/:id`
 
-## Purpose
+Shows:
+- artwork
+- title + artist
+- release year/label when present
+- genre chips
+- play count / derived listening information
+- recent play history
+- Log first/another play action
+- Edit Record menu action
+- Delete Record menu action
 
-Present one record's metadata, listening history, statistics, and personal
-story.
+## Edit Record
+Route: `/album/:id/edit`
 
-## Intended content
+Supports title, artist, year, label, genres, and artwork replacement. Existing purchase metadata is preserved. The NFC rewrite option is currently a deferred UI hook; actual NFC writing is not implemented yet.
 
-- Artwork, title, artist, year, label, and collection metadata
-- Total play count and latest play
-- Play timeline and trends
-- Side preference when available
-- Edit, delete, and Log Play actions
-- Album Wrapped insights
-- Related or similar records
+## Delete Record
+`AlbumDeletionService` coordinates:
+- deletion of play rows
+- deletion of linked NFC association
+- persisted artwork deletion
+- album deletion
 
-## Planned data flow
-
-```mermaid
-flowchart LR
-    Route[/album/:id/] --> Provider[Album detail provider keyed by ID]
-    Provider --> AlbumRepo[AlbumRepository]
-    Provider --> PlayRepo[PlayRepository]
-    AlbumRepo --> DB[(SQLite)]
-    PlayRepo --> DB
-```
-
-## States
-
-- Loading
-- Album found
-- Album not found
-- Database error
-- Album with no plays
-- Album with rich play history
-
-Deletion must require confirmation and define what happens to related plays and
-NFC associations before it is implemented.
+AlbumGenres mappings are removed by database cascade. The UI confirms the album title and number of logged plays before deletion.

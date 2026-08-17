@@ -377,7 +377,7 @@ class _CollectionBody extends StatelessWidget {
               icon: Icons.album_outlined,
               title: 'Your collection is empty',
               subtitle:
-                  'Add your first record and Vinyl App will start building your listening history.',
+                  'Add your first record and Groovefolio will start building your listening history.',
               ctaLabel: 'Add your first record',
               onCtaTap: () => context.push(AppRoutes.addAlbum),
             ),

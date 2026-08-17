@@ -93,7 +93,7 @@ class _ResetSeedAppState extends State<_ResetSeedApp> {
           const Icon(Icons.check_circle_outline, size: 72),
           const SizedBox(height: 24),
           const Text(
-            'Fresh Vinyl App dev data ready',
+            'Fresh Groovefolio dev data ready',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),

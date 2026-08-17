@@ -1,48 +1,10 @@
-# Architecture Decision Records
+# Architecture decision records
 
-Architecture Decision Records (ADRs) explain durable choices and their
-tradeoffs. They preserve context that is easy to lose when only the final code
-remains.
+ADRs capture durable decisions for Groovefolio. Older ADRs may reference the project's original “Vinyl App” era in their historical context, but the current product name is Groovefolio.
 
-## Status values
-
-- Proposed
-- Accepted
-- Deprecated
-- Superseded
-- Rejected
-
-## Index
-
-| ADR | Decision | Status |
-| --- | --- | --- |
-| [0001](ADR-0001-flutter.md) | Use Flutter for the application | Accepted |
-| [0002](ADR-0002-riverpod.md) | Use Riverpod for state and dependency management | Accepted |
-| [0003](ADR-0003-drift-sqlite.md) | Use Drift and SQLite for local persistence | Accepted |
-| [0004](ADR-0004-go-router.md) | Use GoRouter with centralized paths | Accepted |
-| [0005](ADR-0005-project-structure.md) | Use feature-oriented presentation with shared layers | Accepted |
-| [0006](ADR-0006-native-drift-connection.md) | Open Drift through native core APIs | Accepted |
-
-## Template
-
-```markdown
-# ADR-XXXX: Title
-
-- Status: Proposed
-- Date: YYYY-MM-DD
-
-## Context
-
-## Decision
-
-## Consequences
-
-### Positive
-
-### Negative / tradeoffs
-
-## Follow-up
-```
-
-When a decision changes, add a new ADR and mark the previous record superseded
-rather than deleting its history.
+- ADR-0001 — Flutter
+- ADR-0002 — Riverpod
+- ADR-0003 — Drift/SQLite
+- ADR-0004 — go_router
+- ADR-0005 — project structure
+- ADR-0006 — native Drift connection

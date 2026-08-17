@@ -1,94 +1,51 @@
-# Development Setup
+# Development setup
 
-## Prerequisites
+## Clone
 
-- Git
-- Flutter stable
-- Dart compatible with the project's `^3.12.2` constraint
-- Android SDK and an emulator or physical Android device
-- VS Code, Android Studio, or another Flutter-capable editor
+```powershell
+git clone https://github.com/hunter-goller/Groovefolio.git
+cd Groovefolio
+```
 
-The intended release target is Android through Google Play. Other Flutter
-runners are present but are not treated as supported release platforms.
+## Flutter
+Use the Flutter/Dart versions compatible with the repository's `pubspec.yaml` (`sdk: ^3.12.2` at this checkpoint).
 
-## Clone and install
-
-```bash
-git clone https://github.com/hunter-goller/vinyl-app.git
-cd vinyl-app
+```powershell
 flutter doctor
 flutter pub get
+dart run build_runner build --delete-conflicting-outputs
 ```
 
-Resolve any required Android toolchain items reported by `flutter doctor`.
+## Run
 
-## Generate source
-
-Generated Riverpod and Drift `*.g.dart` files are ignored by Git and must be
-created locally:
-
-```bash
-dart run build_runner build
-```
-
-See [code generation](code-generation.md).
-
-## Verify the project
-
-```bash
-dart format --output=none --set-exit-if-changed .
-flutter analyze
-flutter test
-flutter build apk --debug
-```
-
-For database-schema changes, also run:
-
-```bash
-dart run drift_dev schema dump lib/db/app_database.dart drift_schemas/
-```
-
-and review/commit the appropriate snapshot.
-
-## Run the app
-
-List devices:
-
-```bash
-flutter devices
-```
-
-Run on the selected device:
-
-```bash
+```powershell
 flutter run
 ```
 
-The current application opens the database at launch and displays the Collection
-placeholder screen. Temporary buttons allow every route to be visited.
+Android is the primary development target. A physical Android device is supported and recommended for later NFC testing.
 
-## Common development loop
+## Verify
 
-```bash
-# After editing annotated providers or Drift tables
-dart run build_runner build
-
-# Before committing
-dart format .
-flutter analyze
-flutter test
+```powershell
+.\tools\verify_vinylapp_012.ps1
+flutter build apk --debug
 ```
 
-## Database location
+## Discogs app credentials
 
-Production uses a file named `vinyl_app_db.sqlite` in the platform application
-documents directory. Automated database and repository tests use in-memory
-SQLite and do not write to the device filesystem.
+Do not place real Discogs credentials in source files or commit them.
 
-## Resetting local development data
+```powershell
+flutter run `
+  --dart-define=DISCOGS_CONSUMER_KEY=YOUR_KEY `
+  --dart-define=DISCOGS_CONSUMER_SECRET=YOUR_SECRET
+```
 
-The project now has a versioned v1 baseline, but it is still pre-release. During
-development, uninstalling the app or clearing application data is acceptable
-when intentionally resetting local test data. Once public releases contain real
-user data, every schema change must preserve installed databases through tested
-step-up migrations.
+Part 1 can build/test without real values. Live OAuth requests require a registered Discogs application. The current callback URI is `groovefolio://discogs-auth`; Part 2 will wire the platform deep link.
+
+## Technical identifiers
+
+The product/repository is Groovefolio, while these remain intentionally unchanged:
+- Dart package `vinyl_app`
+- Android application ID `com.huntergoller.vinyl_app`
+- SQLite file `vinyl_app_db.sqlite`

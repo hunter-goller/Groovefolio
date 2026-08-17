@@ -1,73 +1,36 @@
-# Git Workflow
+# Git workflow
 
-## Branch model
+Repository:
 
-`main` is the integration branch. Work happens on short-lived branches and is
-merged through pull requests after CI succeeds.
+`https://github.com/hunter-goller/Groovefolio`
 
-```mermaid
-flowchart LR
-    M[main] --> B[Short-lived branch]
-    B --> C[Commits]
-    C --> PR[Pull request]
-    PR --> CI[CI checks]
-    CI --> RV[Self-review]
-    RV --> M2[Merge to main]
+## Typical ticket branch
+
+```powershell
+git checkout main
+git pull
+git checkout -b VinylApp-108
 ```
 
-Do not keep a permanent development or documentation branch.
+Historical/project task IDs continue to use `VinylApp-###` for continuity.
 
-## Starting a task
+## Before push
 
-Example for the next data-layer ticket:
-
-```bash
-git switch main
-git pull --ff-only
-git switch -c VinylApp-014
+```powershell
+.\tools\verify_vinylapp_012.ps1
+flutter build apk --debug
 ```
 
-## Before pushing
+## Push
 
-```bash
-dart run build_runner build
-dart format .
-flutter analyze
-flutter test
+```powershell
+git push -u origin VinylApp-108
 ```
 
-If the Drift schema changed, also regenerate and review the schema snapshot.
-
-## Commit messages
-
-Use imperative, durable descriptions:
+Use concise commits such as:
 
 ```text
-Add AlbumRepository search queries
-Add ArtistRepository find-or-create behavior
-Document repository layer
+VinylApp-108: rename app to Groovefolio and refresh docs
 ```
 
-Avoid messages such as `updates`, `fix stuff`, or descriptions of the editing
-process rather than the outcome.
-
-## Pull-request titles
-
-Align the title with the task and merged result:
-
-```text
-VinylApp-013: Add AlbumRepository
-VinylApp-014: Add ArtistRepository
-```
-
-The pull-request title and description should read well in long-term history.
-
-## After merge
-
-```bash
-git switch main
-git pull --ff-only
-git branch -d VinylApp-014
-```
-
-Delete the remote feature branch when it is no longer needed.
+After merge, return to `main`, pull, and create the next ticket branch from the merged baseline.

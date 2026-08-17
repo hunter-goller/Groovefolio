@@ -1,149 +1,35 @@
-# State Management and Dependency Injection
+# State management
 
-Vinyl App uses Riverpod for state management and dependency injection.
+Groovefolio uses Riverpod for dependency injection and reactive feature state.
 
-## Root scope
+## Repository providers
+Repositories expose generated providers and are re-exported through `providers/repository_providers.dart` for a common dependency surface.
 
-`main()` wraps the app with `ProviderScope`:
+## Collection providers
+`album_providers.dart` currently owns:
+- collection filter/sort state
+- collection album view models
+- collection loading/search
+- album detail composition
+- recently played albums
+- play counts
+- album mutation controller
 
-```dart
-runApp(const ProviderScope(child: MyApp()));
-```
+## Genre providers
+`genre_providers.dart` exposes:
+- all genres
+- genres assigned to one album
 
-## Providers implemented today
+## Stats
+The Stats screen composes a `StatsDashboardData` FutureProvider around `StatsService` and artist lookup.
 
-### `routerProvider`
+## Discogs
+Part 1 exposes providers for:
+- config
+- secure credential store
+- API client
+- auth service
+- connected account lookup
 
-Generated from the annotated `router()` function. It owns the `GoRouter`
-instance used by `MaterialApp.router`.
-
-### `databaseProvider`
-
-Generated from an annotated `database()` function with `keepAlive: true`. The
-database is a process-wide dependency and registers `db.close` through
-`ref.onDispose`.
-
-### `albumRepositoryProvider`
-
-Generated from the annotated `albumRepository()` function introduced by
-VinylApp-013. It watches `databaseProvider`, constructs `AlbumRepository`, and
-exposes it as `IAlbumRepository`.
-
-### `artistRepositoryProvider`
-
-Generated from the annotated `artistRepository()` function introduced by
-VinylApp-014. It watches `databaseProvider`, constructs `ArtistRepository`, and
-exposes it as `IArtistRepository`.
-
-### `playRepositoryProvider`
-
-Generated from the annotated `playRepository()` function introduced by
-VinylApp-015. It watches `databaseProvider`, constructs `PlayRepository`, and
-exposes it as `IPlayRepository`.
-
-### `nfcTagRepositoryProvider`
-
-Generated from the annotated `nfcTagRepository()` function introduced by the
-VinylApp-041 change set. It watches `databaseProvider`, constructs
-`NfcTagRepository`, and exposes it as `INfcTagRepository`.
-
-### `playLoggingServiceProvider`
-
-Generated from the annotated `playLoggingService()` function introduced by
-VinylApp-017. It watches `albumRepositoryProvider` and `playRepositoryProvider`
-and constructs `PlayLoggingService`. Repository overrides therefore flow through
-to the service automatically in ProviderContainer tests.
-
-No feature-state providers are implemented yet.
-
-## Repository-provider layer — VinylApp-016
-
-VinylApp-016 completes and standardizes the repository provider layer. All four
-repository providers are still defined alongside their repository implementations:
-
-- `albumRepositoryProvider`
-- `artistRepositoryProvider`
-- `playRepositoryProvider`
-- `nfcTagRepositoryProvider`
-
-`lib/providers/repository_providers.dart` is the stable import surface for feature
-and service code. It re-exports the four repository interfaces/providers without
-duplicating provider definitions. ProviderContainer tests verify every repository
-dependency can be replaced with a fake implementation.
-
-Repository providers must remain overrideable in tests. UI and feature providers
-should not read Drift directly.
-
-## Planned feature providers — VinylApp-043
-
-- `albumsProvider`
-- `albumProvider(id)`
-- `recentlyPlayedProvider`
-- `playCountProvider(albumId)`
-- `collectionFiltersProvider`
-
-VinylApp-043 is the direct provider dependency identified by VinylApp-018.
-
-## Collection state flow
-
-```mermaid
-flowchart TD
-    CS[CollectionScreen]
-    AP[albumsProvider]
-    CFP[collectionFiltersProvider]
-    ARP[albumRepositoryProvider]
-    PRP[playRepositoryProvider]
-    AR[AlbumRepository]
-    PR[PlayRepository]
-    DB[AppDatabase]
-
-    CS --> AP
-    CS --> CFP
-    AP --> CFP
-    AP --> ARP
-    AP --> PRP
-    ARP --> AR
-    PRP --> PR
-    AR --> DB
-    PR --> DB
-```
-
-The exact implementation may evolve, but the screen must consume provider state
-rather than `fakeAlbums` or local-only sorting.
-
-## Provider lifetime guidance
-
-- Use a normal generated provider for cheap, recreatable dependencies.
-- Use `keepAlive: true` for resources that must persist for the application
-  lifetime, such as the database connection.
-- Prefer auto-disposal for screen-specific asynchronous state when leaving the
-  screen should release it.
-- Document providers whose lifetimes differ from the default.
-
-## Test overrides
-
-Providers should be overrideable through `ProviderContainer` or
-`ProviderScope(overrides: ...)`.
-
-```dart
-final container = ProviderContainer(
-  overrides: [routerProvider.overrideWithValue(testRouter)],
-);
-```
-
-VinylApp-016 verifies this capability for all four repository providers.
-VinylApp-017 verifies that `playLoggingServiceProvider` consumes overridden fake
-repositories and that the same play repository immediately reports the newly
-logged play. Future feature providers must preserve the same override-friendly
-design.
-
-## Rules
-
-1. UI watches providers; it does not instantiate repositories.
-2. Providers do not contain Flutter widget code.
-3. Providers do not query Drift directly when a repository owns that data.
-4. A provider may call a repository directly for simple operations.
-5. Multi-step workflows belong in services.
-6. Provider errors should be represented explicitly.
-7. Dependencies should be overrideable for tests.
-8. Generated provider files are not edited or committed.
+## Testing
+Provider overrides are preferred over global singletons so repository/service behavior can be replaced with in-memory fakes in tests.

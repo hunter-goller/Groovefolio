@@ -1,5 +1,8 @@
 # VinylApp-040 change-set notes
 
+> **Historical note:** This patch note predates the Groovefolio product rename. `VinylApp-###` remains the historical ticket prefix.
+
+
 This overlay is based on the uploaded post-VinylApp-015 `main` ZIP and includes
 both VinylApp-040 plus the small pre-017 repository-boundary cleanup reviewed in
 this thread.

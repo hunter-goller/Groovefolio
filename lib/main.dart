@@ -24,7 +24,7 @@ class MyApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeControllerProvider);
 
     return MaterialApp.router(
-      title: 'Vinyl App',
+      title: 'Groovefolio',
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: themeMode,

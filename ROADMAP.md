@@ -1,160 +1,87 @@
-# Vinyl App Roadmap
+# Groovefolio roadmap
 
-This roadmap summarizes implementation order. Trello remains the detailed task
-board; this document is the stable project overview.
+Groovefolio is being built as a local-first vinyl collection and listening-history app. Historical Trello IDs retain the `VinylApp-###` prefix.
 
-## Status legend
+## Foundation — implemented
 
-- ✅ Complete
-- 🚧 Next or actively in progress
-- ⏸ On hold or intentionally deferred
-- ⬜ Planned
-- 🧪 Prototype exists outside `main`
-- 🔭 Future exploration
+- ✅ Flutter project, analyzer/lints, GitHub Actions, go_router, Riverpod, Drift
+- ✅ schema v1: Artists + Albums + Plays
+- ✅ schema v2: NfcTags
+- ✅ schema v3: Genres + AlbumGenres
+- ✅ repositories for albums, artists, plays, NFC tags, and genres
+- ✅ repository/provider boundaries with IDs/timestamps owned below the UI
+- ✅ PlayLoggingService
+- ✅ theme/tokens/shared UI foundation
 
-## 1. Foundation and database
+## Collection — implemented
 
-- ✅ VinylApp-001 — Flutter project and initial folder structure
-- ✅ VinylApp-002 — Strict analysis and lint configuration
-- ✅ VinylApp-003 — GitHub repository, branch protection, and PR template
-- ✅ VinylApp-004 — GitHub Actions CI pipeline
-- ✅ VinylApp-005 — GoRouter route setup
-- ✅ VinylApp-006 — Riverpod provider architecture
-- ✅ VinylApp-007 — Drift and SQLite database setup
-- ⏸ VinylApp-008 — Theme, design tokens, and dark mode
-- ✅ VinylApp-009 — Albums table
-- ✅ VinylApp-010 — Artists table
-- ✅ VinylApp-011 — Plays table
-- ✅ VinylApp-012 — Initial Drift migration and schema export
+- ✅ Collection screen with search and sorting
+- ✅ genre display/filtering
+- ✅ Add Record
+- ✅ Edit Record
+- ✅ Album Detail
+- ✅ coordinated Delete Record flow
+- ✅ artwork picker and persistent artwork storage
+- ✅ manual play logging and album play history
 
-## 2. Core data layer
+## Statistics — implemented
 
-Complete these in order:
+- ✅ StatsService
+- ✅ current-year / all-time ranges
+- ✅ collection summary and average plays/week
+- ✅ monthly current-year chart
+- ✅ all-time yearly chart
+- ✅ genre listening breakdown
+- ✅ first vinyl
+- ✅ most-played rankings
 
-1. ✅ VinylApp-013 — AlbumRepository
-2. ✅ VinylApp-014 — ArtistRepository
-3. ✅ VinylApp-015 — PlayRepository
-4. ✅ VinylApp-040 — NFC tag table + schema v2 migration
-5. ✅ VinylApp-041 — NfcTagRepository
-6. ✅ VinylApp-016 — Complete repository-provider layer
-7. ✅ VinylApp-017 — PlayLoggingService
+## Discogs — active
 
-VinylApp-013 introduces `albumRepositoryProvider`, VinylApp-014 introduces
-`artistRepositoryProvider`, and VinylApp-015 introduces `playRepositoryProvider`.
-VinylApp-040 and 041 complete the NFC persistence dependency needed by 016.
-VinylApp-016 standardizes all four repository providers behind a central import
-surface and adds ProviderContainer override coverage for every repository dependency.
+1. 🚧 **VinylApp-106 — Discogs account connection + API foundation**
+   - Part 1 merged: OAuth signing, secure credential storage, identity/API boundaries, providers
+   - Part 2 next: Settings connection UI, browser authorization, callback/deep link, connected username, disconnect
+2. ⬜ **VinylApp-090 — Discogs search + Add Record autofill**
+   - title/artist search
+   - top release matches
+   - year, label, genres/styles, artwork autofill
+   - preserve Discogs release identity
+3. ⬜ **VinylApp-107 — Import Discogs collection**
+   - paginated collection import
+   - duplicate classification/review
+   - progress + partial failure handling
+4. ⬜ **VinylApp-105 — Track schema + Discogs tracklist import**
+5. ⬜ **VinylApp-091 — Barcode → exact Discogs release**
 
-VinylApp-017 adds `PlayLoggingService`, which validates the target album and
-creates exactly one Play through `IPlayRepository`. Last-played state remains
-derived from play history, and future NFC scan flows will resolve a tag to an
-album before calling the same service.
+## NFC
 
-## 3. Providers required by Collection
+Persistence exists; device flows remain:
 
-- ⬜ VinylApp-043 — Riverpod service and feature providers
+- ⬜ Android NFC permissions/setup
+- ⬜ write NFC tag flow
+- ⬜ foreground scan → auto log play
 
-VinylApp-043 is the direct task that creates:
+## Discover / recommendations
 
-- `albumsProvider`
-- `albumProvider(id)`
-- `recentlyPlayedProvider`
-- `playCountProvider(albumId)`
-- `collectionFiltersProvider`
+- ⬜ Discover production screen
+- ⬜ recommendation service using genres, artists, play history, recency, and future metadata
+- ⬜ explainable recommendations (“because you play…”, “similar genre…”, etc.)
+- ⬜ rediscovery insights / not-played-recently suggestions
+- ⬜ Album Wrapped / yearly listening story
 
-VinylApp-018 cannot satisfy its real-data acceptance criteria until these
-providers and their repositories exist.
+## Release polish
 
-## 4. Theme and Collection UI
+- 🚧 Groovefolio branding/documentation refresh (`VinylApp-108`)
+- ⬜ final logo/app icon/adaptive icon
+- ⬜ splash/bootstrap flow
+- ⬜ loading/error/empty-state hardening
+- ⬜ accessibility semantics
+- ⬜ Play Store account/signing/listing/release process
 
-- ⏸ VinylApp-008 — Theme and design tokens
-- ⏸ VinylApp-018 — Collection Screen
-- ⏸ VinylApp-021 — AlbumListTile
-- ⏸ VinylApp-023 — SectionHeader
-- ⏸ VinylApp-024 — BottomNavBar
-- ⏸ VinylApp-026 — GenreChip
-- ⬜ VinylApp-032 — PrimaryButton
-- ⏸ VinylApp-058 — SummaryBar
-- ⏸ VinylApp-059 — FilterChipRow
-- ⬜ VinylApp-069 — Empty states
+## Product principles
 
-### VinylApp-018 prototype status
-
-A separate VinylApp-018 branch contains a visual Collection prototype and early
-versions of several widgets. That work:
-
-- uses `fakeAlbums`;
-- stores sorting in local widget state;
-- does not use `albumsProvider` or `collectionFiltersProvider`;
-- does not read Drift through repositories;
-- is not merged into `main`.
-
-The prototype is reference material, not completed functionality.
-
-## 5. First end-to-end collection flow
-
-After the prerequisites above:
-
-- ⬜ VinylApp-018 — Connect Collection to real providers and satisfy acceptance criteria
-- ⬜ VinylApp-019 — Add Record Screen
-- ⬜ VinylApp-039 — Edit Album Screen
-- ⬜ VinylApp-048 — Album Detail Screen
-- ⬜ Create, update, delete, search, and filter real collection records
-- ⬜ Replace temporary route-testing controls with the navigation shell
-
-## 6. Listening and statistics
-
-- ⬜ VinylApp-020 — Log Play Screen
-- ⬜ Play history by album
-- ⬜ Collection-level recently played list
-- ⬜ Full album / Side A / Side B tracking in the UI
-- ⬜ VinylApp-044 — StatsService
-- ⬜ VinylApp-046 — Stats Screen
-
-## 7. Discovery and signature features
-
-- ⬜ VinylApp-047 — Discover Screen
-- ⬜ Rediscovery suggestions
-- ⬜ Personalized recommendations
-- ⬜ Album Wrapped
-- ⬜ Collection ranking and listening-pattern insights
-- ⬜ Similar-album suggestions
-
-## 8. NFC
-
-- ✅ VinylApp-040 — NFC schema + v2 migration
-- 🚧 VinylApp-041 — NfcTagRepository
-- ⬜ NFC capability detection and permission handling
-- ⬜ Associate a tag with an album
-- ⬜ Scan a tag and resolve its album
-- ⬜ Confirm and log a play from a scan
-- ⬜ Graceful fallback on unsupported devices
-
-## 9. Quality and release
-
-- ⬜ VinylApp-033 — Test framework setup
-- ⬜ VinylApp-034 — AlbumRepository unit-test follow-up card (013 already includes baseline repository coverage)
-- ⬜ VinylApp-035 — PlayRepository unit-test hardening (015 includes baseline repository coverage)
-- ⬜ VinylApp-036 — PlayLoggingService unit tests
-- ⬜ Widget tests for primary states
-- ⬜ Integration tests for core user flows
-- ⬜ Accessibility review
-- ⬜ Performance and database query review
-- ⬜ Privacy policy
-- ⬜ App icon, splash screen, and store assets
-- ⬜ Debug/release build configuration
-- ⬜ Internal Android test release
-- ⬜ Google Play release preparation
-
-## Future integrations
-
-- 🔭 Discogs metadata lookup
-- 🔭 Barcode lookup
-- 🔭 Optional Spotify or Last.fm metadata enrichment
-- 🔭 Backup and restore
-- 🔭 Cross-device sync
-- 🔭 Export and import
-
-The project remains local-first. Future network integrations should enrich the
-local experience rather than make basic collection or play tracking depend on a
-remote service.
+- core collection remains usable without an account
+- SQLite/local data is the source of truth for the user's collection
+- external services enhance rather than own the experience
+- repositories own persistence details
+- services own multi-repository/business workflows
+- UI consumes typed providers/models rather than raw Drift or external JSON

@@ -1,31 +1,24 @@
 # Statistics
 
-- Route: `/stats`
-- Current status: Placeholder screen
+Route: `/stats`
 
-## Purpose
+The Stats screen is backed by `StatsService` and repository data.
 
-Turn raw play history into useful, understandable collection insights.
+## Ranges
+- current calendar year
+- all time
 
-## Planned metrics
+## Summary
+- collection record count
+- total plays for selected range
+- current month play count
+- average plays/week
+- first vinyl
 
-- Total plays
-- Unique albums played
-- Most-played albums and artists
-- Plays by month or year
-- Genre distribution when genre metadata exists
-- Recently active and long-unplayed records
-- Full album versus side preference
+## Charts and rankings
+- current year: Jan–Dec monthly plays
+- all time: plays by calendar year
+- play-weighted genre breakdown with expandable list
+- top five most-played albums for selected range
 
-## Data dependencies
-
-Statistics require the Plays table and repository aggregation queries. Complex
-interpretation may live in a StatisticsService, while efficient counts and
-grouping should remain close to the database.
-
-## Presentation requirements
-
-- Define the selected time range clearly.
-- Show zero and empty states without misleading charts.
-- Use accessible labels in addition to visual encoding.
-- Avoid implying statistical certainty from very small listening histories.
+Stats are calculated from Plays rather than cached on Albums.

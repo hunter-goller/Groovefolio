@@ -1,24 +1,34 @@
-# Installing the Documentation Overlay
+# Groovefolio installation / local development
 
-Copy the contents of this directory into the root of the Vinyl App repository.
-Existing `README.md` and `.github/PULL_REQUEST_TEMPLATE.md` files are intended to
-be replaced by the documented versions in this package.
+This repository is the Flutter source for Groovefolio.
 
-Recommended workflow:
+## Clone
 
-```bash
-git switch main
-git pull --ff-only
-git switch -c docs/phase-1
+```powershell
+git clone https://github.com/hunter-goller/Groovefolio.git
+cd Groovefolio
 ```
 
-Extract/copy the overlay, review the diff, then run:
+## Install dependencies and generate sources
 
-```bash
-dart format --output=none --set-exit-if-changed .
-flutter analyze
-flutter test
+```powershell
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
 ```
 
-Open a documentation pull request and merge it into `main`. Do not create a
-long-lived docs branch.
+## Verify
+
+```powershell
+.\tools\verify_vinylapp_012.ps1
+flutter build apk --debug
+```
+
+## Run
+
+```powershell
+flutter run
+```
+
+For Discogs development builds, pass `DISCOGS_CONSUMER_KEY` and `DISCOGS_CONSUMER_SECRET` with `--dart-define`. Never commit real credentials.
+
+The internal Dart package name remains `vinyl_app`, so imports continue to use `package:vinyl_app/...` even though the product and GitHub repository are named Groovefolio.

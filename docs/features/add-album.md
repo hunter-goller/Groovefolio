@@ -1,45 +1,24 @@
-# Add and Edit Album
+# Add Record
 
-- Add route: `/album/new`
-- Current status: Add Record placeholder; edit flow not implemented
+Route: `/album/new`
 
-## Purpose
+## Current fields
+- artwork
+- title (required)
+- artist (required)
+- year
+- label
+- genres
 
-Allow a collector to create a complete record entry without requiring a network
-service.
+The current screen includes a visual “Search Discogs to autofill” banner, but Discogs search is intentionally deferred to `VinylApp-090`.
 
-## Intended fields
+## Save flow
+1. normalize/validate title + artist
+2. find/create artist
+3. create album through repository-backed mutation provider
+4. persist selected artwork through `ArtworkStorageService`
+5. update album with stable artwork path
+6. find/create selected genres and write AlbumGenres mappings
+7. refresh providers and navigate to the new album
 
-- Title
-- Artist
-- Release year
-- Label
-- Artwork
-- Purchase date
-- Purchase price
-- Additional condition or edition fields as the schema evolves
-- Optional NFC association
-
-## Intended flow
-
-1. Enter title and artist.
-2. Reuse an existing artist case-insensitively or create one.
-3. Enter optional metadata and choose artwork.
-4. Validate required fields.
-5. Persist artist and album atomically enough to avoid orphaned data.
-6. Return to the collection or new album detail page.
-
-## Dependencies
-
-- ✅ AlbumRepository `create` and `update`
-- ✅ ArtistRepository `findOrCreate`
-- Form provider/state
-- Artwork picker and form widgets
-- Optional future Discogs lookup adapter
-
-## Error handling
-
-- Preserve form data after a validation or database error.
-- Explain required fields near the relevant input.
-- Do not require internet access.
-- Handle artwork permission or file failures gracefully.
+Artwork failures include cleanup/rollback logic so the database is not left linked to an unusable file.
