@@ -51,6 +51,15 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// Opens the underlying database and waits for creation/migrations plus
+  /// [MigrationStrategy.beforeOpen] to finish.
+  ///
+  /// Drift opens [LazyDatabase] executors on first use, so a lightweight query
+  /// gives app bootstrap an explicit future that represents "database ready".
+  Future<void> initialize() async {
+    await customSelect('SELECT 1').getSingle();
+  }
+
   static QueryExecutor _openConnection() {
     return LazyDatabase(() async {
       final dbFolder = await getApplicationDocumentsDirectory();
