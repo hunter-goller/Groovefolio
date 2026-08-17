@@ -1,0 +1,18 @@
+flutter_native_splash:
+  android: true
+  ios: true
+  web: false
+
+  # Match Groovefolio's app theme tokens.
+  color: "#F7F4F0"
+  color_dark: "#12100F"
+
+  # VinylApp-067 supplies the approved, safely padded transparent foreground.
+  image: assets/branding/groovefolio_adaptive_foreground.png
+  image_dark: assets/branding/groovefolio_splash_dark.png
+
+  android_12:
+    color: "#F7F4F0"
+    color_dark: "#12100F"
+    image: assets/branding/groovefolio_adaptive_foreground.png
+    image_dark: assets/branding/groovefolio_splash_dark.png
