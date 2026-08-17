@@ -1,0 +1,10 @@
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: assets/branding/groovefolio_app_icon.png
+  min_sdk_android: 21
+  adaptive_icon_background: "#FDFAF6"
+  adaptive_icon_foreground: assets/branding/groovefolio_adaptive_foreground.png
+  # Safe-area padding is already baked into the 1024x1024 foreground asset.
+  adaptive_icon_foreground_inset: 0
+  adaptive_icon_monochrome: assets/branding/groovefolio_adaptive_monochrome.png
