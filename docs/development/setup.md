@@ -41,7 +41,7 @@ flutter run `
   --dart-define=DISCOGS_CONSUMER_SECRET=YOUR_SECRET
 ```
 
-Part 1 can build/test without real values. Live OAuth requests require a registered Discogs application. The current callback URI is `groovefolio://discogs-auth`; Part 2 will wire the platform deep link.
+The app can build/test without real values. Live OAuth requests require a registered Discogs application configured to return to `groovefolio://discogs-auth`. Android and iOS register that custom URI scheme.
 
 ## Technical identifiers
 

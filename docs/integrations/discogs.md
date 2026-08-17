@@ -5,7 +5,7 @@ Discogs is an optional enhancement; Groovefolio's local collection remains usabl
 ## Roadmap split
 
 ### VinylApp-106 — account connection + shared API foundation
-**Part 1 merged:**
+Implemented across Parts 1 and 2:
 - `DiscogsConfig`
 - OAuth 1.0a HMAC-SHA1 signer
 - request-token exchange
@@ -15,16 +15,13 @@ Discogs is an optional enhancement; Groovefolio's local collection remains usabl
 - secure credential store
 - `DiscogsAuthService`
 - Riverpod providers
-
-**Part 2 next:**
 - Settings integration
-- Connect Discogs button
-- external browser authorization
-- app callback/deep link
-- complete token exchange
-- show connected username
-- disconnect
-- attribution/disclaimer UI
+- Connect Discogs browser authorization
+- `groovefolio://discogs-auth` platform callback via `app_links`
+- verifier exchange and secure access-token persistence
+- `Connected as <username>` identity UI
+- disconnect and cancelled-authorization cleanup
+- Discogs attribution/disclaimer UI
 
 ### VinylApp-090 — search/autofill
 Search title + artist, show release choices, then autofill year, label, genres/styles, and artwork. The user chooses the release rather than Groovefolio silently guessing a pressing.
@@ -47,9 +44,9 @@ flutter run `
 
 Never commit real values.
 
-Current OAuth callback URI: `groovefolio://discogs-auth`. Part 2 will register/handle this deep link on Android.
+OAuth callback URI: `groovefolio://discogs-auth`. Android and iOS register the custom scheme, while `app_links` captures cold-start and warm-app callbacks.
 
-The merged Part-1 code can compile and unit-test with empty values; live API calls require valid application credentials.
+The code can compile and unit-test with empty values; live API calls require valid application credentials.
 
 ## User credentials
 

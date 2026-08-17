@@ -60,6 +60,10 @@ class DiscogsAuthService {
     }
   }
 
+  Future<void> cancelAuthorization() async {
+    await _credentialStore.clearPendingRequestToken();
+  }
+
   Future<void> disconnect() async {
     await _credentialStore.clearCredentials();
     await _credentialStore.clearPendingRequestToken();

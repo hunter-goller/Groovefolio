@@ -22,11 +22,10 @@ Implemented on `main`:
 - local SQLite persistence through Drift with frozen v1 → v2 → v3 migrations
 - NFC tag persistence/repository groundwork
 - development reset/seed tooling with optional MusicBrainz/Cover Art Archive artwork lookup
-- Discogs OAuth 1.0a foundation, secure credential storage, typed failures, and Riverpod providers
+- Discogs OAuth 1.0a account connection with browser authorization, deep-link callback, secure credential storage, identity lookup, typed failures, and Settings UI
 
 Still in progress or planned:
 
-- Discogs browser authorization callback / connection UI (`VinylApp-106` Part 2)
 - Discogs search + Add Record autofill (`VinylApp-090`)
 - Discogs collection import (`VinylApp-107`)
 - track schema/import (`VinylApp-105`)
@@ -45,7 +44,8 @@ Still in progress or planned:
 - `image_picker` + local filesystem artwork storage
 - `flutter_secure_storage` 10.3.1 for Discogs OAuth user credentials
 - `crypto` for OAuth 1.0a HMAC-SHA1 signing
-- `url_launcher` for the upcoming Discogs authorization flow
+- `url_launcher` for Discogs browser authorization and attribution links
+- `app_links` for the `groovefolio://discogs-auth` OAuth callback
 
 ## Architecture
 
@@ -111,8 +111,9 @@ The v1/v2/v3 migrations are intentionally frozen. New physical schema changes mu
 | `/album/:id` | Album Detail |
 | `/album/:id/edit` | Edit Record |
 | `/play/log` | Log Play |
+| `/settings` | Settings / Discogs connection |
 
-Discogs callback/settings routes will be added in `VinylApp-106` Part 2.
+The Discogs OAuth callback uses the platform custom URI `groovefolio://discogs-auth`; it is handled by `app_links`, not as a public `go_router` page.
 
 ## Getting started
 
@@ -158,7 +159,7 @@ The destructive reset deletes the current local development collection and refer
 
 ## Discogs development configuration
 
-The merged `VinylApp-106` Part 1 foundation reads Discogs application credentials from compile-time defines. Do **not** commit real credentials.
+The Discogs integration reads application credentials from compile-time defines. Do **not** commit real credentials.
 
 ```powershell
 flutter run `
@@ -166,7 +167,7 @@ flutter run `
   --dart-define=DISCOGS_CONSUMER_SECRET=YOUR_SECRET
 ```
 
-The current OAuth callback URI is `groovefolio://discogs-auth`; platform callback handling arrives in `VinylApp-106` Part 2.
+The OAuth callback URI is `groovefolio://discogs-auth`. Android and iOS register that custom scheme and the root app completes the OAuth verifier exchange when Discogs returns to Groovefolio.
 
 User OAuth access credentials are stored with `flutter_secure_storage`. The application Consumer Key/Secret are development configuration for now; production secret handling must be revisited before public distribution.
 

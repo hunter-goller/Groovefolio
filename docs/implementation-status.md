@@ -1,6 +1,6 @@
 # Current implementation status
 
-This document describes the post-`VinylApp-106` Part 1 baseline used for the Groovefolio documentation/branding refresh.
+This document describes the current Groovefolio implementation baseline.
 
 ## Complete / working
 
@@ -37,7 +37,7 @@ Repositories create IDs/timestamps and Drift persistence objects internally.
 - StatsService
 - ArtworkStorageService
 - AlbumDeletionService
-- DiscogsApiClient / DiscogsAuthService Part 1 foundation
+- DiscogsApiClient / DiscogsAuthService OAuth foundation and account connection flow
 
 ### Collection UX
 - Collection screen using real local data
@@ -75,12 +75,10 @@ Repositories create IDs/timestamps and Drift persistence objects internally.
 - variable `DEV_SEED_ALBUM_COUNT`
 - optional MusicBrainz/Cover Art Archive cover lookup
 
-## In progress
+## Discogs connection
 
 ### VinylApp-106 — Discogs connection
-Part 1 is merged: OAuth signing, request/access credential exchange, secure token storage, identity lookup boundary, providers, typed failures.
-
-Part 2 still needs to connect this foundation to Settings, browser authorization, app callback/deep link, and disconnect UX.
+Parts 1 and 2 provide OAuth signing, request/access credential exchange, secure token storage, identity lookup, typed failures, Settings connection UI, external browser authorization, custom-scheme callback handling, connected username display, and disconnect UX.
 
 ## Not implemented yet
 - production Discover/recommendations

@@ -41,18 +41,20 @@ Album Detail → AlbumDeletionService
 
 `AlbumGenres` mappings are removed by database cascade when the album row is deleted.
 
-## Discogs Part 1
+## Discogs account connection
 
 ```text
-discogsAccountProvider
-        ↓
-DiscogsAuthService
+SettingsScreen
+   ├─ discogsAccountProvider
+   └─ discogsAuthorizationControllerProvider
+                ↓
+        DiscogsAuthService
         ├─ DiscogsCredentialStore → flutter_secure_storage
         └─ DiscogsApiClient
                 ↓
         DiscogsOAuthSigner
                 ↓
              Discogs
-```
 
-Part 2 will connect the auth service to Settings/browser/deep-link UI.
+app_links → groovefolio://discogs-auth → authorization controller → Settings
+```

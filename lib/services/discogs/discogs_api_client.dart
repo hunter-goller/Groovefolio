@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:vinyl_app/services/discogs/discogs_config.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_oauth_signer.dart';
@@ -38,12 +39,22 @@ class DiscogsApiClient {
 
   Future<DiscogsRequestToken> requestToken() async {
     _ensureConfigured();
+
+    // Discogs' OAuth request-token flow expects oauth_callback to be supplied
+    // during this POST. Send it as an application/x-www-form-urlencoded body
+    // parameter and include that same parameter in the OAuth signature.
+    final formBody = <String, String>{'oauth_callback': _config.callbackUri};
     final oauth = _signer.authorizationParameters(
       method: 'POST',
       uri: _requestTokenUri,
-      callback: _config.callbackUri,
+      additionalParameters: formBody,
     );
-    final body = await _send('POST', _requestTokenUri, oauth);
+    final body = await _send(
+      'POST',
+      _requestTokenUri,
+      oauth,
+      formBody: formBody,
+    );
     final parsed = Uri.splitQueryString(body);
     final token = parsed['oauth_token'];
     final secret = parsed['oauth_token_secret'];
@@ -93,8 +104,9 @@ class DiscogsApiClient {
   Future<String> _send(
     String method,
     Uri uri,
-    Map<String, String> oauth,
-  ) async {
+    Map<String, String> oauth, {
+    Map<String, String>? formBody,
+  }) async {
     try {
       final request = await _httpClient.openUrl(method, uri);
       request.headers.set(
@@ -102,13 +114,25 @@ class DiscogsApiClient {
         _signer.authorizationHeader(oauth),
       );
       request.headers.set(HttpHeaders.userAgentHeader, _config.userAgent);
+
+      if (formBody != null) {
+        request.headers.set(
+          HttpHeaders.contentTypeHeader,
+          'application/x-www-form-urlencoded',
+        );
+        request.write(Uri(queryParameters: formBody).query);
+      }
+
       final response = await request.close();
       final body = await utf8.decoder.bind(response).join();
 
       if (response.statusCode >= 200 && response.statusCode < 300) return body;
       if (response.statusCode == 401 || response.statusCode == 403) {
+        final detail = _safeResponseDetail(body);
         throw DiscogsAuthenticationFailure(
-          'Discogs authorization failed (${response.statusCode}).',
+          detail == null
+              ? 'Discogs authorization failed (${response.statusCode}).'
+              : 'Discogs authorization failed (${response.statusCode}): $detail',
         );
       }
       if (response.statusCode == 429) {
@@ -116,8 +140,11 @@ class DiscogsApiClient {
           'Discogs rate limit reached. Try again shortly.',
         );
       }
+      final detail = _safeResponseDetail(body);
       throw DiscogsApiFailure(
-        'Discogs request failed (${response.statusCode}).',
+        detail == null
+            ? 'Discogs request failed (${response.statusCode}).'
+            : 'Discogs request failed (${response.statusCode}): $detail',
         statusCode: response.statusCode,
       );
     } on DiscogsFailure {
@@ -125,6 +152,34 @@ class DiscogsApiClient {
     } on SocketException catch (e) {
       throw DiscogsNetworkFailure('Could not reach Discogs: $e');
     }
+  }
+
+  String? _safeResponseDetail(String body) {
+    if (body.trim().isEmpty) return null;
+
+    String detail;
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic> && decoded['message'] is String) {
+        detail = decoded['message'] as String;
+      } else {
+        detail = body;
+      }
+    } catch (_) {
+      detail = body;
+    }
+
+    detail = detail.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (_config.consumerKey.isNotEmpty) {
+      detail = detail.replaceAll(_config.consumerKey, '[redacted]');
+    }
+    if (_config.consumerSecret.isNotEmpty) {
+      detail = detail.replaceAll(_config.consumerSecret, '[redacted]');
+    }
+    if (detail.length > 240) {
+      detail = '${detail.substring(0, 240)}…';
+    }
+    return detail.isEmpty ? null : detail;
   }
 
   void close() => _httpClient.close(force: true);

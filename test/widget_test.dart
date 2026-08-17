@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/db/database_provider.dart';
 import 'package:vinyl_app/main.dart';
+import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 
 void main() {
   testWidgets('App boots and resolves to the Collection screen', (
@@ -15,7 +16,10 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [databaseProvider.overrideWithValue(db)],
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          discogsDeepLinksEnabledProvider.overrideWithValue(false),
+        ],
         child: const MyApp(),
       ),
     );
