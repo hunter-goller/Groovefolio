@@ -19,14 +19,13 @@ Implemented on `main`:
 - collection statistics for the current year and all time
 - monthly and yearly play charts
 - listening-by-genre breakdown and most-played albums
-- local SQLite persistence through Drift with frozen v1 → v2 → v3 migrations
+- local SQLite persistence through Drift with frozen v1 → v2 → v3 → v4 migrations
 - NFC tag persistence/repository groundwork
 - development reset/seed tooling with optional MusicBrainz/Cover Art Archive artwork lookup
 - Discogs OAuth 1.0a account connection with browser authorization, deep-link callback, secure credential storage, identity lookup, typed failures, and Settings UI
 
 Still in progress or planned:
 
-- Discogs search + Add Record autofill (`VinylApp-090`)
 - Discogs collection import (`VinylApp-107`)
 - track schema/import (`VinylApp-105`)
 - barcode lookup (`VinylApp-091`)
@@ -70,7 +69,7 @@ External integrations are isolated behind services/clients:
 ```text
 UI
  ↓
-DiscogsAuthService / future DiscogsService
+DiscogsAuthService / DiscogsCatalogService
  ↓
 DiscogsApiClient
  ↓
@@ -83,12 +82,13 @@ Screens and services do not construct Drift companions directly. Repositories ow
 
 ## Database schema
 
-Current schema version: **v3**.
+Current schema version: **v4**.
 
 ```text
 v1  Artists ──< Albums ──< Plays
 v2                 └────  NfcTags (one tag per album)
 v3                 └────< AlbumGenres >──── Genres
+v4                 └────  AlbumDiscogsReleases (exact Discogs release link)
 ```
 
 - `Artists`: canonical artist rows
@@ -97,8 +97,9 @@ v3                 └────< AlbumGenres >──── Genres
 - `NfcTags`: unique physical NFC tag ↔ unique album association
 - `Genres`: case-insensitive unique genre names
 - `AlbumGenres`: many-to-many album/genre join table
+- `AlbumDiscogsReleases`: one-to-one local album ↔ exact Discogs release ID link
 
-The v1/v2/v3 migrations are intentionally frozen. New physical schema changes must create a new migration/version rather than rewriting history.
+The v1/v2/v3/v4 migrations are intentionally frozen once shipped. New physical schema changes must create a new migration/version rather than rewriting history.
 
 ## Routes
 

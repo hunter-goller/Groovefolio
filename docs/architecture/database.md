@@ -10,7 +10,7 @@ vinyl_app_db.sqlite
 
 The filename is a technical identifier retained from the project's original name.
 
-## Current schema: v3
+## Current schema: v4
 
 ### v1 — frozen baseline
 - `artists`
@@ -28,6 +28,11 @@ The filename is a technical identifier retained from the project's original name
 
 Genre names use SQLite `NOCASE` uniqueness. `album_genres` has a composite primary key and cascade deletes for album/genre mappings.
 
+### v4 — Discogs release linkage
+- `album_discogs_releases`
+
+Each local album can link to one exact Discogs release ID, and a Discogs release ID can only be linked once. The mapping cascades away when its album is deleted.
+
 ## Relationships
 
 ```text
@@ -35,14 +40,15 @@ Artists 1 ─── * Albums 1 ─── * Plays
                     │
                     ├── 0..1 NfcTags
                     │
-                    └── * AlbumGenres * ─── 1 Genres
+                    ├── * AlbumGenres * ─── 1 Genres
+                    └── 0..1 AlbumDiscogsReleases
 ```
 
 ## Migration rule
 
-`migration_v1.dart`, `migration_v2.dart`, and `migration_v3.dart` are historical schema definitions and must remain frozen. A new physical schema change gets a new schema version and migration file.
+`migration_v1.dart`, `migration_v2.dart`, `migration_v3.dart`, and `migration_v4.dart` are historical schema definitions and must remain frozen. A new physical schema change gets a new schema version and migration file.
 
-Fresh installs deliberately execute v1, then v2, then v3 so the resulting physical schema follows the same path as an upgraded database.
+Fresh installs deliberately execute v1, then v2, then v3, then v4 so the resulting physical schema follows the same path as an upgraded database.
 
 ## Foreign keys
 
@@ -56,4 +62,4 @@ Run:
 .\tools\verify_vinylapp_012.ps1
 ```
 
-The script exports the current Drift schema to `drift_schemas/drift_schema_v3.json` after tests pass.
+The script exports the current Drift schema to `drift_schemas/drift_schema_v4.json` after tests pass.

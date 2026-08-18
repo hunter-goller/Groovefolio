@@ -2,6 +2,7 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/services/discogs/discogs_api_client.dart';
 import 'package:vinyl_app/services/discogs/discogs_auth_service.dart';
+import 'package:vinyl_app/services/discogs/discogs_catalog_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_config.dart';
 import 'package:vinyl_app/services/discogs/discogs_credential_store.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
@@ -24,6 +25,13 @@ final discogsAuthServiceProvider = Provider<DiscogsAuthService>((ref) {
   return DiscogsAuthService(
     apiClient: ref.watch(discogsApiClientProvider),
     credentialStore: ref.watch(discogsCredentialStoreProvider),
+  );
+});
+
+final discogsCatalogServiceProvider = Provider<DiscogsCatalogService>((ref) {
+  return DefaultDiscogsCatalogService(
+    ref.watch(discogsApiClientProvider),
+    ref.watch(discogsCredentialStoreProvider),
   );
 });
 

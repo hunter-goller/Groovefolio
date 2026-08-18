@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -19,6 +20,17 @@ class ArtworkStorageService {
   final DocumentsDirectoryResolver _documentsDirectoryResolver;
 
   Future<String> saveArtwork(File source, String albumId) async {
+    if (!await source.exists()) {
+      throw ArgumentError.value(
+        source.path,
+        'source',
+        'Artwork source file does not exist.',
+      );
+    }
+    return saveArtworkBytes(await source.readAsBytes(), albumId);
+  }
+
+  Future<String> saveArtworkBytes(Uint8List bytes, String albumId) async {
     final normalizedId = albumId.trim();
     if (normalizedId.isEmpty) {
       throw ArgumentError.value(
@@ -27,11 +39,11 @@ class ArtworkStorageService {
         'Album ID cannot be empty.',
       );
     }
-    if (!await source.exists()) {
+    if (bytes.isEmpty) {
       throw ArgumentError.value(
-        source.path,
-        'source',
-        'Artwork source file does not exist.',
+        bytes,
+        'bytes',
+        'Artwork bytes cannot be empty.',
       );
     }
 
@@ -45,9 +57,7 @@ class ArtworkStorageService {
       p.join(artworkDirectory.path, '$normalizedId.jpg'),
     );
 
-    // Write bytes instead of File.copy() so replacing the same stable path is
-    // deterministic on every supported platform.
-    await destination.writeAsBytes(await source.readAsBytes(), flush: true);
+    await destination.writeAsBytes(bytes, flush: true);
     return destination.path;
   }
 

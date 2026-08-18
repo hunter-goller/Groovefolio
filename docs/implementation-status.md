@@ -14,11 +14,12 @@ This document describes the current Groovefolio implementation baseline.
 - light/dark Material theme and design tokens
 
 ### Database
-Current schema is **v3**.
+Current schema is **v4**.
 
 - v1: Artists, Albums, Plays
 - v2: NfcTags
 - v3: Genres, AlbumGenres
+- v4: AlbumDiscogsReleases
 
 Fresh databases intentionally apply the frozen migrations in order. Upgrades apply only the missing migration steps. Foreign keys are enabled for each SQLite connection.
 
@@ -28,6 +29,7 @@ Fresh databases intentionally apply the frozen migrations in order. Upgrades app
 - PlayRepository
 - NfcTagRepository
 - GenreRepository
+- DiscogsReleaseLinkRepository
 - repository providers for dependency injection/testing
 
 Repositories create IDs/timestamps and Drift persistence objects internally.
@@ -38,6 +40,7 @@ Repositories create IDs/timestamps and Drift persistence objects internally.
 - ArtworkStorageService
 - AlbumDeletionService
 - DiscogsApiClient / DiscogsAuthService OAuth foundation and account connection flow
+- DiscogsCatalogService search/release/artwork workflow
 
 ### Collection UX
 - Collection screen using real local data
@@ -83,7 +86,6 @@ Parts 1 and 2 provide OAuth signing, request/access credential exchange, secure 
 ## Not implemented yet
 - production Discover/recommendations
 - NFC device permissions/write/read/auto-log flows
-- Discogs search/autofill
 - Discogs collection import
 - Tracks schema/import
 - barcode scanning

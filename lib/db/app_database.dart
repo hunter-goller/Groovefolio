@@ -7,7 +7,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:vinyl_app/db/migrations/migration_v1.dart';
 import 'package:vinyl_app/db/migrations/migration_v2.dart';
 import 'package:vinyl_app/db/migrations/migration_v3.dart';
+import 'package:vinyl_app/db/migrations/migration_v4.dart';
 import 'package:vinyl_app/db/migrations/schema_versions.dart';
+import 'package:vinyl_app/db/schema/album_discogs_releases.dart';
 import 'package:vinyl_app/db/schema/album_genres.dart';
 import 'package:vinyl_app/db/schema/albums.dart';
 import 'package:vinyl_app/db/schema/artists.dart';
@@ -18,7 +20,17 @@ import 'package:vinyl_app/types/side_played.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [Artists, Albums, Plays, NfcTags, Genres, AlbumGenres])
+@DriftDatabase(
+  tables: [
+    Artists,
+    Albums,
+    Plays,
+    NfcTags,
+    Genres,
+    AlbumGenres,
+    AlbumDiscogsReleases,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
@@ -34,6 +46,7 @@ class AppDatabase extends _$AppDatabase {
         await migrateToV1(migrator);
         await migrateToV2(migrator);
         await migrateToV3(migrator);
+        await migrateToV4(migrator);
       },
       onUpgrade: (migrator, from, to) async {
         if (from < SchemaVersions.v2 && to >= SchemaVersions.v2) {
@@ -41,6 +54,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < SchemaVersions.v3 && to >= SchemaVersions.v3) {
           await migrateToV3(migrator);
+        }
+        if (from < SchemaVersions.v4 && to >= SchemaVersions.v4) {
+          await migrateToV4(migrator);
         }
       },
       beforeOpen: (details) async {
@@ -53,9 +69,6 @@ class AppDatabase extends _$AppDatabase {
 
   /// Opens the underlying database and waits for creation/migrations plus
   /// [MigrationStrategy.beforeOpen] to finish.
-  ///
-  /// Drift opens [LazyDatabase] executors on first use, so a lightweight query
-  /// gives app bootstrap an explicit future that represents "database ready".
   Future<void> initialize() async {
     await customSelect('SELECT 1').getSingle();
   }
