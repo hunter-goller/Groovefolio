@@ -34,7 +34,17 @@ Implemented:
 - surface typed empty/error/rate-limit states without breaking manual Add Record
 
 ### VinylApp-107 — collection import
-Import a connected user's Discogs collection with pagination, duplicate classification, progress, and partial failure handling.
+Implemented:
+- read the connected user's Discogs collection across every API page
+- import vinyl releases only; non-vinyl collection items are ignored
+- classify exact Discogs release duplicates before import
+- surface title + artist local matches for explicit review instead of silently duplicating/overwriting
+- preselect only clearly new releases
+- fetch exact release metadata before each write
+- import Artists, Albums, Genres/styles, artwork, and exact Discogs release IDs into the local collection
+- persist artwork through `ArtworkStorageService`
+- show progress for large imports
+- continue after per-release failures and summarize failures/warnings at the end
 
 ### VinylApp-105 / 091
 Tracklist import and barcode → exact release build on the same client/foundation.

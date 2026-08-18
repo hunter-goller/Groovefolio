@@ -12,6 +12,12 @@ abstract interface class DiscogsCatalogService {
 
   Future<DiscogsReleaseDetails> release(int releaseId);
 
+  Future<DiscogsCollectionPage> collectionPage({
+    required String username,
+    required int page,
+    int perPage = 100,
+  });
+
   Future<Uint8List> downloadArtwork(String url);
 }
 
@@ -32,6 +38,21 @@ class DefaultDiscogsCatalogService implements DiscogsCatalogService {
       artist: artist,
       title: title,
       limit: 5,
+    );
+  }
+
+  @override
+  Future<DiscogsCollectionPage> collectionPage({
+    required String username,
+    required int page,
+    int perPage = 100,
+  }) async {
+    final credentials = await _requireCredentials();
+    return _apiClient.collectionFolderReleases(
+      credentials: credentials,
+      username: username,
+      page: page,
+      perPage: perPage,
     );
   }
 

@@ -40,7 +40,8 @@ Repositories create IDs/timestamps and Drift persistence objects internally.
 - ArtworkStorageService
 - AlbumDeletionService
 - DiscogsApiClient / DiscogsAuthService OAuth foundation and account connection flow
-- DiscogsCatalogService search/release/artwork workflow
+- DiscogsCatalogService search/release/artwork/collection workflow
+- DiscogsCollectionImportService pagination, duplicate review, local import, progress, and partial-failure workflow
 
 ### Collection UX
 - Collection screen using real local data
@@ -53,6 +54,7 @@ Repositories create IDs/timestamps and Drift persistence objects internally.
 - Delete Record confirmation/cleanup
 - artwork pick/replace/persist
 - recent play history on album detail
+- connected-account Discogs collection import with duplicate review and progress
 
 ### Play logging
 - select/search album
@@ -83,10 +85,15 @@ Repositories create IDs/timestamps and Drift persistence objects internally.
 ### VinylApp-106 — Discogs connection
 Parts 1 and 2 provide OAuth signing, request/access credential exchange, secure token storage, identity lookup, typed failures, Settings connection UI, external browser authorization, custom-scheme callback handling, connected username display, and disconnect UX.
 
+### VinylApp-090 — Discogs release search/autofill
+Add Record can search vinyl releases, select an exact pressing, autofill editable metadata/artwork, and persist the exact Discogs release ID.
+
+### VinylApp-107 — Discogs collection import
+Settings exposes a connected-account import flow with collection pagination, vinyl-only filtering, exact-ID duplicate detection, possible-local-match review, progress, artwork/genre import, and per-release failure summaries.
+
 ## Not implemented yet
 - production Discover/recommendations
 - NFC device permissions/write/read/auto-log flows
-- Discogs collection import
 - Tracks schema/import
 - barcode scanning
 - final icon/splash/release polish

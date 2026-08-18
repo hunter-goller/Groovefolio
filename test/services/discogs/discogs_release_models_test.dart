@@ -51,4 +51,50 @@ void main() {
       expect(details.artworkUrl, 'https://example.test/full.jpg');
     },
   );
+
+  test('maps a paginated Discogs collection response', () {
+    final page = discogsCollectionPageFromJson({
+      'pagination': {'page': 1, 'pages': 2, 'per_page': 100, 'items': 101},
+      'releases': [
+        {
+          'id': 123,
+          'instance_id': 456,
+          'basic_information': {
+            'id': 123,
+            'title': 'Blue Train',
+            'year': 1957,
+            'artists': [
+              {'name': 'John Coltrane (2)'},
+            ],
+            'labels': [
+              {'name': 'Blue Note'},
+            ],
+            'formats': [
+              {
+                'name': 'Vinyl',
+                'descriptions': ['LP', 'Album'],
+              },
+            ],
+            'cover_image': 'https://example.test/blue-train.jpg',
+          },
+        },
+      ],
+    });
+
+    expect(page.page, 1);
+    expect(page.pages, 2);
+    expect(page.totalItems, 101);
+    expect(page.hasNextPage, isTrue);
+    expect(page.items, hasLength(1));
+
+    final item = page.items.single;
+    expect(item.releaseId, 123);
+    expect(item.instanceId, 456);
+    expect(item.title, 'Blue Train');
+    expect(item.artist, 'John Coltrane');
+    expect(item.year, 1957);
+    expect(item.label, 'Blue Note');
+    expect(item.formats, ['Vinyl', 'LP', 'Album']);
+    expect(item.isVinyl, isTrue);
+  });
 }
