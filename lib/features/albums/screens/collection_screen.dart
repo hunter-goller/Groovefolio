@@ -72,54 +72,58 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       context: context,
       showDragHandle: true,
       useSafeArea: true,
+      isScrollControlled: true,
       builder: (sheetContext) {
         final tokens = sheetContext.tokens;
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            tokens.space16,
-            0,
-            tokens.space16,
-            tokens.space24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Filter by genre',
-                style: sheetContext.theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              SizedBox(height: tokens.space12),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.5,
-                ),
-                child: SingleChildScrollView(
-                  child: Wrap(
-                    spacing: tokens.space8,
-                    runSpacing: tokens.space8,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('All genres'),
-                        selected: _selectedGenre == null,
-                        onSelected: (_) => Navigator.of(sheetContext).pop(''),
-                      ),
-                      for (final genre in genres)
-                        ChoiceChip(
-                          label: Text(genre.name),
-                          selected:
-                              _selectedGenre?.toLowerCase() ==
-                              genre.name.toLowerCase(),
-                          onSelected: (_) =>
-                              Navigator.of(sheetContext).pop(genre.name),
-                        ),
-                    ],
+        final availableHeight = MediaQuery.sizeOf(sheetContext).height;
+
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: availableHeight * 0.72),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              tokens.space16,
+              0,
+              tokens.space16,
+              tokens.space24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Filter by genre',
+                  style: sheetContext.theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ),
-            ],
+                SizedBox(height: tokens.space12),
+                Flexible(
+                  child: SingleChildScrollView(
+                    key: const Key('collection-genre-filter-scroll'),
+                    child: Wrap(
+                      spacing: tokens.space8,
+                      runSpacing: tokens.space8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('All genres'),
+                          selected: _selectedGenre == null,
+                          onSelected: (_) => Navigator.of(sheetContext).pop(''),
+                        ),
+                        for (final genre in genres)
+                          ChoiceChip(
+                            label: Text(genre.name),
+                            selected:
+                                _selectedGenre?.toLowerCase() ==
+                                genre.name.toLowerCase(),
+                            onSelected: (_) =>
+                                Navigator.of(sheetContext).pop(genre.name),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },

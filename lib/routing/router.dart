@@ -6,6 +6,7 @@ import 'package:vinyl_app/features/albums/screens/collection_screen.dart';
 import 'package:vinyl_app/features/albums/screens/edit_album_screen.dart';
 import 'package:vinyl_app/features/discover/screens/discover_screen.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
+import 'package:vinyl_app/features/settings/screens/discogs_collection_import_screen.dart';
 import 'package:vinyl_app/features/settings/screens/settings_screen.dart';
 import 'package:vinyl_app/features/stats/screens/stats_screen.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
@@ -66,6 +67,10 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: AppRoutes.settings,
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.discogsCollectionImport,
+        builder: (context, state) => const DiscogsCollectionImportScreen(),
       ),
     ],
   );

@@ -35,6 +35,10 @@ void main() {
     expect(find.text('Connected as hunter'), findsOneWidget);
     expect(find.text('Disconnect'), findsOneWidget);
     expect(find.text('Data provided by Discogs.'), findsOneWidget);
+    expect(
+      find.byKey(const Key('discogs-import-collection-button')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('shows connect action when disconnected', (tester) async {

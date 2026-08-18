@@ -116,6 +116,41 @@ class DiscogsApiClient {
         .toList(growable: false);
   }
 
+  Future<DiscogsCollectionPage> collectionFolderReleases({
+    required DiscogsOAuthCredentials credentials,
+    required String username,
+    required int page,
+    int perPage = 100,
+  }) async {
+    final normalizedUsername = username.trim();
+    if (normalizedUsername.isEmpty) {
+      throw ArgumentError.value(
+        username,
+        'username',
+        'Discogs username cannot be empty.',
+      );
+    }
+
+    final uri = Uri(
+      scheme: 'https',
+      host: 'api.discogs.com',
+      pathSegments: [
+        'users',
+        normalizedUsername,
+        'collection',
+        'folders',
+        '0',
+        'releases',
+      ],
+      queryParameters: {
+        'page': page.clamp(1, 1000000).toString(),
+        'per_page': perPage.clamp(1, 100).toString(),
+      },
+    );
+    final json = await _getJson(uri, credentials);
+    return discogsCollectionPageFromJson(json);
+  }
+
   Future<DiscogsReleaseDetails> release({
     required DiscogsOAuthCredentials credentials,
     required int releaseId,

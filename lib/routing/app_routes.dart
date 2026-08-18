@@ -10,6 +10,7 @@ abstract final class AppRoutes {
   static const editAlbum = '/album/:id/edit';
   static const logPlay = '/play/log';
   static const settings = '/settings';
+  static const discogsCollectionImport = '/settings/discogs/import';
 
   /// Builds a concrete /album/{id} path for navigation calls,
   /// e.g. context.push(AppRoutes.albumDetailPath(album.id))

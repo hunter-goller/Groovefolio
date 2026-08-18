@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
@@ -42,6 +44,7 @@ class SettingsScreen extends ConsumerWidget {
               onDisconnect: () => ref
                   .read(discogsAuthorizationControllerProvider.notifier)
                   .disconnect(),
+              onImport: () => context.push(AppRoutes.discogsCollectionImport),
               onRetryIdentity: () => ref.invalidate(discogsAccountProvider),
               onClearFailure: () => ref
                   .read(discogsAuthorizationControllerProvider.notifier)
@@ -62,6 +65,7 @@ class _DiscogsConnectionCard extends StatelessWidget {
     required this.onConnect,
     required this.onCancel,
     required this.onDisconnect,
+    required this.onImport,
     required this.onRetryIdentity,
     required this.onClearFailure,
   });
@@ -72,6 +76,7 @@ class _DiscogsConnectionCard extends StatelessWidget {
   final Future<void> Function() onConnect;
   final Future<void> Function() onCancel;
   final Future<void> Function() onDisconnect;
+  final VoidCallback onImport;
   final VoidCallback onRetryIdentity;
   final VoidCallback onClearFailure;
 
@@ -134,6 +139,7 @@ class _DiscogsConnectionCard extends StatelessWidget {
                   onConnect: onConnect,
                   onCancel: onCancel,
                   onDisconnect: onDisconnect,
+                  onImport: onImport,
                   onClearFailure: onClearFailure,
                 ),
               ),
@@ -161,6 +167,7 @@ class _ConnectionBody extends StatelessWidget {
     required this.onConnect,
     required this.onCancel,
     required this.onDisconnect,
+    required this.onImport,
     required this.onClearFailure,
   });
 
@@ -169,6 +176,7 @@ class _ConnectionBody extends StatelessWidget {
   final Future<void> Function() onConnect;
   final Future<void> Function() onCancel;
   final Future<void> Function() onDisconnect;
+  final VoidCallback onImport;
   final VoidCallback onClearFailure;
 
   @override
@@ -262,6 +270,13 @@ class _ConnectionBody extends StatelessWidget {
           SizedBox(height: tokens.space8),
           _DiscogsDataLink(account: account!),
           SizedBox(height: tokens.space12),
+          FilledButton.icon(
+            key: const Key('discogs-import-collection-button'),
+            onPressed: onImport,
+            icon: const Icon(Icons.download_rounded),
+            label: const Text('Import Discogs collection'),
+          ),
+          SizedBox(height: tokens.space8),
           OutlinedButton.icon(
             onPressed: () => onDisconnect(),
             icon: const Icon(Icons.link_off_rounded),

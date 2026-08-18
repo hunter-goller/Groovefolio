@@ -37,18 +37,18 @@ Groovefolio is being built as a local-first vinyl collection and listening-histo
 
 ## Discogs — active
 
-1. 🚧 **VinylApp-106 — Discogs account connection + API foundation**
-   - Part 1 merged: OAuth signing, secure credential storage, identity/API boundaries, providers
-   - Part 2 next: Settings connection UI, browser authorization, callback/deep link, connected username, disconnect
-2. ⬜ **VinylApp-090 — Discogs search + Add Record autofill**
-   - title/artist search
-   - top release matches
+1. ✅ **VinylApp-106 — Discogs account connection + API foundation**
+   - OAuth signing, secure credential storage, identity/API boundaries, providers
+   - Settings connection UI, browser authorization, callback/deep link, connected username, disconnect
+2. ✅ **VinylApp-090 — Discogs search + Add Record autofill**
+   - vinyl title/artist search and exact pressing selection
    - year, label, genres/styles, artwork autofill
-   - preserve Discogs release identity
-3. ⬜ **VinylApp-107 — Import Discogs collection**
-   - paginated collection import
-   - duplicate classification/review
-   - progress + partial failure handling
+   - preserved Discogs release identity
+3. ✅ **VinylApp-107 — Import Discogs collection**
+   - paginated connected-account collection import
+   - vinyl-only filtering plus exact-ID duplicate detection
+   - possible local duplicate review before writes
+   - progress + partial failure/warning summaries
 4. ⬜ **VinylApp-105 — Track schema + Discogs tracklist import**
 5. ⬜ **VinylApp-091 — Barcode → exact Discogs release**
 

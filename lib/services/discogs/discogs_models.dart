@@ -167,6 +167,131 @@ DiscogsReleaseDetails discogsReleaseDetailsFromJson(
   );
 }
 
+class DiscogsCollectionItem {
+  const DiscogsCollectionItem({
+    required this.releaseId,
+    required this.instanceId,
+    required this.title,
+    required this.artist,
+    this.year,
+    this.label,
+    this.formats = const [],
+    this.coverImageUrl,
+  });
+
+  final int releaseId;
+  final int instanceId;
+  final String title;
+  final String artist;
+  final int? year;
+  final String? label;
+  final List<String> formats;
+  final String? coverImageUrl;
+
+  bool get isVinyl =>
+      formats.any((format) => format.trim().toLowerCase() == 'vinyl');
+}
+
+class DiscogsCollectionPage {
+  const DiscogsCollectionPage({
+    required this.items,
+    required this.page,
+    required this.pages,
+    required this.totalItems,
+  });
+
+  final List<DiscogsCollectionItem> items;
+  final int page;
+  final int pages;
+  final int totalItems;
+
+  bool get hasNextPage => page < pages;
+}
+
+DiscogsCollectionPage discogsCollectionPageFromJson(Map<String, dynamic> json) {
+  final pagination = json['pagination'];
+  final releases = json['releases'];
+  final pageJson = pagination is Map<String, dynamic>
+      ? pagination
+      : const <String, dynamic>{};
+
+  final items = <DiscogsCollectionItem>[];
+  if (releases is List) {
+    for (final value in releases.whereType<Map<String, dynamic>>()) {
+      final parsed = discogsCollectionItemFromJson(value);
+      if (parsed != null) items.add(parsed);
+    }
+  }
+
+  return DiscogsCollectionPage(
+    items: List.unmodifiable(items),
+    page: _asInt(pageJson['page']) ?? 1,
+    pages: _asInt(pageJson['pages']) ?? 1,
+    totalItems: _asInt(pageJson['items']) ?? items.length,
+  );
+}
+
+DiscogsCollectionItem? discogsCollectionItemFromJson(
+  Map<String, dynamic> json,
+) {
+  final basic = json['basic_information'];
+  if (basic is! Map<String, dynamic>) return null;
+
+  final releaseId = _asInt(basic['id']) ?? _asInt(json['id']);
+  final instanceId = _asInt(json['instance_id']) ?? releaseId;
+  final title = _nonEmptyString(basic['title']);
+  if (releaseId == null || instanceId == null || title == null) return null;
+
+  final artistNames = <String>[];
+  final artists = basic['artists'];
+  if (artists is List) {
+    for (final value in artists.whereType<Map<String, dynamic>>()) {
+      final name = _nonEmptyString(value['name']);
+      if (name != null) {
+        artistNames.add(_stripArtistDisambiguation(name));
+      }
+    }
+  }
+
+  String? label;
+  final labels = basic['labels'];
+  if (labels is List) {
+    for (final value in labels.whereType<Map<String, dynamic>>()) {
+      label = _nonEmptyString(value['name']);
+      if (label != null) break;
+    }
+  }
+
+  final formats = <String>[];
+  final formatRows = basic['formats'];
+  if (formatRows is List) {
+    for (final value in formatRows.whereType<Map<String, dynamic>>()) {
+      final name = _nonEmptyString(value['name']);
+      if (name != null) formats.add(name);
+      for (final description in _stringList(value['descriptions'])) {
+        if (!formats.any(
+          (format) => format.toLowerCase() == description.toLowerCase(),
+        )) {
+          formats.add(description);
+        }
+      }
+    }
+  }
+
+  return DiscogsCollectionItem(
+    releaseId: releaseId,
+    instanceId: instanceId,
+    title: title,
+    artist: artistNames.isEmpty ? 'Unknown Artist' : artistNames.join(', '),
+    year: _asInt(basic['year']),
+    label: label,
+    formats: List.unmodifiable(formats),
+    coverImageUrl:
+        _nonEmptyString(basic['cover_image']) ??
+        _nonEmptyString(basic['thumb']),
+  );
+}
+
 sealed class DiscogsFailure implements Exception {
   const DiscogsFailure(this.message);
   final String message;

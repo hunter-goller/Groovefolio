@@ -487,6 +487,20 @@ class _FakeDiscogsCatalogService implements DiscogsCatalogService {
   }
 
   @override
+  Future<DiscogsCollectionPage> collectionPage({
+    required String username,
+    required int page,
+    int perPage = 100,
+  }) async {
+    return const DiscogsCollectionPage(
+      items: [],
+      page: 1,
+      pages: 1,
+      totalItems: 0,
+    );
+  }
+
+  @override
   Future<DiscogsReleaseDetails> release(int releaseId) async {
     final current = failure;
     if (current != null) throw current;
@@ -547,6 +561,9 @@ class _FakeDiscogsReleaseLinkRepository
 
   @override
   Future<int?> findReleaseIdForAlbum(String albumId) async => links[albumId];
+
+  @override
+  Future<Set<int>> findAllReleaseIds() async => links.values.toSet();
 
   @override
   Future<void> link({required String albumId, required int releaseId}) async {

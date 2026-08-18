@@ -20,6 +20,7 @@ void main() {
 
     expect(await links.findReleaseIdForAlbum(album.id), 12345);
     expect(await links.findAlbumIdForRelease(12345), album.id);
+    expect(await links.findAllReleaseIds(), {12345});
   });
 
   test('Discogs link is removed when its album is deleted', () async {

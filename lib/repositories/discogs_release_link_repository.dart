@@ -6,6 +6,7 @@ abstract interface class IDiscogsReleaseLinkRepository {
   Future<void> link({required String albumId, required int releaseId});
   Future<int?> findReleaseIdForAlbum(String albumId);
   Future<String?> findAlbumIdForRelease(int releaseId);
+  Future<Set<int>> findAllReleaseIds();
 }
 
 class DiscogsReleaseLinkRepository implements IDiscogsReleaseLinkRepository {
@@ -55,6 +56,12 @@ class DiscogsReleaseLinkRepository implements IDiscogsReleaseLinkRepository {
     final query = _db.select(_db.albumDiscogsReleases)
       ..where((row) => row.releaseId.equals(releaseId));
     return (await query.getSingleOrNull())?.albumId;
+  }
+
+  @override
+  Future<Set<int>> findAllReleaseIds() async {
+    final rows = await _db.select(_db.albumDiscogsReleases).get();
+    return rows.map((row) => row.releaseId).toSet();
   }
 }
 
