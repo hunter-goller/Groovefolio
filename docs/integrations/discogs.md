@@ -24,7 +24,14 @@ Implemented across Parts 1 and 2:
 - Discogs attribution/disclaimer UI
 
 ### VinylApp-090 — search/autofill
-Search title + artist, show release choices, then autofill year, label, genres/styles, and artwork. The user chooses the release rather than Groovefolio silently guessing a pressing.
+Implemented:
+- search connected Discogs by artist/title
+- show up to five release candidates with cover/year/label/country/format metadata
+- fetch the exact selected release before autofill
+- populate editable title, artist, year, label, genres/styles, and artwork
+- persist downloaded artwork through `ArtworkStorageService`
+- persist the exact Discogs release ID in schema v4 for future duplicate detection/import/barcode work
+- surface typed empty/error/rate-limit states without breaking manual Add Record
 
 ### VinylApp-107 — collection import
 Import a connected user's Discogs collection with pagination, duplicate classification, progress, and partial failure handling.

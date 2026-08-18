@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:vinyl_app/services/discogs/discogs_config.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
@@ -32,6 +33,9 @@ class DiscogsApiClient {
   static final _identityUri = Uri.parse(
     'https://api.discogs.com/oauth/identity',
   );
+  static final _databaseSearchUri = Uri.parse(
+    'https://api.discogs.com/database/search',
+  );
 
   Uri authorizationUri(String token) => Uri.parse(
     'https://www.discogs.com/oauth/authorize',
@@ -39,22 +43,12 @@ class DiscogsApiClient {
 
   Future<DiscogsRequestToken> requestToken() async {
     _ensureConfigured();
-
-    // Discogs' OAuth request-token flow expects oauth_callback to be supplied
-    // during this POST. Send it as an application/x-www-form-urlencoded body
-    // parameter and include that same parameter in the OAuth signature.
-    final formBody = <String, String>{'oauth_callback': _config.callbackUri};
     final oauth = _signer.authorizationParameters(
       method: 'POST',
       uri: _requestTokenUri,
-      additionalParameters: formBody,
+      callback: _config.callbackUri,
     );
-    final body = await _send(
-      'POST',
-      _requestTokenUri,
-      oauth,
-      formBody: formBody,
-    );
+    final body = await _sendText('POST', _requestTokenUri, oauth);
     final parsed = Uri.splitQueryString(body);
     final token = parsed['oauth_token'];
     final secret = parsed['oauth_token_secret'];
@@ -75,7 +69,7 @@ class DiscogsApiClient {
       tokenSecret: requestToken.tokenSecret,
       verifier: verifier,
     );
-    final body = await _send('POST', _accessTokenUri, oauth);
+    final body = await _sendText('POST', _accessTokenUri, oauth);
     final parsed = Uri.splitQueryString(body);
     final token = parsed['oauth_token'];
     final secret = parsed['oauth_token_secret'];
@@ -86,14 +80,7 @@ class DiscogsApiClient {
   }
 
   Future<DiscogsAccount> identity(DiscogsOAuthCredentials credentials) async {
-    final oauth = _signer.authorizationParameters(
-      method: 'GET',
-      uri: _identityUri,
-      token: credentials.token,
-      tokenSecret: credentials.tokenSecret,
-    );
-    final body = await _send('GET', _identityUri, oauth);
-    final json = jsonDecode(body) as Map<String, dynamic>;
+    final json = await _getJson(_identityUri, credentials);
     return DiscogsAccount(
       id: json['id'] as int,
       username: json['username'] as String,
@@ -101,12 +88,96 @@ class DiscogsApiClient {
     );
   }
 
-  Future<String> _send(
+  Future<List<DiscogsReleaseSearchResult>> searchReleases({
+    required DiscogsOAuthCredentials credentials,
+    required String artist,
+    required String title,
+    int limit = 5,
+  }) async {
+    final uri = _databaseSearchUri.replace(
+      queryParameters: {
+        'type': 'release',
+        'format': 'vinyl',
+        'artist': artist.trim(),
+        'release_title': title.trim(),
+        'per_page': limit.clamp(1, 100).toString(),
+        'page': '1',
+      },
+    );
+    final json = await _getJson(uri, credentials);
+    final results = json['results'];
+    if (results is! List) return const [];
+
+    return results
+        .whereType<Map<String, dynamic>>()
+        .map(discogsReleaseSearchResultFromJson)
+        .whereType<DiscogsReleaseSearchResult>()
+        .take(limit)
+        .toList(growable: false);
+  }
+
+  Future<DiscogsReleaseDetails> release({
+    required DiscogsOAuthCredentials credentials,
+    required int releaseId,
+  }) async {
+    final uri = Uri.parse('https://api.discogs.com/releases/$releaseId');
+    final json = await _getJson(uri, credentials);
+    return discogsReleaseDetailsFromJson(json, releaseId: releaseId);
+  }
+
+  Future<Uint8List> downloadImage({
+    required DiscogsOAuthCredentials credentials,
+    required String url,
+  }) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) {
+      throw const DiscogsApiFailure('Discogs returned an invalid artwork URL.');
+    }
+    final oauth = _oauthFor('GET', uri, credentials);
+    return _sendBytes('GET', uri, oauth);
+  }
+
+  Future<Map<String, dynamic>> _getJson(
+    Uri uri,
+    DiscogsOAuthCredentials credentials,
+  ) async {
+    final oauth = _oauthFor('GET', uri, credentials);
+    final body = await _sendText('GET', uri, oauth);
+    final decoded = jsonDecode(body);
+    if (decoded is! Map<String, dynamic>) {
+      throw const DiscogsApiFailure('Discogs returned an unexpected response.');
+    }
+    return decoded;
+  }
+
+  Map<String, String> _oauthFor(
     String method,
     Uri uri,
-    Map<String, String> oauth, {
-    Map<String, String>? formBody,
-  }) async {
+    DiscogsOAuthCredentials credentials,
+  ) {
+    _ensureConfigured();
+    return _signer.authorizationParameters(
+      method: method,
+      uri: uri,
+      token: credentials.token,
+      tokenSecret: credentials.tokenSecret,
+    );
+  }
+
+  Future<String> _sendText(
+    String method,
+    Uri uri,
+    Map<String, String> oauth,
+  ) async {
+    final bytes = await _sendBytes(method, uri, oauth);
+    return utf8.decode(bytes);
+  }
+
+  Future<Uint8List> _sendBytes(
+    String method,
+    Uri uri,
+    Map<String, String> oauth,
+  ) async {
     try {
       final request = await _httpClient.openUrl(method, uri);
       request.headers.set(
@@ -114,25 +185,18 @@ class DiscogsApiClient {
         _signer.authorizationHeader(oauth),
       );
       request.headers.set(HttpHeaders.userAgentHeader, _config.userAgent);
-
-      if (formBody != null) {
-        request.headers.set(
-          HttpHeaders.contentTypeHeader,
-          'application/x-www-form-urlencoded',
-        );
-        request.write(Uri(queryParameters: formBody).query);
-      }
-
       final response = await request.close();
-      final body = await utf8.decoder.bind(response).join();
+      final bytes = await response.fold<List<int>>(<int>[], (buffer, chunk) {
+        buffer.addAll(chunk);
+        return buffer;
+      });
 
-      if (response.statusCode >= 200 && response.statusCode < 300) return body;
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return Uint8List.fromList(bytes);
+      }
       if (response.statusCode == 401 || response.statusCode == 403) {
-        final detail = _safeResponseDetail(body);
         throw DiscogsAuthenticationFailure(
-          detail == null
-              ? 'Discogs authorization failed (${response.statusCode}).'
-              : 'Discogs authorization failed (${response.statusCode}): $detail',
+          'Discogs authorization failed (${response.statusCode}).',
         );
       }
       if (response.statusCode == 429) {
@@ -140,11 +204,8 @@ class DiscogsApiClient {
           'Discogs rate limit reached. Try again shortly.',
         );
       }
-      final detail = _safeResponseDetail(body);
       throw DiscogsApiFailure(
-        detail == null
-            ? 'Discogs request failed (${response.statusCode}).'
-            : 'Discogs request failed (${response.statusCode}): $detail',
+        'Discogs request failed (${response.statusCode}).',
         statusCode: response.statusCode,
       );
     } on DiscogsFailure {
@@ -152,34 +213,6 @@ class DiscogsApiClient {
     } on SocketException catch (e) {
       throw DiscogsNetworkFailure('Could not reach Discogs: $e');
     }
-  }
-
-  String? _safeResponseDetail(String body) {
-    if (body.trim().isEmpty) return null;
-
-    String detail;
-    try {
-      final decoded = jsonDecode(body);
-      if (decoded is Map<String, dynamic> && decoded['message'] is String) {
-        detail = decoded['message'] as String;
-      } else {
-        detail = body;
-      }
-    } catch (_) {
-      detail = body;
-    }
-
-    detail = detail.replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (_config.consumerKey.isNotEmpty) {
-      detail = detail.replaceAll(_config.consumerKey, '[redacted]');
-    }
-    if (_config.consumerSecret.isNotEmpty) {
-      detail = detail.replaceAll(_config.consumerSecret, '[redacted]');
-    }
-    if (detail.length > 240) {
-      detail = '${detail.substring(0, 240)}…';
-    }
-    return detail.isEmpty ? null : detail;
   }
 
   void close() => _httpClient.close(force: true);

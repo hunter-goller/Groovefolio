@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,7 +7,12 @@ import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/albums/screens/add_record_screen.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
+import 'package:vinyl_app/repositories/discogs_release_link_repository.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/discogs/discogs_catalog_service.dart';
+import 'package:vinyl_app/services/discogs/discogs_credential_store.dart';
+import 'package:vinyl_app/services/discogs/discogs_models.dart';
+import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 
 void main() {
@@ -130,12 +137,149 @@ void main() {
     });
     expect(find.text('Collection test'), findsOneWidget);
   });
+
+  testWidgets(
+    'Discogs selection autofills editable metadata and preserves release id',
+    (tester) async {
+      final artistRepository = _FakeArtistRepository();
+      final albumRepository = _FakeAlbumRepository();
+      final genreRepository = _FakeGenreRepository();
+      final catalog = _FakeDiscogsCatalogService(
+        results: const [
+          DiscogsReleaseSearchResult(
+            releaseId: 123,
+            title: 'A Love Supreme',
+            artist: 'John Coltrane',
+            year: 1965,
+            label: 'Impulse!',
+            country: 'US',
+            formats: ['LP'],
+          ),
+        ],
+        details: const DiscogsReleaseDetails(
+          releaseId: 123,
+          title: 'A Love Supreme',
+          artist: 'John Coltrane',
+          year: 1965,
+          label: 'Impulse!',
+          genres: ['Jazz'],
+          styles: ['Modal'],
+        ),
+      );
+      final links = _FakeDiscogsReleaseLinkRepository();
+
+      await tester.pumpWidget(
+        _testApp(
+          artistRepository: artistRepository,
+          albumRepository: albumRepository,
+          genreRepository: genreRepository,
+          catalogService: catalog,
+          credentialStore: _ConnectedCredentialStore(),
+          releaseLinkRepository: links,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Search Discogs to autofill'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('discogs-search-artist')),
+        'John Coltrane',
+      );
+      await tester.enterText(
+        find.byKey(const Key('discogs-search-title')),
+        'A Love Supreme',
+      );
+      await tester.tap(find.byKey(const Key('discogs-search-submit')));
+      await tester.pumpAndSettle();
+
+      final resultCard = find.byKey(const Key('discogs-result-123'));
+      expect(
+        find.descendant(of: resultCard, matching: find.text('A Love Supreme')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: resultCard, matching: find.textContaining('1965')),
+        findsOneWidget,
+      );
+      await tester.tap(resultCard);
+      await tester.pumpAndSettle();
+
+      final titleField = find.descendant(
+        of: find.byKey(const Key('add-record-title')),
+        matching: find.byType(EditableText),
+      );
+      final artistField = find.descendant(
+        of: find.byKey(const Key('add-record-artist')),
+        matching: find.byType(EditableText),
+      );
+
+      expect(
+        tester.widget<EditableText>(titleField).controller.text,
+        'A Love Supreme',
+      );
+      expect(
+        tester.widget<EditableText>(artistField).controller.text,
+        'John Coltrane',
+      );
+      expect(find.text('Jazz'), findsOneWidget);
+      expect(find.text('Modal'), findsOneWidget);
+
+      tester.testTextInput.hide();
+      await tester.ensureVisible(find.text('Add to collection'));
+      await tester.tap(find.text('Add to collection'));
+      await tester.pumpAndSettle();
+
+      expect(albumRepository.created.single.title, 'A Love Supreme');
+      expect(albumRepository.created.single.releaseYear, 1965);
+      expect(albumRepository.created.single.label, 'Impulse!');
+      expect(links.links, {'album-1': 123});
+      expect(genreRepository.findOrCreateNames, ['Jazz', 'Modal']);
+    },
+  );
+
+  testWidgets('Discogs search shows empty and retryable failure states', (
+    tester,
+  ) async {
+    final catalog = _FakeDiscogsCatalogService(
+      failure: const DiscogsRateLimitFailure('Try again shortly.'),
+    );
+
+    await tester.pumpWidget(
+      _testApp(
+        catalogService: catalog,
+        credentialStore: _ConnectedCredentialStore(),
+        releaseLinkRepository: _FakeDiscogsReleaseLinkRepository(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Search Discogs to autofill'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('discogs-search-title')),
+      'Blue Train',
+    );
+    await tester.tap(find.byKey(const Key('discogs-search-submit')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Try again shortly.'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+
+    catalog.failure = null;
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+    expect(find.text('No matching Discogs releases found.'), findsOneWidget);
+  });
 }
 
 Widget _testApp({
   IArtistRepository? artistRepository,
   IAlbumRepository? albumRepository,
   IGenreRepository? genreRepository,
+  DiscogsCatalogService? catalogService,
+  DiscogsCredentialStore? credentialStore,
+  IDiscogsReleaseLinkRepository? releaseLinkRepository,
 }) {
   final router = GoRouter(
     initialLocation: AppRoutes.addAlbum,
@@ -162,6 +306,15 @@ Widget _testApp({
       ),
       genreRepositoryProvider.overrideWithValue(
         genreRepository ?? _FakeGenreRepository(),
+      ),
+      discogsCatalogServiceProvider.overrideWithValue(
+        catalogService ?? _FakeDiscogsCatalogService(),
+      ),
+      discogsCredentialStoreProvider.overrideWithValue(
+        credentialStore ?? _DisconnectedCredentialStore(),
+      ),
+      discogsReleaseLinkRepositoryProvider.overrideWithValue(
+        releaseLinkRepository ?? _FakeDiscogsReleaseLinkRepository(),
       ),
     ],
     child: MaterialApp.router(
@@ -309,5 +462,94 @@ class _FakeGenreRepository implements IGenreRepository {
   @override
   Future<void> setAlbumGenres(String albumId, Iterable<String> genreIds) async {
     albumAssignments[albumId] = List<String>.of(genreIds);
+  }
+}
+
+class _FakeDiscogsCatalogService implements DiscogsCatalogService {
+  _FakeDiscogsCatalogService({
+    this.results = const [],
+    this.details,
+    this.failure,
+  });
+
+  List<DiscogsReleaseSearchResult> results;
+  DiscogsReleaseDetails? details;
+  DiscogsFailure? failure;
+
+  @override
+  Future<List<DiscogsReleaseSearchResult>> searchReleases({
+    required String artist,
+    required String title,
+  }) async {
+    final current = failure;
+    if (current != null) throw current;
+    return results;
+  }
+
+  @override
+  Future<DiscogsReleaseDetails> release(int releaseId) async {
+    final current = failure;
+    if (current != null) throw current;
+    return details ??
+        DiscogsReleaseDetails(
+          releaseId: releaseId,
+          title: 'Release $releaseId',
+          artist: 'Artist',
+        );
+  }
+
+  @override
+  Future<Uint8List> downloadArtwork(String url) async {
+    final current = failure;
+    if (current != null) throw current;
+    return Uint8List.fromList([1, 2, 3]);
+  }
+}
+
+class _ConnectedCredentialStore extends _DisconnectedCredentialStore {
+  @override
+  Future<DiscogsOAuthCredentials?> readCredentials() async {
+    return const DiscogsOAuthCredentials(token: 'token', tokenSecret: 'secret');
+  }
+}
+
+class _DisconnectedCredentialStore implements DiscogsCredentialStore {
+  @override
+  Future<void> clearCredentials() async {}
+
+  @override
+  Future<void> clearPendingRequestToken() async {}
+
+  @override
+  Future<DiscogsOAuthCredentials?> readCredentials() async => null;
+
+  @override
+  Future<DiscogsRequestToken?> readPendingRequestToken() async => null;
+
+  @override
+  Future<void> writeCredentials(DiscogsOAuthCredentials credentials) async {}
+
+  @override
+  Future<void> writePendingRequestToken(DiscogsRequestToken token) async {}
+}
+
+class _FakeDiscogsReleaseLinkRepository
+    implements IDiscogsReleaseLinkRepository {
+  final Map<String, int> links = {};
+
+  @override
+  Future<String?> findAlbumIdForRelease(int releaseId) async {
+    for (final entry in links.entries) {
+      if (entry.value == releaseId) return entry.key;
+    }
+    return null;
+  }
+
+  @override
+  Future<int?> findReleaseIdForAlbum(String albumId) async => links[albumId];
+
+  @override
+  Future<void> link({required String albumId, required int releaseId}) async {
+    links[albumId] = releaseId;
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -40,6 +41,22 @@ void main() {
     expect(await File(storedPath).readAsBytes(), [1, 2, 3]);
     expect(p.isWithin(documentsDirectory.path, storedPath), isTrue);
   });
+
+  test(
+    'saveArtworkBytes persists downloaded artwork through the same service',
+    () async {
+      final storedPath = await service.saveArtworkBytes(
+        Uint8List.fromList([8, 6, 7, 5]),
+        'album-discogs',
+      );
+
+      expect(await File(storedPath).readAsBytes(), [8, 6, 7, 5]);
+      expect(
+        storedPath,
+        p.join(documentsDirectory.path, 'artwork', 'album-discogs.jpg'),
+      );
+    },
+  );
 
   test('saving twice for the same album replaces the existing file', () async {
     final first = File(p.join(tempRoot.path, 'first.jpg'));

@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 
-/// Presentational entry point for the future Discogs metadata flow.
+/// Presentational entry point for Discogs release search/autofill.
 ///
-/// VinylApp-019 deliberately does not use this widget yet. The future Discogs
-/// integration can supply [onTap] once search/autofill is implemented.
+/// Networking stays outside this widget; callers provide the current search
+/// hint and launch the VinylApp-090 search flow through [onTap].
 class DiscogsBanner extends StatelessWidget {
   const DiscogsBanner({
     required this.prefillQuery,
