@@ -111,7 +111,9 @@ class TrackRepository implements ITrackRepository {
       final now = DateTime.now().toUtc().toIso8601String();
       for (final draft in drafts) {
         created.add(
-          await _db.into(_db.tracks).insertReturning(
+          await _db
+              .into(_db.tracks)
+              .insertReturning(
                 TracksCompanion.insert(
                   id: generateId('track'),
                   albumId: normalizedAlbumId,

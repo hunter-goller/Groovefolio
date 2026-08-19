@@ -513,7 +513,9 @@ class _TrackRows extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasSides = tracks.any((track) => track.side?.trim().isNotEmpty ?? false);
+    final hasSides = tracks.any(
+      (track) => track.side?.trim().isNotEmpty ?? false,
+    );
     if (!hasSides) {
       return Column(
         children: [
@@ -589,7 +591,9 @@ class _TrackRow extends StatelessWidget {
           SizedBox(
             width: 38,
             child: Text(
-              position?.isNotEmpty == true ? position! : '${track.sequence + 1}',
+              position?.isNotEmpty == true
+                  ? position!
+                  : '${track.sequence + 1}',
               style: context.theme.textTheme.bodySmall?.copyWith(
                 color: tokens.textMuted,
               ),

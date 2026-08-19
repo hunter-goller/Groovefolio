@@ -13,14 +13,18 @@ void main() {
   tearDown(() => db.close());
 
   Future<void> seedAlbum() async {
-    await db.into(db.artists).insert(
+    await db
+        .into(db.artists)
+        .insert(
           ArtistsCompanion.insert(
             id: 'artist-1',
             name: 'John Coltrane',
             createdAt: '2026-08-19T00:00:00.000Z',
           ),
         );
-    await db.into(db.albums).insert(
+    await db
+        .into(db.albums)
+        .insert(
           AlbumsCompanion.insert(
             id: 'album-1',
             title: 'Blue Train',
@@ -32,7 +36,9 @@ void main() {
 
   test('stores track metadata and cascades when album is deleted', () async {
     await seedAlbum();
-    await db.into(db.tracks).insert(
+    await db
+        .into(db.tracks)
+        .insert(
           TracksCompanion.insert(
             id: 'track-1',
             albumId: 'album-1',

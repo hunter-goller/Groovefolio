@@ -117,10 +117,7 @@ void main() {
           'title': 'Moment’s Notice',
           'duration': '9:18',
         },
-        {
-          'type_': 'heading',
-          'title': 'Side B',
-        },
+        {'type_': 'heading', 'title': 'Side B'},
         {
           'position': 'B1',
           'type_': 'track',
@@ -156,6 +153,4 @@ void main() {
     expect(details.tracks[2].durationSeconds, isNull);
     expect(details.tracks.last.durationSeconds, 475);
   });
-
-
 }

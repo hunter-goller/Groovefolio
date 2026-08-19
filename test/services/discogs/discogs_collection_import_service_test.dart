@@ -51,9 +51,7 @@ void main() {
           totalItems: 5,
         ),
         2: DiscogsCollectionPage(
-          items: [
-            _item(30, 5, 'Brand New', 'Artist C'),
-          ],
+          items: [_item(30, 5, 'Brand New', 'Artist C')],
           page: 2,
           pages: 2,
           totalItems: 5,
@@ -95,74 +93,75 @@ void main() {
     expect(newRecord.selectedByDefault, isTrue);
   });
 
-  test('imports mapped release and continues after another release fails', () async {
-    final db = AppDatabase(NativeDatabase.memory());
-    addTearDown(db.close);
+  test(
+    'imports mapped release and continues after another release fails',
+    () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
 
-    final tempDirectory = await Directory.systemTemp.createTemp(
-      'groovefolio-import-',
-    );
-    addTearDown(() async {
-      if (await tempDirectory.exists()) {
-        await tempDirectory.delete(recursive: true);
-      }
-    });
+      final tempDirectory = await Directory.systemTemp.createTemp(
+        'groovefolio-import-',
+      );
+      addTearDown(() async {
+        if (await tempDirectory.exists()) {
+          await tempDirectory.delete(recursive: true);
+        }
+      });
 
-    final artists = ArtistRepository(db);
-    final albums = AlbumRepository(db);
-    final genres = GenreRepository(db);
-    final tracks = TrackRepository(db);
-    final links = DiscogsReleaseLinkRepository(db);
-    final artwork = ArtworkStorageService(
-      documentsDirectoryResolver: () async => tempDirectory,
-    );
-    final catalog = _FakeCatalogService(
-      details: {
-        100: const DiscogsReleaseDetails(
-          releaseId: 100,
-          title: 'Blue Train',
-          artist: 'John Coltrane',
-          year: 1957,
-          label: 'Blue Note',
-          genres: ['Jazz'],
-          styles: ['Hard Bop'],
-          artworkUrl: 'https://example.test/blue-train.jpg',
-          tracks: [
-            DiscogsTrack(
-              title: 'Blue Train',
-              position: 'A1',
-              side: 'A',
-              sequence: 0,
-              durationSeconds: 642,
-            ),
-            DiscogsTrack(
-              title: 'Moment’s Notice',
-              position: 'A2',
-              side: 'A',
-              sequence: 1,
-              durationSeconds: 558,
-            ),
-          ],
-        ),
-      },
-      releaseFailures: {
-        101: const DiscogsApiFailure('Release lookup failed.'),
-      },
-    );
+      final artists = ArtistRepository(db);
+      final albums = AlbumRepository(db);
+      final genres = GenreRepository(db);
+      final tracks = TrackRepository(db);
+      final links = DiscogsReleaseLinkRepository(db);
+      final artwork = ArtworkStorageService(
+        documentsDirectoryResolver: () async => tempDirectory,
+      );
+      final catalog = _FakeCatalogService(
+        details: {
+          100: const DiscogsReleaseDetails(
+            releaseId: 100,
+            title: 'Blue Train',
+            artist: 'John Coltrane',
+            year: 1957,
+            label: 'Blue Note',
+            genres: ['Jazz'],
+            styles: ['Hard Bop'],
+            artworkUrl: 'https://example.test/blue-train.jpg',
+            tracks: [
+              DiscogsTrack(
+                title: 'Blue Train',
+                position: 'A1',
+                side: 'A',
+                sequence: 0,
+                durationSeconds: 642,
+              ),
+              DiscogsTrack(
+                title: 'Moment’s Notice',
+                position: 'A2',
+                side: 'A',
+                sequence: 1,
+                durationSeconds: 558,
+              ),
+            ],
+          ),
+        },
+        releaseFailures: {
+          101: const DiscogsApiFailure('Release lookup failed.'),
+        },
+      );
 
-    final service = DefaultDiscogsCollectionImportService(
-      catalog,
-      albums,
-      artists,
-      genres,
-      tracks,
-      links,
-      artwork,
-    );
+      final service = DefaultDiscogsCollectionImportService(
+        catalog,
+        albums,
+        artists,
+        genres,
+        tracks,
+        links,
+        artwork,
+      );
 
-    final progress = <DiscogsImportProgress>[];
-    final result = await service.importCandidates(
-      [
+      final progress = <DiscogsImportProgress>[];
+      final result = await service.importCandidates([
         DiscogsCollectionCandidate(
           item: _item(100, 1, 'Blue Train', 'John Coltrane'),
           status: DiscogsCollectionCandidateStatus.newRecord,
@@ -171,37 +170,36 @@ void main() {
           item: _item(101, 2, 'Broken Release', 'Artist'),
           status: DiscogsCollectionCandidateStatus.newRecord,
         ),
-      ],
-      onProgress: progress.add,
-    );
+      ], onProgress: progress.add);
 
-    expect(result.requested, 2);
-    expect(result.imported, 1);
-    expect(result.skipped, 0);
-    expect(result.failed, 1);
-    expect(result.failures.single.releaseId, 101);
-    expect(progress.last.completed, 2);
+      expect(result.requested, 2);
+      expect(result.imported, 1);
+      expect(result.skipped, 0);
+      expect(result.failed, 1);
+      expect(result.failures.single.releaseId, 101);
+      expect(progress.last.completed, 2);
 
-    final storedAlbums = await albums.findAll();
-    expect(storedAlbums, hasLength(1));
-    final album = storedAlbums.single;
-    expect(album.title, 'Blue Train');
-    expect(album.releaseYear, 1957);
-    expect(album.label, 'Blue Note');
-    expect(album.artworkPath, isNotNull);
-    expect(File(album.artworkPath!).existsSync(), isTrue);
+      final storedAlbums = await albums.findAll();
+      expect(storedAlbums, hasLength(1));
+      final album = storedAlbums.single;
+      expect(album.title, 'Blue Train');
+      expect(album.releaseYear, 1957);
+      expect(album.label, 'Blue Note');
+      expect(album.artworkPath, isNotNull);
+      expect(File(album.artworkPath!).existsSync(), isTrue);
 
-    final artist = await artists.findById(album.artistId);
-    expect(artist?.name, 'John Coltrane');
-    expect(await links.findReleaseIdForAlbum(album.id), 100);
-    expect(
-      (await genres.findByAlbum(album.id)).map((genre) => genre.name).toSet(),
-      {'Jazz', 'Hard Bop'},
-    );
-    final storedTracks = await tracks.findByAlbum(album.id);
-    expect(storedTracks.map((track) => track.position), ['A1', 'A2']);
-    expect(storedTracks.first.durationSeconds, 642);
-  });
+      final artist = await artists.findById(album.artistId);
+      expect(artist?.name, 'John Coltrane');
+      expect(await links.findReleaseIdForAlbum(album.id), 100);
+      expect(
+        (await genres.findByAlbum(album.id)).map((genre) => genre.name).toSet(),
+        {'Jazz', 'Hard Bop'},
+      );
+      final storedTracks = await tracks.findByAlbum(album.id);
+      expect(storedTracks.map((track) => track.position), ['A1', 'A2']);
+      expect(storedTracks.first.durationSeconds, 642);
+    },
+  );
 }
 
 DiscogsCollectionItem _item(

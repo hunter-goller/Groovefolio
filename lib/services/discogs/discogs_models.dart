@@ -186,11 +186,11 @@ DiscogsReleaseDetails discogsReleaseDetailsFromJson(
   );
 }
 
-
 List<DiscogsTrack> _discogsTracksFromJson(Object? value) {
   if (value is! List) return const [];
 
-  final rawTracks = <({String title, String? position, int? durationSeconds})>[];
+  final rawTracks =
+      <({String title, String? position, int? durationSeconds})>[];
 
   void collect(List<dynamic> rows) {
     for (final value in rows.whereType<Map<String, dynamic>>()) {
@@ -249,7 +249,6 @@ int? _parseDiscogsDuration(Object? value) {
   return values[0]! * 3600 + values[1]! * 60 + values[2]!;
 }
 
-
 class DiscogsCollectionItem {
   const DiscogsCollectionItem({
     required this.releaseId,
@@ -271,9 +270,8 @@ class DiscogsCollectionItem {
   final List<String> formats;
   final String? coverImageUrl;
 
-  bool get isVinyl => formats.any(
-    (format) => format.trim().toLowerCase() == 'vinyl',
-  );
+  bool get isVinyl =>
+      formats.any((format) => format.trim().toLowerCase() == 'vinyl');
 }
 
 class DiscogsCollectionPage {
@@ -292,9 +290,7 @@ class DiscogsCollectionPage {
   bool get hasNextPage => page < pages;
 }
 
-DiscogsCollectionPage discogsCollectionPageFromJson(
-  Map<String, dynamic> json,
-) {
+DiscogsCollectionPage discogsCollectionPageFromJson(Map<String, dynamic> json) {
   final pagination = json['pagination'];
   final releases = json['releases'];
   final pageJson = pagination is Map<String, dynamic>

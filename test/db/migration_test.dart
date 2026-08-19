@@ -125,17 +125,19 @@ void main() {
     },
   );
 
-  test('v2 database upgrades through v3/v4/v5 without losing v2 data', () async {
-    final executor = NativeDatabase.memory(
-      setup: (rawDb) {
-        rawDb.execute('''
+  test(
+    'v2 database upgrades through v3/v4/v5 without losing v2 data',
+    () async {
+      final executor = NativeDatabase.memory(
+        setup: (rawDb) {
+          rawDb.execute('''
           CREATE TABLE artists (
             id TEXT NOT NULL PRIMARY KEY,
             name TEXT NOT NULL,
             created_at TEXT NOT NULL
           );
         ''');
-        rawDb.execute('''
+          rawDb.execute('''
           CREATE TABLE albums (
             id TEXT NOT NULL PRIMARY KEY,
             title TEXT NOT NULL,
@@ -148,7 +150,7 @@ void main() {
             created_at TEXT NOT NULL
           );
         ''');
-        rawDb.execute('''
+          rawDb.execute('''
           CREATE TABLE plays (
             id TEXT NOT NULL PRIMARY KEY,
             album_id TEXT NOT NULL REFERENCES albums(id),
@@ -157,7 +159,7 @@ void main() {
             created_at TEXT NOT NULL
           );
         ''');
-        rawDb.execute('''
+          rawDb.execute('''
           CREATE TABLE nfc_tags (
             id TEXT NOT NULL PRIMARY KEY,
             album_id TEXT NOT NULL UNIQUE REFERENCES albums(id),
@@ -165,53 +167,56 @@ void main() {
             written_at TEXT NOT NULL
           );
         ''');
-        rawDb.execute(
-          'INSERT INTO artists VALUES '
-          "('artist-1', 'Pink Floyd', '2026-08-01T00:00:00.000Z');",
-        );
-        rawDb.execute(
-          'INSERT INTO albums '
-          '(id, title, artist_id, created_at) VALUES '
-          "('album-1', 'Wish You Were Here', 'artist-1', "
-          "'2026-08-01T00:00:00.000Z');",
-        );
-        rawDb.execute(
-          'INSERT INTO plays '
-          '(id, album_id, played_at, side_played, created_at) VALUES '
-          "('play-1', 'album-1', '2026-08-02T20:00:00.000Z', 'sideA', "
-          "'2026-08-02T20:00:00.000Z');",
-        );
-        rawDb.execute(
-          'INSERT INTO nfc_tags VALUES '
-          "('nfc-1', 'album-1', 'tag-1', '2026-08-03T20:00:00.000Z');",
-        );
-        rawDb.execute('PRAGMA user_version = 2;');
-      },
-    );
+          rawDb.execute(
+            'INSERT INTO artists VALUES '
+            "('artist-1', 'Pink Floyd', '2026-08-01T00:00:00.000Z');",
+          );
+          rawDb.execute(
+            'INSERT INTO albums '
+            '(id, title, artist_id, created_at) VALUES '
+            "('album-1', 'Wish You Were Here', 'artist-1', "
+            "'2026-08-01T00:00:00.000Z');",
+          );
+          rawDb.execute(
+            'INSERT INTO plays '
+            '(id, album_id, played_at, side_played, created_at) VALUES '
+            "('play-1', 'album-1', '2026-08-02T20:00:00.000Z', 'sideA', "
+            "'2026-08-02T20:00:00.000Z');",
+          );
+          rawDb.execute(
+            'INSERT INTO nfc_tags VALUES '
+            "('nfc-1', 'album-1', 'tag-1', '2026-08-03T20:00:00.000Z');",
+          );
+          rawDb.execute('PRAGMA user_version = 2;');
+        },
+      );
 
-    final db = AppDatabase(executor);
-    addTearDown(db.close);
+      final db = AppDatabase(executor);
+      addTearDown(db.close);
 
-    final artists = await db.select(db.artists).get();
-    final albums = await db.select(db.albums).get();
-    final plays = await db.select(db.plays).get();
-    final tags = await db.select(db.nfcTags).get();
-    final genres = await db.select(db.genres).get();
-    final albumGenres = await db.select(db.albumGenres).get();
-    final discogsLinks = await db.select(db.albumDiscogsReleases).get();
-    final tracks = await db.select(db.tracks).get();
-    final versionRow = await db.customSelect('PRAGMA user_version').getSingle();
+      final artists = await db.select(db.artists).get();
+      final albums = await db.select(db.albums).get();
+      final plays = await db.select(db.plays).get();
+      final tags = await db.select(db.nfcTags).get();
+      final genres = await db.select(db.genres).get();
+      final albumGenres = await db.select(db.albumGenres).get();
+      final discogsLinks = await db.select(db.albumDiscogsReleases).get();
+      final tracks = await db.select(db.tracks).get();
+      final versionRow = await db
+          .customSelect('PRAGMA user_version')
+          .getSingle();
 
-    expect(artists.single.name, 'Pink Floyd');
-    expect(albums.single.title, 'Wish You Were Here');
-    expect(plays.single.sidePlayed, SidePlayed.sideA);
-    expect(tags.single.nfcTagId, 'tag-1');
-    expect(genres, isEmpty);
-    expect(albumGenres, isEmpty);
-    expect(discogsLinks, isEmpty);
-    expect(tracks, isEmpty);
-    expect(versionRow.read<int>('user_version'), SchemaVersions.v5);
-  });
+      expect(artists.single.name, 'Pink Floyd');
+      expect(albums.single.title, 'Wish You Were Here');
+      expect(plays.single.sidePlayed, SidePlayed.sideA);
+      expect(tags.single.nfcTagId, 'tag-1');
+      expect(genres, isEmpty);
+      expect(albumGenres, isEmpty);
+      expect(discogsLinks, isEmpty);
+      expect(tracks, isEmpty);
+      expect(versionRow.read<int>('user_version'), SchemaVersions.v5);
+    },
+  );
 
   test('v3 database upgrades through v4/v5 and preserves genre data', () async {
     final executor = NativeDatabase.memory(
@@ -394,5 +399,4 @@ void main() {
     final versionRow = await db.customSelect('PRAGMA user_version').getSingle();
     expect(versionRow.read<int>('user_version'), SchemaVersions.v5);
   });
-
 }

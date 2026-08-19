@@ -213,7 +213,9 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
       }
 
       if (_selectedDiscogsTracks.isNotEmpty) {
-        await ref.read(trackRepositoryProvider).replaceAlbumTracks(
+        await ref
+            .read(trackRepositoryProvider)
+            .replaceAlbumTracks(
               createdAlbum.id,
               _selectedDiscogsTracks.map(
                 (track) => TrackDraft(

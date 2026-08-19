@@ -15,14 +15,18 @@ void main() {
   tearDown(() => db.close());
 
   Future<void> seedAlbum() async {
-    await db.into(db.artists).insert(
+    await db
+        .into(db.artists)
+        .insert(
           ArtistsCompanion.insert(
             id: 'artist-1',
             name: 'John Coltrane',
             createdAt: '2026-08-19T00:00:00.000Z',
           ),
         );
-    await db.into(db.albums).insert(
+    await db
+        .into(db.albums)
+        .insert(
           AlbumsCompanion.insert(
             id: 'album-1',
             title: 'Blue Train',
@@ -97,24 +101,21 @@ void main() {
       throwsA(isA<StateError>()),
     );
     expect(
-      () => repository.replaceAlbumTracks(
-        'album-1',
-        const [TrackDraft(title: ' ', sequence: 0)],
-      ),
+      () => repository.replaceAlbumTracks('album-1', const [
+        TrackDraft(title: ' ', sequence: 0),
+      ]),
       throwsA(isA<ArgumentError>()),
     );
     expect(
-      () => repository.replaceAlbumTracks(
-        'album-1',
-        const [TrackDraft(title: 'Track', sequence: -1)],
-      ),
+      () => repository.replaceAlbumTracks('album-1', const [
+        TrackDraft(title: 'Track', sequence: -1),
+      ]),
       throwsA(isA<ArgumentError>()),
     );
     expect(
-      () => repository.replaceAlbumTracks(
-        'album-1',
-        const [TrackDraft(title: 'Track', sequence: 0, durationSeconds: -1)],
-      ),
+      () => repository.replaceAlbumTracks('album-1', const [
+        TrackDraft(title: 'Track', sequence: 0, durationSeconds: -1),
+      ]),
       throwsA(isA<ArgumentError>()),
     );
   });
