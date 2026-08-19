@@ -8,6 +8,7 @@ import 'package:vinyl_app/db/migrations/migration_v1.dart';
 import 'package:vinyl_app/db/migrations/migration_v2.dart';
 import 'package:vinyl_app/db/migrations/migration_v3.dart';
 import 'package:vinyl_app/db/migrations/migration_v4.dart';
+import 'package:vinyl_app/db/migrations/migration_v5.dart';
 import 'package:vinyl_app/db/migrations/schema_versions.dart';
 import 'package:vinyl_app/db/schema/album_discogs_releases.dart';
 import 'package:vinyl_app/db/schema/album_genres.dart';
@@ -16,6 +17,7 @@ import 'package:vinyl_app/db/schema/artists.dart';
 import 'package:vinyl_app/db/schema/genres.dart';
 import 'package:vinyl_app/db/schema/nfc_tags.dart';
 import 'package:vinyl_app/db/schema/plays.dart';
+import 'package:vinyl_app/db/schema/tracks.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
 part 'app_database.g.dart';
@@ -29,6 +31,7 @@ part 'app_database.g.dart';
     Genres,
     AlbumGenres,
     AlbumDiscogsReleases,
+    Tracks,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -47,6 +50,7 @@ class AppDatabase extends _$AppDatabase {
         await migrateToV2(migrator);
         await migrateToV3(migrator);
         await migrateToV4(migrator);
+        await migrateToV5(migrator);
       },
       onUpgrade: (migrator, from, to) async {
         if (from < SchemaVersions.v2 && to >= SchemaVersions.v2) {
@@ -57,6 +61,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < SchemaVersions.v4 && to >= SchemaVersions.v4) {
           await migrateToV4(migrator);
+        }
+        if (from < SchemaVersions.v5 && to >= SchemaVersions.v5) {
+          await migrateToV5(migrator);
         }
       },
       beforeOpen: (details) async {

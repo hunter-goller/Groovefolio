@@ -5,7 +5,7 @@ import 'package:vinyl_app/db/migrations/schema_versions.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
 void main() {
-  test('fresh database creates every v4 table', () async {
+  test('fresh database creates every v5 table', () async {
     final db = AppDatabase(NativeDatabase.memory());
     addTearDown(db.close);
 
@@ -24,6 +24,7 @@ void main() {
         'genres',
         'album_genres',
         'album_discogs_releases',
+        'tracks',
       }),
     );
     expect(await db.select(db.artists).get(), isEmpty);
@@ -33,13 +34,14 @@ void main() {
     expect(await db.select(db.genres).get(), isEmpty);
     expect(await db.select(db.albumGenres).get(), isEmpty);
     expect(await db.select(db.albumDiscogsReleases).get(), isEmpty);
+    expect(await db.select(db.tracks).get(), isEmpty);
 
     final versionRow = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(versionRow.read<int>('user_version'), SchemaVersions.v4);
+    expect(versionRow.read<int>('user_version'), SchemaVersions.v5);
   });
 
   test(
-    'v1 database upgrades through v2/v3/v4 without losing v1 data',
+    'v1 database upgrades through v2/v3/v4/v5 without losing v1 data',
     () async {
       final executor = NativeDatabase.memory(
         setup: (rawDb) {
@@ -102,6 +104,7 @@ void main() {
       final genres = await db.select(db.genres).get();
       final albumGenres = await db.select(db.albumGenres).get();
       final discogsLinks = await db.select(db.albumDiscogsReleases).get();
+      final tracks = await db.select(db.tracks).get();
       final versionRow = await db
           .customSelect('PRAGMA user_version')
           .getSingle();
@@ -117,11 +120,12 @@ void main() {
       expect(genres, isEmpty);
       expect(albumGenres, isEmpty);
       expect(discogsLinks, isEmpty);
-      expect(versionRow.read<int>('user_version'), SchemaVersions.v4);
+      expect(tracks, isEmpty);
+      expect(versionRow.read<int>('user_version'), SchemaVersions.v5);
     },
   );
 
-  test('v2 database upgrades through v3/v4 without losing v2 data', () async {
+  test('v2 database upgrades through v3/v4/v5 without losing v2 data', () async {
     final executor = NativeDatabase.memory(
       setup: (rawDb) {
         rawDb.execute('''
@@ -195,6 +199,7 @@ void main() {
     final genres = await db.select(db.genres).get();
     final albumGenres = await db.select(db.albumGenres).get();
     final discogsLinks = await db.select(db.albumDiscogsReleases).get();
+    final tracks = await db.select(db.tracks).get();
     final versionRow = await db.customSelect('PRAGMA user_version').getSingle();
 
     expect(artists.single.name, 'Pink Floyd');
@@ -204,10 +209,11 @@ void main() {
     expect(genres, isEmpty);
     expect(albumGenres, isEmpty);
     expect(discogsLinks, isEmpty);
-    expect(versionRow.read<int>('user_version'), SchemaVersions.v4);
+    expect(tracks, isEmpty);
+    expect(versionRow.read<int>('user_version'), SchemaVersions.v5);
   });
 
-  test('v3 database upgrades to v4 and preserves genre data', () async {
+  test('v3 database upgrades through v4/v5 and preserves genre data', () async {
     final executor = NativeDatabase.memory(
       setup: (rawDb) {
         rawDb.execute('''
@@ -284,6 +290,7 @@ void main() {
     expect((await db.select(db.genres).get()).single.name, 'Jazz');
     expect(await db.select(db.albumGenres).get(), hasLength(1));
     expect(await db.select(db.albumDiscogsReleases).get(), isEmpty);
+    expect(await db.select(db.tracks).get(), isEmpty);
 
     await db
         .into(db.albumDiscogsReleases)
@@ -298,6 +305,94 @@ void main() {
     expect(link.releaseId, 12345);
 
     final versionRow = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(versionRow.read<int>('user_version'), SchemaVersions.v4);
+    expect(versionRow.read<int>('user_version'), SchemaVersions.v5);
   });
+
+  test('v4 database upgrades to v5 and preserves Discogs release links', () async {
+    final executor = NativeDatabase.memory(
+      setup: (rawDb) {
+        rawDb.execute('''
+          CREATE TABLE artists (
+            id TEXT NOT NULL PRIMARY KEY,
+            name TEXT NOT NULL,
+            created_at TEXT NOT NULL
+          );
+        ''');
+        rawDb.execute('''
+          CREATE TABLE albums (
+            id TEXT NOT NULL PRIMARY KEY,
+            title TEXT NOT NULL,
+            artist_id TEXT NOT NULL REFERENCES artists(id),
+            release_year INTEGER NULL,
+            label TEXT NULL,
+            artwork_path TEXT NULL,
+            purchase_date TEXT NULL,
+            purchase_price_cents INTEGER NULL,
+            created_at TEXT NOT NULL
+          );
+        ''');
+        rawDb.execute('''
+          CREATE TABLE plays (
+            id TEXT NOT NULL PRIMARY KEY,
+            album_id TEXT NOT NULL REFERENCES albums(id),
+            played_at TEXT NOT NULL,
+            side_played TEXT NOT NULL,
+            created_at TEXT NOT NULL
+          );
+        ''');
+        rawDb.execute('''
+          CREATE TABLE nfc_tags (
+            id TEXT NOT NULL PRIMARY KEY,
+            album_id TEXT NOT NULL UNIQUE REFERENCES albums(id),
+            nfc_tag_id TEXT NOT NULL UNIQUE,
+            written_at TEXT NOT NULL
+          );
+        ''');
+        rawDb.execute('''
+          CREATE TABLE genres (
+            id TEXT NOT NULL PRIMARY KEY,
+            name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+            created_at TEXT NOT NULL
+          );
+        ''');
+        rawDb.execute('''
+          CREATE TABLE album_genres (
+            album_id TEXT NOT NULL REFERENCES albums(id) ON DELETE CASCADE,
+            genre_id TEXT NOT NULL REFERENCES genres(id) ON DELETE CASCADE,
+            PRIMARY KEY (album_id, genre_id)
+          );
+        ''');
+        rawDb.execute('''
+          CREATE TABLE album_discogs_releases (
+            album_id TEXT NOT NULL PRIMARY KEY REFERENCES albums(id) ON DELETE CASCADE,
+            release_id INTEGER NOT NULL UNIQUE
+          );
+        ''');
+        rawDb.execute(
+          "INSERT INTO artists VALUES ('artist-1', 'John Coltrane', '2026-08-01T00:00:00.000Z');",
+        );
+        rawDb.execute(
+          "INSERT INTO albums (id, title, artist_id, created_at) VALUES ('album-1', 'Blue Train', 'artist-1', '2026-08-01T00:00:00.000Z');",
+        );
+        rawDb.execute(
+          "INSERT INTO album_discogs_releases VALUES ('album-1', 12345);",
+        );
+        rawDb.execute('PRAGMA user_version = 4;');
+      },
+    );
+
+    final db = AppDatabase(executor);
+    addTearDown(db.close);
+
+    expect((await db.select(db.albums).get()).single.title, 'Blue Train');
+    expect(
+      (await db.select(db.albumDiscogsReleases).get()).single.releaseId,
+      12345,
+    );
+    expect(await db.select(db.tracks).get(), isEmpty);
+
+    final versionRow = await db.customSelect('PRAGMA user_version').getSingle();
+    expect(versionRow.read<int>('user_version'), SchemaVersions.v5);
+  });
+
 }

@@ -9,7 +9,11 @@ import 'package:vinyl_app/services/discogs/discogs_catalog_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 
-enum DiscogsCollectionCandidateStatus { newRecord, exactDuplicate, needsReview }
+enum DiscogsCollectionCandidateStatus {
+  newRecord,
+  exactDuplicate,
+  needsReview,
+}
 
 class DiscogsCollectionCandidate {
   const DiscogsCollectionCandidate({
@@ -22,8 +26,7 @@ class DiscogsCollectionCandidate {
   final DiscogsCollectionCandidateStatus status;
   final String? localMatchTitle;
 
-  bool get canImport =>
-      status != DiscogsCollectionCandidateStatus.exactDuplicate;
+  bool get canImport => status != DiscogsCollectionCandidateStatus.exactDuplicate;
   bool get selectedByDefault =>
       status == DiscogsCollectionCandidateStatus.newRecord;
 }
@@ -41,22 +44,16 @@ class DiscogsCollectionPreview {
 
   int get vinylFound => candidates.length;
   int get newCount => candidates
-      .where(
-        (candidate) =>
-            candidate.status == DiscogsCollectionCandidateStatus.newRecord,
-      )
+      .where((candidate) =>
+          candidate.status == DiscogsCollectionCandidateStatus.newRecord)
       .length;
   int get exactDuplicateCount => candidates
-      .where(
-        (candidate) =>
-            candidate.status == DiscogsCollectionCandidateStatus.exactDuplicate,
-      )
+      .where((candidate) =>
+          candidate.status == DiscogsCollectionCandidateStatus.exactDuplicate)
       .length;
   int get needsReviewCount => candidates
-      .where(
-        (candidate) =>
-            candidate.status == DiscogsCollectionCandidateStatus.needsReview,
-      )
+      .where((candidate) =>
+          candidate.status == DiscogsCollectionCandidateStatus.needsReview)
       .length;
 }
 
@@ -130,6 +127,7 @@ class DefaultDiscogsCollectionImportService
     this._albumRepository,
     this._artistRepository,
     this._genreRepository,
+    this._trackRepository,
     this._releaseLinkRepository,
     this._artworkStorageService,
   );
@@ -138,6 +136,7 @@ class DefaultDiscogsCollectionImportService
   final IAlbumRepository _albumRepository;
   final IArtistRepository _artistRepository;
   final IGenreRepository _genreRepository;
+  final ITrackRepository _trackRepository;
   final IDiscogsReleaseLinkRepository _releaseLinkRepository;
   final ArtworkStorageService _artworkStorageService;
 
@@ -170,7 +169,8 @@ class DefaultDiscogsCollectionImportService
 
     final vinylItems = fetched.where((item) => item.isVinyl).toList();
     final nonVinylIgnored = fetched.length - vinylItems.length;
-    final linkedReleaseIds = await _releaseLinkRepository.findAllReleaseIds();
+    final linkedReleaseIds =
+        await _releaseLinkRepository.findAllReleaseIds();
     final localAlbums = await _albumRepository.findAll();
     final localArtists = await _artistRepository.findAll();
     final artistsById = {
@@ -306,7 +306,8 @@ class DefaultDiscogsCollectionImportService
         warning = DiscogsImportWarning(
           releaseId: candidate.item.releaseId,
           title: details.title,
-          message: 'Imported without artwork: ${_failureMessage(error)}',
+          message:
+              'Imported without artwork: ${_failureMessage(error)}',
         );
       }
     }
@@ -326,6 +327,21 @@ class DefaultDiscogsCollectionImportService
         albumId: createdAlbum.id,
         releaseId: details.releaseId,
       );
+
+      if (details.tracks.isNotEmpty) {
+        await _trackRepository.replaceAlbumTracks(
+          createdAlbum.id,
+          details.tracks.map(
+            (track) => TrackDraft(
+              title: track.title,
+              sequence: track.sequence,
+              position: track.position,
+              side: track.side,
+              durationSeconds: track.durationSeconds,
+            ),
+          ),
+        );
+      }
 
       if (details.genreNames.isNotEmpty) {
         final genreIds = <String>[];
@@ -354,9 +370,7 @@ class DefaultDiscogsCollectionImportService
         );
         final updated = await _albumRepository.update(withArtwork);
         if (!updated) {
-          throw StateError(
-            'Imported artwork could not be linked to the album.',
-          );
+          throw StateError('Imported artwork could not be linked to the album.');
         }
       }
 
@@ -395,6 +409,7 @@ final discogsCollectionImportServiceProvider =
         ref.watch(albumRepositoryProvider),
         ref.watch(artistRepositoryProvider),
         ref.watch(genreRepositoryProvider),
+        ref.watch(trackRepositoryProvider),
         ref.watch(discogsReleaseLinkRepositoryProvider),
         ref.watch(artworkStorageServiceProvider),
       );

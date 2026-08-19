@@ -56,6 +56,22 @@ class DiscogsReleaseSearchResult {
   }
 }
 
+class DiscogsTrack {
+  const DiscogsTrack({
+    required this.title,
+    required this.sequence,
+    this.position,
+    this.side,
+    this.durationSeconds,
+  });
+
+  final String title;
+  final int sequence;
+  final String? position;
+  final String? side;
+  final int? durationSeconds;
+}
+
 class DiscogsReleaseDetails {
   const DiscogsReleaseDetails({
     required this.releaseId,
@@ -66,6 +82,7 @@ class DiscogsReleaseDetails {
     this.genres = const [],
     this.styles = const [],
     this.artworkUrl,
+    this.tracks = const [],
   });
 
   final int releaseId;
@@ -76,6 +93,7 @@ class DiscogsReleaseDetails {
   final List<String> genres;
   final List<String> styles;
   final String? artworkUrl;
+  final List<DiscogsTrack> tracks;
 
   List<String> get genreNames {
     final seen = <String>{};
@@ -164,8 +182,73 @@ DiscogsReleaseDetails discogsReleaseDetailsFromJson(
     genres: _stringList(json['genres']),
     styles: _stringList(json['styles']),
     artworkUrl: artworkUrl,
+    tracks: _discogsTracksFromJson(json['tracklist']),
   );
 }
+
+
+List<DiscogsTrack> _discogsTracksFromJson(Object? value) {
+  if (value is! List) return const [];
+
+  final rawTracks = <({String title, String? position, int? durationSeconds})>[];
+
+  void collect(List<dynamic> rows) {
+    for (final value in rows.whereType<Map<String, dynamic>>()) {
+      final subTracks = value['sub_tracks'];
+      if (subTracks is List && subTracks.isNotEmpty) {
+        collect(subTracks);
+        continue;
+      }
+
+      final type = _nonEmptyString(value['type_'])?.toLowerCase();
+      if (type != null && type != 'track') continue;
+
+      final title = _nonEmptyString(value['title']);
+      if (title == null) continue;
+      final position = _nonEmptyString(value['position']);
+      rawTracks.add((
+        title: title,
+        position: position,
+        durationSeconds: _parseDiscogsDuration(value['duration']),
+      ));
+    }
+  }
+
+  collect(value);
+  return List<DiscogsTrack>.unmodifiable([
+    for (var index = 0; index < rawTracks.length; index++)
+      DiscogsTrack(
+        title: rawTracks[index].title,
+        position: rawTracks[index].position,
+        side: _sideFromTrackPosition(rawTracks[index].position),
+        durationSeconds: rawTracks[index].durationSeconds,
+        sequence: index,
+      ),
+  ]);
+}
+
+String? _sideFromTrackPosition(String? position) {
+  if (position == null) return null;
+  final normalized = position.trim().toUpperCase();
+  if (normalized.isEmpty) return null;
+  final match = RegExp(r'^([A-Z]+)(?:\d|$)').firstMatch(normalized);
+  return match?.group(1);
+}
+
+int? _parseDiscogsDuration(Object? value) {
+  final duration = _nonEmptyString(value);
+  if (duration == null) return null;
+  final parts = duration.split(':');
+  if (parts.length < 2 || parts.length > 3) return null;
+  final values = parts.map(int.tryParse).toList(growable: false);
+  if (values.any((part) => part == null)) return null;
+
+  if (values.length == 2) {
+    return values[0]! * 60 + values[1]!;
+  }
+  return values[0]! * 3600 + values[1]! * 60 + values[2]!;
+}
+
 
 class DiscogsCollectionItem {
   const DiscogsCollectionItem({
@@ -188,8 +271,9 @@ class DiscogsCollectionItem {
   final List<String> formats;
   final String? coverImageUrl;
 
-  bool get isVinyl =>
-      formats.any((format) => format.trim().toLowerCase() == 'vinyl');
+  bool get isVinyl => formats.any(
+    (format) => format.trim().toLowerCase() == 'vinyl',
+  );
 }
 
 class DiscogsCollectionPage {
@@ -208,7 +292,9 @@ class DiscogsCollectionPage {
   bool get hasNextPage => page < pages;
 }
 
-DiscogsCollectionPage discogsCollectionPageFromJson(Map<String, dynamic> json) {
+DiscogsCollectionPage discogsCollectionPageFromJson(
+  Map<String, dynamic> json,
+) {
   final pagination = json['pagination'];
   final releases = json['releases'];
   final pageJson = pagination is Map<String, dynamic>

@@ -14,3 +14,5 @@ export 'package:vinyl_app/repositories/nfc_tag_repository.dart'
     show INfcTagRepository, nfcTagRepositoryProvider;
 export 'package:vinyl_app/repositories/play_repository.dart'
     show IPlayRepository, playRepositoryProvider;
+export 'package:vinyl_app/repositories/track_repository.dart'
+    show ITrackRepository, TrackDraft, trackRepositoryProvider;

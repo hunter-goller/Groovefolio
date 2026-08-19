@@ -7,6 +7,7 @@ import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
+import 'package:vinyl_app/providers/track_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/album_deletion_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
@@ -28,6 +29,7 @@ class AlbumDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final detailAsync = ref.watch(albumDetailProvider(albumId));
     final genresAsync = ref.watch(albumGenresProvider(albumId));
+    final tracksAsync = ref.watch(albumTracksProvider(albumId));
     final canPop = Navigator.of(context).canPop();
 
     return PopScope(
@@ -95,10 +97,12 @@ class AlbumDetailScreen extends ConsumerWidget {
                       ?.map((genre) => genre.name)
                       .toList(growable: false) ??
                   const <String>[];
+              final tracks = tracksAsync.value ?? const <Track>[];
 
               return _AlbumDetailBody(
                 detail: detail,
                 genres: genres,
+                tracks: tracks,
                 onLogPlay: () => _openLogPlay(context, ref, detail),
               );
             },
@@ -186,6 +190,7 @@ class AlbumDetailScreen extends ConsumerWidget {
       ref.invalidate(albumProvider(albumId));
       ref.invalidate(albumDetailProvider(albumId));
       ref.invalidate(albumGenresProvider(albumId));
+      ref.invalidate(albumTracksProvider(albumId));
       ref.invalidate(recentlyPlayedProvider);
 
       if (!context.mounted) return;
@@ -205,11 +210,13 @@ class _AlbumDetailBody extends StatelessWidget {
   const _AlbumDetailBody({
     required this.detail,
     required this.genres,
+    required this.tracks,
     required this.onLogPlay,
   });
 
   final AlbumDetailData detail;
   final List<String> genres;
+  final List<Track> tracks;
   final Future<void> Function() onLogPlay;
 
   @override
@@ -229,6 +236,8 @@ class _AlbumDetailBody extends StatelessWidget {
         _AlbumHero(detail: detail, genres: genres),
         SizedBox(height: tokens.space24),
         _DetailSection(detail: detail, genres: genres),
+        SizedBox(height: tokens.space16),
+        _TracklistSection(tracks: tracks),
         SizedBox(height: tokens.space16),
         _ListeningSummary(detail: detail),
         SizedBox(height: tokens.space16),
@@ -452,6 +461,167 @@ class _DetailRow extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TracklistSection extends StatelessWidget {
+  const _TracklistSection({required this.tracks});
+
+  final List<Track> tracks;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return Column(
+      key: const Key('album-detail-tracklist'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'TRACKLIST',
+          style: context.theme.textTheme.labelSmall?.copyWith(
+            color: tokens.textMuted,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
+          ),
+        ),
+        SizedBox(height: tokens.space8),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: tokens.surface,
+            borderRadius: BorderRadius.circular(tokens.radiusMedium),
+          ),
+          child: tracks.isEmpty
+              ? Padding(
+                  padding: EdgeInsets.all(tokens.space16),
+                  child: Text(
+                    'No tracklist available for this record.',
+                    style: context.theme.textTheme.bodyMedium?.copyWith(
+                      color: tokens.textMuted,
+                    ),
+                  ),
+                )
+              : _TrackRows(tracks: tracks),
+        ),
+      ],
+    );
+  }
+}
+
+class _TrackRows extends StatelessWidget {
+  const _TrackRows({required this.tracks});
+
+  final List<Track> tracks;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasSides = tracks.any((track) => track.side?.trim().isNotEmpty ?? false);
+    if (!hasSides) {
+      return Column(
+        children: [
+          for (var index = 0; index < tracks.length; index++) ...[
+            _TrackRow(track: tracks[index]),
+            if (index != tracks.length - 1) const Divider(height: 1),
+          ],
+        ],
+      );
+    }
+
+    final children = <Widget>[];
+    String? currentSide;
+    for (final track in tracks) {
+      final side = track.side?.trim().toUpperCase();
+      if (side != currentSide) {
+        if (children.isNotEmpty) children.add(const Divider(height: 1));
+        children.add(_TrackSideHeader(side: side));
+        currentSide = side;
+      }
+      children.add(_TrackRow(track: track));
+    }
+    return Column(children: children);
+  }
+}
+
+class _TrackSideHeader extends StatelessWidget {
+  const _TrackSideHeader({required this.side});
+
+  final String? side;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        tokens.space12,
+        tokens.space12,
+        tokens.space12,
+        tokens.space4,
+      ),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          side == null ? 'Tracks' : 'Side $side',
+          style: context.theme.textTheme.labelLarge?.copyWith(
+            color: tokens.text,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TrackRow extends StatelessWidget {
+  const _TrackRow({required this.track});
+
+  final Track track;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final position = track.position?.trim();
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: tokens.space12,
+        vertical: tokens.space8,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 38,
+            child: Text(
+              position?.isNotEmpty == true ? position! : '${track.sequence + 1}',
+              style: context.theme.textTheme.bodySmall?.copyWith(
+                color: tokens.textMuted,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              track.title,
+              style: context.theme.textTheme.bodyMedium?.copyWith(
+                color: tokens.text,
+              ),
+            ),
+          ),
+          if (track.durationSeconds != null) ...[
+            SizedBox(width: tokens.space8),
+            Text(
+              _formatTrackDuration(track.durationSeconds!),
+              style: context.theme.textTheme.bodySmall?.copyWith(
+                color: tokens.textMuted,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+String _formatTrackDuration(int seconds) {
+  final minutes = seconds ~/ 60;
+  final remaining = seconds % 60;
+  return '$minutes:${remaining.toString().padLeft(2, '0')}';
 }
 
 class _AlbumArtwork extends StatelessWidget {

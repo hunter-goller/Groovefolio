@@ -164,9 +164,19 @@ void main() {
           label: 'Impulse!',
           genres: ['Jazz'],
           styles: ['Modal'],
+          tracks: [
+            DiscogsTrack(
+              title: 'Part I – Acknowledgement',
+              position: 'A1',
+              side: 'A',
+              sequence: 0,
+              durationSeconds: 467,
+            ),
+          ],
         ),
       );
       final links = _FakeDiscogsReleaseLinkRepository();
+      final tracks = _FakeTrackRepository();
 
       await tester.pumpWidget(
         _testApp(
@@ -176,6 +186,7 @@ void main() {
           catalogService: catalog,
           credentialStore: _ConnectedCredentialStore(),
           releaseLinkRepository: links,
+          trackRepository: tracks,
         ),
       );
       await tester.pumpAndSettle();
@@ -235,6 +246,8 @@ void main() {
       expect(albumRepository.created.single.label, 'Impulse!');
       expect(links.links, {'album-1': 123});
       expect(genreRepository.findOrCreateNames, ['Jazz', 'Modal']);
+      expect(tracks.replacements['album-1'], hasLength(1));
+      expect(tracks.replacements['album-1']!.single.position, 'A1');
     },
   );
 
@@ -277,6 +290,7 @@ Widget _testApp({
   IArtistRepository? artistRepository,
   IAlbumRepository? albumRepository,
   IGenreRepository? genreRepository,
+  ITrackRepository? trackRepository,
   DiscogsCatalogService? catalogService,
   DiscogsCredentialStore? credentialStore,
   IDiscogsReleaseLinkRepository? releaseLinkRepository,
@@ -306,6 +320,9 @@ Widget _testApp({
       ),
       genreRepositoryProvider.overrideWithValue(
         genreRepository ?? _FakeGenreRepository(),
+      ),
+      trackRepositoryProvider.overrideWithValue(
+        trackRepository ?? _FakeTrackRepository(),
       ),
       discogsCatalogServiceProvider.overrideWithValue(
         catalogService ?? _FakeDiscogsCatalogService(),
@@ -462,6 +479,22 @@ class _FakeGenreRepository implements IGenreRepository {
   @override
   Future<void> setAlbumGenres(String albumId, Iterable<String> genreIds) async {
     albumAssignments[albumId] = List<String>.of(genreIds);
+  }
+}
+
+class _FakeTrackRepository implements ITrackRepository {
+  final Map<String, List<TrackDraft>> replacements = {};
+
+  @override
+  Future<List<Track>> findByAlbum(String albumId) async => const [];
+
+  @override
+  Future<List<Track>> replaceAlbumTracks(
+    String albumId,
+    Iterable<TrackDraft> tracks,
+  ) async {
+    replacements[albumId] = List<TrackDraft>.of(tracks);
+    return const [];
   }
 }
 

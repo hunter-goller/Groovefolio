@@ -8,6 +8,7 @@ Shows:
 - title + artist
 - release year/label when present
 - genre chips
+- persistent tracklist, grouped by vinyl side when Discogs position metadata is available
 - play count / derived listening information
 - recent play history
 - Log first/another play action
@@ -26,4 +27,4 @@ Supports title, artist, year, label, genres, and artwork replacement. Existing p
 - persisted artwork deletion
 - album deletion
 
-AlbumGenres mappings are removed by database cascade. The UI confirms the album title and number of logged plays before deletion.
+AlbumGenres mappings, Discogs release links, and Tracks rows are removed by database cascade. The UI confirms the album title and number of logged plays before deletion.

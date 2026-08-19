@@ -119,6 +119,71 @@ void main() {
     expect(find.byKey(const Key('album-detail-genres')), findsNothing);
   });
 
+  testWidgets('shows Discogs tracklist grouped by vinyl side', (tester) async {
+    await tester.pumpWidget(
+      _testApp(
+        playRepository: _FakePlayRepository(const []),
+        trackRepository: const _FakeTrackRepository([
+          Track(
+            id: 'track-1',
+            albumId: 'album-1',
+            title: 'Blue Train',
+            position: 'A1',
+            side: 'A',
+            sequence: 0,
+            durationSeconds: 642,
+            createdAt: '2026-08-19T00:00:00.000Z',
+          ),
+          Track(
+            id: 'track-2',
+            albumId: 'album-1',
+            title: 'Locomotion',
+            position: 'B1',
+            side: 'B',
+            sequence: 1,
+            durationSeconds: 433,
+            createdAt: '2026-08-19T00:00:00.000Z',
+          ),
+        ]),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.drag(
+      find.byKey(const PageStorageKey<String>('album-detail-list')),
+      const Offset(0, -650),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('album-detail-tracklist')), findsOneWidget);
+    expect(find.text('Side A'), findsOneWidget);
+    expect(find.text('Side B'), findsOneWidget);
+    expect(find.text('Blue Train'), findsAtLeastNWidgets(1));
+    expect(find.text('Locomotion'), findsOneWidget);
+    expect(find.text('10:42'), findsOneWidget);
+  });
+
+  testWidgets('manual album shows clean empty tracklist state', (tester) async {
+    await tester.pumpWidget(
+      _testApp(
+        playRepository: _FakePlayRepository(const []),
+        trackRepository: const _FakeTrackRepository([]),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.drag(
+      find.byKey(const PageStorageKey<String>('album-detail-list')),
+      const Offset(0, -500),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('No tracklist available for this record.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('shows a not-found state for a missing album', (tester) async {
     await tester.pumpWidget(
       _testApp(
@@ -136,6 +201,7 @@ Widget _testApp({
   String albumId = 'album-1',
   required IPlayRepository playRepository,
   IGenreRepository? genreRepository,
+  ITrackRepository? trackRepository,
 }) {
   return ProviderScope(
     overrides: [
@@ -144,6 +210,9 @@ Widget _testApp({
       playRepositoryProvider.overrideWithValue(playRepository),
       genreRepositoryProvider.overrideWithValue(
         genreRepository ?? const _FakeGenreRepository([]),
+      ),
+      trackRepositoryProvider.overrideWithValue(
+        trackRepository ?? const _FakeTrackRepository([]),
       ),
     ],
     child: MaterialApp(
@@ -260,6 +329,22 @@ class _FakePlayRepository implements IPlayRepository {
 
   @override
   Future<List<Album>> getRecentlyPlayed(int limit) async => const [];
+}
+
+class _FakeTrackRepository implements ITrackRepository {
+  const _FakeTrackRepository(this.tracks);
+
+  final List<Track> tracks;
+
+  @override
+  Future<List<Track>> findByAlbum(String albumId) async =>
+      albumId == 'album-1' ? List.unmodifiable(tracks) : const [];
+
+  @override
+  Future<List<Track>> replaceAlbumTracks(
+    String albumId,
+    Iterable<TrackDraft> tracks,
+  ) => throw UnimplementedError();
 }
 
 class _FakeGenreRepository implements IGenreRepository {
