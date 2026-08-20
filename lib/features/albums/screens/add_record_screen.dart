@@ -125,6 +125,40 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
     await _applyDiscogsRelease(details);
   }
 
+  Future<void> _scanBarcode() async {
+    FocusScope.of(context).unfocus();
+    final credentials = await ref
+        .read(discogsCredentialStoreProvider)
+        .readCredentials();
+    if (!mounted) return;
+    if (credentials == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Connect Discogs in Settings before scanning a barcode.',
+          ),
+          action: SnackBarAction(
+            label: 'Settings',
+            onPressed: () => context.push(AppRoutes.settings),
+          ),
+        ),
+      );
+      return;
+    }
+
+    final barcode = await context.push<String>(AppRoutes.barcodeScan);
+    if (barcode == null || !mounted) return;
+
+    final details = await showModalBottomSheet<DiscogsReleaseDetails>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => _DiscogsBarcodeResultsSheet(barcode: barcode),
+    );
+    if (details == null || !mounted) return;
+    await _applyDiscogsRelease(details);
+  }
+
   Future<void> _applyDiscogsRelease(DiscogsReleaseDetails details) async {
     File? downloadedArtwork;
     if (details.artworkUrl != null) {
@@ -354,6 +388,13 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
                   ].where((value) => value.isNotEmpty).join(' — '),
                   onTap: isSaving ? () {} : _openDiscogsSearch,
                 ),
+                SizedBox(height: tokens.space8),
+                OutlinedButton.icon(
+                  key: const Key('scan-barcode-button'),
+                  onPressed: isSaving ? null : _scanBarcode,
+                  icon: const Icon(Icons.qr_code_scanner_rounded),
+                  label: const Text('Scan barcode'),
+                ),
                 SizedBox(height: tokens.space16),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -443,6 +484,187 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
       return 'Enter a year from 1900 to $maxYear';
     }
     return null;
+  }
+}
+
+class _DiscogsBarcodeResultsSheet extends ConsumerStatefulWidget {
+  const _DiscogsBarcodeResultsSheet({required this.barcode});
+
+  final String barcode;
+
+  @override
+  ConsumerState<_DiscogsBarcodeResultsSheet> createState() =>
+      _DiscogsBarcodeResultsSheetState();
+}
+
+class _DiscogsBarcodeResultsSheetState
+    extends ConsumerState<_DiscogsBarcodeResultsSheet> {
+  List<DiscogsReleaseSearchResult> _results = const [];
+  DiscogsFailure? _failure;
+  bool _loading = true;
+  int? _loadingReleaseId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _lookup());
+  }
+
+  Future<void> _lookup() async {
+    setState(() {
+      _loading = true;
+      _failure = null;
+    });
+    try {
+      final results = await ref
+          .read(discogsCatalogServiceProvider)
+          .searchReleasesByBarcode(widget.barcode);
+      if (!mounted) return;
+      setState(() => _results = results);
+    } on DiscogsFailure catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _failure = failure;
+        _results = const [];
+      });
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _select(DiscogsReleaseSearchResult result) async {
+    setState(() {
+      _loadingReleaseId = result.releaseId;
+      _failure = null;
+    });
+    try {
+      final details = await ref
+          .read(discogsCatalogServiceProvider)
+          .release(result.releaseId);
+      if (!mounted) return;
+      Navigator.of(context).pop(details);
+    } on DiscogsFailure catch (failure) {
+      if (!mounted) return;
+      setState(() => _failure = failure);
+    } finally {
+      if (mounted) setState(() => _loadingReleaseId = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        tokens.space16,
+        tokens.space16,
+        tokens.space16,
+        tokens.space16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Barcode results', style: context.theme.textTheme.headlineSmall),
+          SizedBox(height: tokens.space4),
+          Text(
+            'Barcode ${widget.barcode}',
+            style: context.theme.textTheme.bodySmall?.copyWith(
+              color: tokens.textMuted,
+            ),
+          ),
+          SizedBox(height: tokens.space4),
+          Text(
+            'Choose the exact vinyl release or pressing.',
+            style: context.theme.textTheme.bodySmall?.copyWith(
+              color: tokens.textMuted,
+            ),
+          ),
+          if (_loading) ...[
+            SizedBox(height: tokens.space24),
+            const Center(child: CircularProgressIndicator()),
+            SizedBox(height: tokens.space24),
+          ],
+          if (!_loading && _failure != null) ...[
+            SizedBox(height: tokens.space16),
+            _DiscogsFailurePanel(failure: _failure!, onRetry: _lookup),
+          ],
+          if (!_loading && _failure == null && _results.isEmpty) ...[
+            SizedBox(height: tokens.space24),
+            Icon(Icons.search_off_rounded, size: 42, color: tokens.textMuted),
+            SizedBox(height: tokens.space12),
+            Text(
+              'No vinyl release found for this barcode.',
+              textAlign: TextAlign.center,
+              style: context.theme.textTheme.titleMedium,
+            ),
+            SizedBox(height: tokens.space8),
+            Text(
+              'Discogs does not have barcodes for every pressing. You can still search by artist and title.',
+              textAlign: TextAlign.center,
+              style: context.theme.textTheme.bodySmall?.copyWith(
+                color: tokens.textMuted,
+              ),
+            ),
+            SizedBox(height: tokens.space16),
+            OutlinedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Back to Add Record'),
+            ),
+          ],
+          if (!_loading && _results.isNotEmpty) ...[
+            SizedBox(height: tokens.space12),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.56,
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: _results.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final result = _results[index];
+                  final loading = _loadingReleaseId == result.releaseId;
+                  return ListTile(
+                    key: Key('barcode-result-${result.releaseId}'),
+                    contentPadding: EdgeInsets.zero,
+                    leading: _DiscogsCover(url: result.coverImageUrl),
+                    title: Text(result.title, maxLines: 2),
+                    subtitle: Text(
+                      [
+                        result.artist,
+                        if (result.subtitleParts.isNotEmpty)
+                          result.subtitleParts,
+                      ].join('\n'),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: loading
+                        ? const SizedBox.square(
+                            dimension: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.chevron_right_rounded),
+                    onTap: _loadingReleaseId == null
+                        ? () => _select(result)
+                        : null,
+                  );
+                },
+              ),
+            ),
+          ],
+          SizedBox(height: tokens.space8),
+          Text(
+            'Metadata provided by Discogs.',
+            textAlign: TextAlign.center,
+            style: context.theme.textTheme.labelSmall?.copyWith(
+              color: tokens.textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

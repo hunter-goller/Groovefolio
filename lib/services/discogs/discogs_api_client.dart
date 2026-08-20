@@ -10,6 +10,26 @@ import 'package:vinyl_app/services/discogs/discogs_config.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_oauth_signer.dart';
 
+List<String> discogsBarcodeSearchCandidates(String barcode) {
+  final normalized = barcode.replaceAll(RegExp(r'[^0-9]'), '');
+  if (normalized.isEmpty) {
+    throw ArgumentError.value(
+      barcode,
+      'barcode',
+      'Discogs barcode cannot be empty.',
+    );
+  }
+
+  final candidates = <String>[normalized];
+  if (normalized.length == 13 && normalized.startsWith('0')) {
+    candidates.add(normalized.substring(1));
+  } else if (normalized.length == 12) {
+    candidates.add('0$normalized');
+  }
+
+  return List<String>.unmodifiable(candidates.toSet());
+}
+
 class DiscogsHttpResponse {
   const DiscogsHttpResponse({
     required this.statusCode,
@@ -170,6 +190,39 @@ class DiscogsApiClient {
         .whereType<DiscogsReleaseSearchResult>()
         .take(limit)
         .toList(growable: false);
+  }
+
+  Future<List<DiscogsReleaseSearchResult>> searchReleasesByBarcode({
+    required DiscogsOAuthCredentials credentials,
+    required String barcode,
+    int limit = 10,
+  }) async {
+    final candidates = discogsBarcodeSearchCandidates(barcode);
+
+    for (final candidate in candidates) {
+      final uri = _databaseSearchUri.replace(
+        queryParameters: {
+          'type': 'release',
+          'format': 'vinyl',
+          'barcode': candidate,
+          'per_page': limit.clamp(1, 100).toString(),
+          'page': '1',
+        },
+      );
+      final json = await _getJson(uri, credentials);
+      final results = json['results'];
+      if (results is! List) continue;
+
+      final parsed = results
+          .whereType<Map<String, dynamic>>()
+          .map(discogsReleaseSearchResultFromJson)
+          .whereType<DiscogsReleaseSearchResult>()
+          .take(limit)
+          .toList(growable: false);
+      if (parsed.isNotEmpty) return parsed;
+    }
+
+    return const [];
   }
 
   Future<DiscogsCollectionPage> collectionFolderReleases({

@@ -129,6 +129,44 @@ void main() {
     );
   });
 
+  test('barcode search retries UPC-A as zero-prefixed EAN-13', () async {
+    final requestedBarcodes = <String>[];
+    final client = DiscogsApiClient(
+      config: config,
+      requestSender: (method, uri, headers, maxBytes) async {
+        requestedBarcodes.add(uri.queryParameters['barcode'] ?? '');
+        final hasMatch = uri.queryParameters['barcode'] == '0074643377512';
+        final body = hasMatch
+            ? jsonEncode({
+                'results': [
+                  {
+                    'id': 456,
+                    'title': 'John Coltrane - Blue Train',
+                    'format': ['Vinyl', 'LP'],
+                  },
+                ],
+              })
+            : jsonEncode({'results': <Object>[]});
+        return DiscogsHttpResponse(
+          statusCode: 200,
+          body: Uint8List.fromList(utf8.encode(body)),
+        );
+      },
+    );
+    addTearDown(client.close);
+
+    final results = await client.searchReleasesByBarcode(
+      credentials: credentials,
+      barcode: '074643377512',
+    );
+
+    expect(requestedBarcodes, ['074643377512', '0074643377512']);
+    expect(results, hasLength(1));
+    expect(results.single.releaseId, 456);
+    expect(results.single.artist, 'John Coltrane');
+    expect(results.single.title, 'Blue Train');
+  });
+
   test('artwork rejects non-HTTPS and non-Discogs image hosts', () async {
     var requests = 0;
     final client = DiscogsApiClient(

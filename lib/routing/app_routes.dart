@@ -6,6 +6,7 @@ abstract final class AppRoutes {
   static const stats = '/stats';
   static const discover = '/discover';
   static const addAlbum = '/album/new';
+  static const barcodeScan = '/album/barcode-scan';
   static const albumDetail = '/album/:id';
   static const editAlbum = '/album/:id/edit';
   static const logPlay = '/play/log';

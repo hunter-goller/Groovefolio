@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vinyl_app/features/albums/screens/add_record_screen.dart';
 import 'package:vinyl_app/features/albums/screens/album_detail_screen.dart';
+import 'package:vinyl_app/features/albums/screens/barcode_scanner_screen.dart';
 import 'package:vinyl_app/features/albums/screens/collection_screen.dart';
 import 'package:vinyl_app/features/albums/screens/edit_album_screen.dart';
 import 'package:vinyl_app/features/discover/screens/discover_screen.dart';
@@ -45,6 +46,10 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: AppRoutes.addAlbum,
         builder: (context, state) => const AddRecordScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.barcodeScan,
+        builder: (context, state) => const BarcodeScannerScreen(),
       ),
       GoRoute(
         path: AppRoutes.albumDetail,
