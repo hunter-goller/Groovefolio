@@ -46,6 +46,16 @@ void main() {
       expect(container.read(playRepositoryProvider), same(fake));
     });
 
+    test('trackRepositoryProvider can be overridden', () {
+      final fake = _FakeTrackRepository();
+      final container = ProviderContainer(
+        overrides: [trackRepositoryProvider.overrideWithValue(fake)],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(trackRepositoryProvider), same(fake));
+    });
+
     test('nfcTagRepositoryProvider can be overridden', () {
       final fake = _FakeNfcTagRepository();
       final container = ProviderContainer(
@@ -120,6 +130,17 @@ class _FakePlayRepository implements IPlayRepository {
   @override
   Future<List<Album>> getRecentlyPlayed(int limit) =>
       throw UnimplementedError();
+}
+
+class _FakeTrackRepository implements ITrackRepository {
+  @override
+  Future<List<Track>> findByAlbum(String albumId) => throw UnimplementedError();
+
+  @override
+  Future<List<Track>> replaceAlbumTracks(
+    String albumId,
+    Iterable<TrackDraft> tracks,
+  ) => throw UnimplementedError();
 }
 
 class _FakeNfcTagRepository implements INfcTagRepository {

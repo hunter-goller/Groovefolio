@@ -97,4 +97,60 @@ void main() {
     expect(item.formats, ['Vinyl', 'LP', 'Album']);
     expect(item.isVinyl, isTrue);
   });
+
+  test('maps Discogs tracklist positions, sides, durations, and order', () {
+    final details = discogsReleaseDetailsFromJson({
+      'title': 'Blue Train',
+      'artists': [
+        {'name': 'John Coltrane'},
+      ],
+      'tracklist': [
+        {
+          'position': 'A1',
+          'type_': 'track',
+          'title': 'Blue Train',
+          'duration': '10:42',
+        },
+        {
+          'position': 'A2',
+          'type_': 'track',
+          'title': 'Moment’s Notice',
+          'duration': '9:18',
+        },
+        {'type_': 'heading', 'title': 'Side B'},
+        {
+          'position': 'B1',
+          'type_': 'track',
+          'title': 'Locomotion',
+          'duration': '',
+        },
+        {
+          'type_': 'index',
+          'title': 'Suite',
+          'sub_tracks': [
+            {
+              'position': 'B2',
+              'type_': 'track',
+              'title': 'I’m Old Fashioned',
+              'duration': '7:55',
+            },
+          ],
+        },
+      ],
+    }, releaseId: 321);
+
+    expect(details.tracks, hasLength(4));
+    expect(details.tracks.map((track) => track.position), [
+      'A1',
+      'A2',
+      'B1',
+      'B2',
+    ]);
+    expect(details.tracks.map((track) => track.side), ['A', 'A', 'B', 'B']);
+    expect(details.tracks.map((track) => track.sequence), [0, 1, 2, 3]);
+    expect(details.tracks.first.durationSeconds, 642);
+    expect(details.tracks[1].durationSeconds, 558);
+    expect(details.tracks[2].durationSeconds, isNull);
+    expect(details.tracks.last.durationSeconds, 475);
+  });
 }

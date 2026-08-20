@@ -97,6 +97,7 @@ Widget _app(_State state) {
       artistRepositoryProvider.overrideWithValue(_Artists()),
       playRepositoryProvider.overrideWithValue(_Plays(state)),
       genreRepositoryProvider.overrideWithValue(_Genres()),
+      trackRepositoryProvider.overrideWithValue(_Tracks()),
       nfcTagRepositoryProvider.overrideWithValue(_Nfc(state)),
     ],
     child: MaterialApp.router(
@@ -244,6 +245,17 @@ class _Genres implements IGenreRepository {
 
   @override
   Future<int> delete(String genreId) async => 0;
+}
+
+class _Tracks implements ITrackRepository {
+  @override
+  Future<List<Track>> findByAlbum(String albumId) async => const [];
+
+  @override
+  Future<List<Track>> replaceAlbumTracks(
+    String albumId,
+    Iterable<TrackDraft> tracks,
+  ) => throw UnimplementedError();
 }
 
 class _Nfc implements INfcTagRepository {

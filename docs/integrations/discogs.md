@@ -46,8 +46,18 @@ Implemented:
 - show progress for large imports
 - continue after per-release failures and summarize failures/warnings at the end
 
-### VinylApp-105 / 091
-Tracklist import and barcode → exact release build on the same client/foundation.
+### VinylApp-105 — tracklist persistence/import
+Implemented in the 105 overlay:
+- schema v5 `Tracks` table with album cascade cleanup
+- ordered `TrackRepository` reads and transactional complete-tracklist replacement
+- release JSON parsing for track title, Discogs position, inferred vinyl side, duration, and original order
+- Add Record persists the selected Discogs release tracklist with the album
+- Discogs collection import persists tracklists for imported releases
+- Album Detail groups side-aware positions such as A1/A2/B1/B2 and falls back to ordered rows when side data is absent
+- manual/local records remain valid with an empty tracklist
+
+### VinylApp-091
+Barcode → exact release will build on the same client/release-detail foundation.
 
 ## Development credentials
 

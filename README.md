@@ -82,13 +82,14 @@ Screens and services do not construct Drift companions directly. Repositories ow
 
 ## Database schema
 
-Current schema version: **v4**.
+Current schema version: **v5**.
 
 ```text
 v1  Artists ──< Albums ──< Plays
 v2                 └────  NfcTags (one tag per album)
 v3                 └────< AlbumGenres >──── Genres
 v4                 └────  AlbumDiscogsReleases (exact Discogs release link)
+v5                 └────< Tracks (ordered album tracklists)
 ```
 
 - `Artists`: canonical artist rows
@@ -98,8 +99,9 @@ v4                 └────  AlbumDiscogsReleases (exact Discogs release 
 - `Genres`: case-insensitive unique genre names
 - `AlbumGenres`: many-to-many album/genre join table
 - `AlbumDiscogsReleases`: one-to-one local album ↔ exact Discogs release ID link
+- `Tracks`: ordered album tracks with optional Discogs position, vinyl side, and duration
 
-The v1/v2/v3/v4 migrations are intentionally frozen once shipped. New physical schema changes must create a new migration/version rather than rewriting history.
+The v1/v2/v3/v4/v5 migrations are intentionally frozen once shipped. New physical schema changes must create a new migration/version rather than rewriting history.
 
 ## Routes
 

@@ -130,6 +130,7 @@ class DefaultDiscogsCollectionImportService
     this._albumRepository,
     this._artistRepository,
     this._genreRepository,
+    this._trackRepository,
     this._releaseLinkRepository,
     this._artworkStorageService,
   );
@@ -138,6 +139,7 @@ class DefaultDiscogsCollectionImportService
   final IAlbumRepository _albumRepository;
   final IArtistRepository _artistRepository;
   final IGenreRepository _genreRepository;
+  final ITrackRepository _trackRepository;
   final IDiscogsReleaseLinkRepository _releaseLinkRepository;
   final ArtworkStorageService _artworkStorageService;
 
@@ -327,6 +329,21 @@ class DefaultDiscogsCollectionImportService
         releaseId: details.releaseId,
       );
 
+      if (details.tracks.isNotEmpty) {
+        await _trackRepository.replaceAlbumTracks(
+          createdAlbum.id,
+          details.tracks.map(
+            (track) => TrackDraft(
+              title: track.title,
+              sequence: track.sequence,
+              position: track.position,
+              side: track.side,
+              durationSeconds: track.durationSeconds,
+            ),
+          ),
+        );
+      }
+
       if (details.genreNames.isNotEmpty) {
         final genreIds = <String>[];
         for (final name in details.genreNames) {
@@ -395,6 +412,7 @@ final discogsCollectionImportServiceProvider =
         ref.watch(albumRepositoryProvider),
         ref.watch(artistRepositoryProvider),
         ref.watch(genreRepositoryProvider),
+        ref.watch(trackRepositoryProvider),
         ref.watch(discogsReleaseLinkRepositoryProvider),
         ref.watch(artworkStorageServiceProvider),
       );

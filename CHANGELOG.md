@@ -18,6 +18,11 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 - Added deterministic OAuth signer tests.
 - Pinned secure storage to the stable 10.3.1 release so Android remains compatible with the project's SDK 36 toolchain.
 
+### Discogs catalog and import — VinylApp-090/107/105
+- Added vinyl-only Discogs release search and editable Add Record autofill.
+- Added connected-account Discogs collection import with pagination and duplicate protection.
+- Added schema v5 tracklists, transactional TrackRepository replacement, Discogs track position/side/duration parsing, and Album Detail tracklist rendering.
+
 ### Artwork and development data
 - Added reusable artwork picker and persistent artwork storage.
 - Added artwork replacement support to Add/Edit Record.

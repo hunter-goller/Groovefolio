@@ -8,6 +8,7 @@ import 'package:vinyl_app/repositories/album_repository.dart';
 import 'package:vinyl_app/repositories/artist_repository.dart';
 import 'package:vinyl_app/repositories/discogs_release_link_repository.dart';
 import 'package:vinyl_app/repositories/genre_repository.dart';
+import 'package:vinyl_app/repositories/track_repository.dart';
 import 'package:vinyl_app/services/artwork_storage_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_catalog_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_collection_import_service.dart';
@@ -20,6 +21,7 @@ void main() {
     final artists = ArtistRepository(db);
     final albums = AlbumRepository(db);
     final genres = GenreRepository(db);
+    final tracks = TrackRepository(db);
     final links = DiscogsReleaseLinkRepository(db);
     final artwork = ArtworkStorageService(
       documentsDirectoryResolver: () async => Directory.systemTemp,
@@ -62,6 +64,7 @@ void main() {
       albums,
       artists,
       genres,
+      tracks,
       links,
       artwork,
     );
@@ -108,6 +111,7 @@ void main() {
       final artists = ArtistRepository(db);
       final albums = AlbumRepository(db);
       final genres = GenreRepository(db);
+      final tracks = TrackRepository(db);
       final links = DiscogsReleaseLinkRepository(db);
       final artwork = ArtworkStorageService(
         documentsDirectoryResolver: () async => tempDirectory,
@@ -123,6 +127,22 @@ void main() {
             genres: ['Jazz'],
             styles: ['Hard Bop'],
             artworkUrl: 'https://example.test/blue-train.jpg',
+            tracks: [
+              DiscogsTrack(
+                title: 'Blue Train',
+                position: 'A1',
+                side: 'A',
+                sequence: 0,
+                durationSeconds: 642,
+              ),
+              DiscogsTrack(
+                title: 'Moment’s Notice',
+                position: 'A2',
+                side: 'A',
+                sequence: 1,
+                durationSeconds: 558,
+              ),
+            ],
           ),
         },
         releaseFailures: {
@@ -135,6 +155,7 @@ void main() {
         albums,
         artists,
         genres,
+        tracks,
         links,
         artwork,
       );
@@ -174,6 +195,9 @@ void main() {
         (await genres.findByAlbum(album.id)).map((genre) => genre.name).toSet(),
         {'Jazz', 'Hard Bop'},
       );
+      final storedTracks = await tracks.findByAlbum(album.id);
+      expect(storedTracks.map((track) => track.position), ['A1', 'A2']);
+      expect(storedTracks.first.durationSeconds, 642);
     },
   );
 }

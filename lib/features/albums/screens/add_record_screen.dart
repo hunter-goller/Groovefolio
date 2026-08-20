@@ -9,6 +9,7 @@ import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
+import 'package:vinyl_app/providers/track_providers.dart';
 import 'package:vinyl_app/repositories/discogs_release_link_repository.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/artwork_storage_service.dart';
@@ -39,6 +40,7 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
   File? _selectedArtwork;
   File? _discogsTempArtwork;
   int? _selectedDiscogsReleaseId;
+  List<DiscogsTrack> _selectedDiscogsTracks = const [];
   bool _isSubmitting = false;
 
   @override
@@ -157,6 +159,7 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
       _labelController.text = details.label ?? '';
       _selectedGenres = details.genreNames;
       _selectedDiscogsReleaseId = details.releaseId;
+      _selectedDiscogsTracks = details.tracks;
       if (downloadedArtwork != null) {
         _discogsTempArtwork = downloadedArtwork;
         _selectedArtwork = downloadedArtwork;
@@ -207,6 +210,24 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
           );
         }
         await links.link(albumId: createdAlbum.id, releaseId: releaseId);
+      }
+
+      if (_selectedDiscogsTracks.isNotEmpty) {
+        await ref
+            .read(trackRepositoryProvider)
+            .replaceAlbumTracks(
+              createdAlbum.id,
+              _selectedDiscogsTracks.map(
+                (track) => TrackDraft(
+                  title: track.title,
+                  sequence: track.sequence,
+                  position: track.position,
+                  side: track.side,
+                  durationSeconds: track.durationSeconds,
+                ),
+              ),
+            );
+        ref.invalidate(albumTracksProvider(createdAlbum.id));
       }
 
       if (_selectedArtwork != null) {
