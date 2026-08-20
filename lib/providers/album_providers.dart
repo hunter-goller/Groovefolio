@@ -279,8 +279,10 @@ final playCountProvider = FutureProvider.autoDispose.family<int, String>((
   return ref.watch(playRepositoryProvider).getPlayCountByAlbum(normalizedId);
 });
 
-/// Album write operations plus the provider invalidation required to keep UI
-/// data fresh after create/update/delete actions.
+/// Simple album create/update operations plus provider invalidation.
+///
+/// Album deletion intentionally lives only in AlbumDeletionService so callers
+/// cannot bypass cascade/artwork cleanup through a generic mutation API.
 ///
 /// This also gives VinylApp-019 a mutation entry point without making screens
 /// call repositories directly.
@@ -330,29 +332,6 @@ class AlbumMutations extends Notifier<AsyncValue<void>> {
       }
       state = const AsyncData<void>(null);
       return updated;
-    } catch (error, stackTrace) {
-      state = AsyncError<void>(error, stackTrace);
-      rethrow;
-    }
-  }
-
-  Future<int> delete(String id) async {
-    final normalizedId = id.trim();
-    if (normalizedId.isEmpty) {
-      throw ArgumentError.value(id, 'id', 'Album ID cannot be empty.');
-    }
-
-    state = const AsyncLoading<void>();
-
-    try {
-      final deleted = await ref
-          .read(albumRepositoryProvider)
-          .delete(normalizedId);
-      if (deleted > 0) {
-        _invalidateAlbumData(normalizedId);
-      }
-      state = const AsyncData<void>(null);
-      return deleted;
     } catch (error, stackTrace) {
       state = AsyncError<void>(error, stackTrace);
       rethrow;

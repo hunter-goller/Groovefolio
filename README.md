@@ -19,15 +19,15 @@ Implemented on `main`:
 - collection statistics for the current year and all time
 - monthly and yearly play charts
 - listening-by-genre breakdown and most-played albums
-- local SQLite persistence through Drift with frozen v1 → v2 → v3 → v4 migrations
+- local SQLite persistence through Drift with explicit frozen v1 → v6 migrations
 - NFC tag persistence/repository groundwork
 - development reset/seed tooling with optional MusicBrainz/Cover Art Archive artwork lookup
 - Discogs OAuth 1.0a account connection with browser authorization, deep-link callback, secure credential storage, identity lookup, typed failures, and Settings UI
+- Discogs collection import with duplicate review, artwork, genres, exact release links, and tracklists
+- persistent Discogs tracklists grouped by vinyl side on Album Detail
 
 Still in progress or planned:
 
-- Discogs collection import (`VinylApp-107`)
-- track schema/import (`VinylApp-105`)
 - barcode lookup (`VinylApp-091`)
 - NFC write/read flows
 - Discover recommendations and explainable recommendation engine
@@ -82,7 +82,7 @@ Screens and services do not construct Drift companions directly. Repositories ow
 
 ## Database schema
 
-Current schema version: **v5**.
+Current schema version: **v6**.
 
 ```text
 v1  Artists ──< Albums ──< Plays
@@ -90,6 +90,8 @@ v2                 └────  NfcTags (one tag per album)
 v3                 └────< AlbumGenres >──── Genres
 v4                 └────  AlbumDiscogsReleases (exact Discogs release link)
 v5                 └────< Tracks (ordered album tracklists)
+v6                 ├────< Plays / NfcTags cascade safely from Albums
+                   └────  plays(album_id, played_at) index
 ```
 
 - `Artists`: canonical artist rows
@@ -101,7 +103,7 @@ v5                 └────< Tracks (ordered album tracklists)
 - `AlbumDiscogsReleases`: one-to-one local album ↔ exact Discogs release ID link
 - `Tracks`: ordered album tracks with optional Discogs position, vinyl side, and duration
 
-The v1/v2/v3/v4/v5 migrations are intentionally frozen once shipped. New physical schema changes must create a new migration/version rather than rewriting history.
+The v1/v2/v3/v4/v5/v6 migrations are intentionally frozen once shipped. New physical schema changes must create a new migration/version rather than rewriting history.
 
 ## Routes
 

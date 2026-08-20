@@ -8,6 +8,7 @@ abstract final class SchemaVersions {
   static const int v3 = 3;
   static const int v4 = 4;
   static const int v5 = 5;
+  static const int v6 = 6;
 
-  static const int current = v5;
+  static const int current = v6;
 }

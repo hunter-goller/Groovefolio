@@ -19,10 +19,12 @@ class SidePlayedConverter extends TypeConverter<SidePlayed, String> {
 }
 
 /// VinylApp-011.
+@TableIndex(name: 'plays_album_played_at_idx', columns: {#albumId, #playedAt})
 @DataClassName('Play')
 class Plays extends Table {
   TextColumn get id => text()();
-  TextColumn get albumId => text().references(Albums, #id)();
+  TextColumn get albumId =>
+      text().references(Albums, #id, onDelete: KeyAction.cascade)();
   TextColumn get playedAt => text()();
   TextColumn get sidePlayed => text().map(const SidePlayedConverter())();
   TextColumn get createdAt => text()();

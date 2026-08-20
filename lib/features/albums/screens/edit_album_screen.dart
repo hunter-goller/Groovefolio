@@ -10,6 +10,7 @@ import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/artwork_storage_service.dart';
+import 'package:vinyl_app/services/record_write_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
 import 'package:vinyl_app/widgets/shared/genre_chip_input.dart';
@@ -100,10 +101,6 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
     var wroteArtwork = false;
 
     try {
-      final artist = await ref
-          .read(artistRepositoryProvider)
-          .findOrCreate(_artistController.text);
-
       final yearText = _yearController.text.trim();
       final labelText = _labelController.text.trim();
 
@@ -123,31 +120,17 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
         wroteArtwork = true;
       }
 
-      final updatedAlbum = Album(
-        id: existing.id,
-        title: _titleController.text.trim(),
-        artistId: artist.id,
-        releaseYear: yearText.isEmpty ? null : int.parse(yearText),
-        label: labelText.isEmpty ? null : labelText,
-        artworkPath: artworkPath,
-        purchaseDate: existing.purchaseDate,
-        purchasePriceCents: existing.purchasePriceCents,
-        createdAt: existing.createdAt,
-      );
-
-      final updated = await ref
-          .read(albumMutationsProvider.notifier)
-          .update(updatedAlbum);
-      if (!updated) {
-        throw StateError('Record could not be updated.');
-      }
-
-      final genreRepository = ref.read(genreRepositoryProvider);
-      final genreIds = <String>[];
-      for (final name in _selectedGenres) {
-        genreIds.add((await genreRepository.findOrCreate(name)).id);
-      }
-      await genreRepository.setAlbumGenres(existing.id, genreIds);
+      await ref
+          .read(recordWriteServiceProvider)
+          .updateRecord(
+            existing: existing,
+            title: _titleController.text,
+            artistName: _artistController.text,
+            releaseYear: yearText.isEmpty ? null : int.parse(yearText),
+            label: labelText.isEmpty ? null : labelText,
+            artworkPath: artworkPath,
+            genreNames: _selectedGenres,
+          );
 
       ref.invalidate(genresProvider);
       ref.invalidate(albumGenresProvider(existing.id));

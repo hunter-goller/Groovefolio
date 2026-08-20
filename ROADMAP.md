@@ -49,12 +49,16 @@ Groovefolio is being built as a local-first vinyl collection and listening-histo
    - vinyl-only filtering plus exact-ID duplicate detection
    - possible local duplicate review before writes
    - progress + partial failure/warning summaries
-4. 🚧 **VinylApp-105 — Track schema + Discogs tracklist import**
+4. ✅ **VinylApp-105 — Track schema + Discogs tracklist import**
    - schema v5 Tracks + transactional repository replacement
    - Discogs positions/sides/durations mapped into local tracklists
    - Add Record + collection import persistence and Album Detail display
-   - verifier/live device validation pending
-5. ⬜ **VinylApp-091 — Barcode → exact Discogs release**
+   - verifier/live device validation completed
+5. 🚧 **VinylApp-114 — Engineering audit hardening**
+   - schema v6 cascade/index reliability migration
+   - atomic multi-repository record writes and canonical deletion
+   - Discogs transport/artwork hardening + release-build CI check (not published)
+6. ⬜ **VinylApp-091 — Barcode → exact Discogs release**
 
 ## NFC
 

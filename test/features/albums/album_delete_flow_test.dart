@@ -136,6 +136,11 @@ class _Albums implements IAlbumRepository {
 
   @override
   Future<int> delete(String id) async {
+    // Schema v6 cascades album-owned Plays/NfcTags with the album delete.
+    for (var i = 1; i <= state.playCount; i++) {
+      state.deletedPlayIds.add('play-$i');
+    }
+    if (state.hasNfc) state.nfcDeleted = true;
     state.albumDeleted = true;
     return 1;
   }

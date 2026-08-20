@@ -386,7 +386,9 @@ class DiscogsAuthenticationFailure extends DiscogsFailure {
 }
 
 class DiscogsRateLimitFailure extends DiscogsFailure {
-  const DiscogsRateLimitFailure(super.message);
+  const DiscogsRateLimitFailure(super.message, {this.retryAfter});
+
+  final Duration? retryAfter;
 }
 
 class DiscogsNetworkFailure extends DiscogsFailure {

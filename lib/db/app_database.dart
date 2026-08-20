@@ -9,6 +9,7 @@ import 'package:vinyl_app/db/migrations/migration_v2.dart';
 import 'package:vinyl_app/db/migrations/migration_v3.dart';
 import 'package:vinyl_app/db/migrations/migration_v4.dart';
 import 'package:vinyl_app/db/migrations/migration_v5.dart';
+import 'package:vinyl_app/db/migrations/migration_v6.dart';
 import 'package:vinyl_app/db/migrations/schema_versions.dart';
 import 'package:vinyl_app/db/schema/album_discogs_releases.dart';
 import 'package:vinyl_app/db/schema/album_genres.dart';
@@ -51,6 +52,7 @@ class AppDatabase extends _$AppDatabase {
         await migrateToV3(migrator);
         await migrateToV4(migrator);
         await migrateToV5(migrator);
+        await migrateToV6(migrator);
       },
       onUpgrade: (migrator, from, to) async {
         if (from < SchemaVersions.v2 && to >= SchemaVersions.v2) {
@@ -64,6 +66,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < SchemaVersions.v5 && to >= SchemaVersions.v5) {
           await migrateToV5(migrator);
+        }
+        if (from < SchemaVersions.v6 && to >= SchemaVersions.v6) {
+          await migrateToV6(migrator);
         }
       },
       beforeOpen: (details) async {

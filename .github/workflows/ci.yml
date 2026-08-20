@@ -51,5 +51,11 @@ jobs:
             exit 1
           fi
 
-      - name: Build verification
+      - name: Debug build verification
         run: flutter build apk --debug
+
+      - name: Release build verification (not published)
+        run: flutter build apk --release
+        # Intentionally no actions/upload-artifact step. The APK only proves
+        # that release-only manifest/configuration paths compile in CI and is
+        # discarded with the runner after this job.

@@ -12,11 +12,13 @@ class AlbumDeletionResult {
   final bool deletedNfcAssociation;
 }
 
-/// Coordinates deletion of album-owned records that do not currently use
-/// database-level cascade deletion.
+/// Canonical album deletion workflow.
 ///
-/// AlbumGenres already cascades from Albums in schema v3. Plays and NfcTags do
-/// not, so they are explicitly removed before the Album row.
+/// Schema v6 makes Plays, NfcTags, AlbumGenres, Discogs release links, and
+/// Tracks cascade from Albums. The database delete is therefore one atomic
+/// statement. Artwork is cleaned up only after the DB commit; if filesystem
+/// cleanup fails, an orphaned image is safer than deleting artwork for an
+/// album that survived a failed database operation.
 class AlbumDeletionService {
   const AlbumDeletionService({
     required this._albumRepository,
@@ -45,36 +47,26 @@ class AlbumDeletionService {
       throw StateError('Record no longer exists.');
     }
 
-    final plays = await _playRepository.findByAlbum(normalizedId);
-    var deletedPlayCount = 0;
-    for (final play in plays) {
-      final deleted = await _playRepository.deleteById(play.id);
-      if (deleted != 1) {
-        throw StateError('Could not delete play ${play.id}.');
-      }
-      deletedPlayCount += deleted;
-    }
-
-    final nfcTag = await _nfcTagRepository.findByAlbum(normalizedId);
-    var deletedNfcAssociation = false;
-    if (nfcTag != null) {
-      final deleted = await _nfcTagRepository.delete(nfcTag.id);
-      if (deleted != 1) {
-        throw StateError('Could not delete linked NFC tag.');
-      }
-      deletedNfcAssociation = true;
-    }
-
-    await _artworkStorageService.deleteArtwork(album.artworkPath);
+    final playsFuture = _playRepository.findByAlbum(normalizedId);
+    final nfcFuture = _nfcTagRepository.findByAlbum(normalizedId);
+    final plays = await playsFuture;
+    final nfcTag = await nfcFuture;
 
     final deletedAlbum = await _albumRepository.delete(normalizedId);
     if (deletedAlbum != 1) {
       throw StateError('Could not delete record.');
     }
 
+    try {
+      await _artworkStorageService.deleteArtwork(album.artworkPath);
+    } catch (_) {
+      // The database deletion already committed. Leave orphan cleanup for a
+      // later maintenance pass rather than reporting the record as undeleted.
+    }
+
     return AlbumDeletionResult(
-      deletedPlayCount: deletedPlayCount,
-      deletedNfcAssociation: deletedNfcAssociation,
+      deletedPlayCount: plays.length,
+      deletedNfcAssociation: nfcTag != null,
     );
   }
 }

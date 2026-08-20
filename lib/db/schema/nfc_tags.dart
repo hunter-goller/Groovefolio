@@ -10,7 +10,8 @@ import 'package:vinyl_app/db/schema/albums.dart';
 @DataClassName('NfcTag')
 class NfcTags extends Table {
   TextColumn get id => text()();
-  TextColumn get albumId => text().unique().references(Albums, #id)();
+  TextColumn get albumId =>
+      text().unique().references(Albums, #id, onDelete: KeyAction.cascade)();
   TextColumn get nfcTagId => text().unique()();
   TextColumn get writtenAt => text()();
 

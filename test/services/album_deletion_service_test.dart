@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/repositories/album_repository.dart';
@@ -8,16 +10,12 @@ import 'package:vinyl_app/services/artwork_storage_service.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
 void main() {
-  test('deletes plays and NFC before deleting the album', () async {
+  test('deletes the album once, then cleans artwork after DB commit', () async {
     final events = <String>[];
-    final albumRepository = _Albums(events);
-    final playRepository = _Plays(events, [_play('play-1'), _play('play-2')]);
-    final nfcRepository = _Nfc(events, linked: true);
-
     final result = await AlbumDeletionService(
-      albumRepository: albumRepository,
-      playRepository: playRepository,
-      nfcTagRepository: nfcRepository,
+      albumRepository: _Albums(events),
+      playRepository: _Plays(events, [_play('play-1'), _play('play-2')]),
+      nfcTagRepository: _Nfc(events, linked: true),
       artworkStorageService: _Artwork(events),
     ).deleteAlbum('album-1');
 
@@ -26,47 +24,42 @@ void main() {
     expect(events, [
       'find-album',
       'find-plays',
-      'delete-play-play-1',
-      'delete-play-play-2',
       'find-nfc',
-      'delete-nfc',
-      'delete-artwork',
       'delete-album',
+      'delete-artwork',
     ]);
   });
 
-  test('deletes album cleanly when there are no plays or NFC tag', () async {
+  test('does not touch artwork if the database deletion fails', () async {
     final events = <String>[];
-    final result = await AlbumDeletionService(
-      albumRepository: _Albums(events),
+    final service = AlbumDeletionService(
+      albumRepository: _Albums(events, failDelete: true),
       playRepository: _Plays(events, const []),
       nfcTagRepository: _Nfc(events, linked: false),
       artworkStorageService: _Artwork(events),
-    ).deleteAlbum('album-1');
+    );
 
-    expect(result.deletedPlayCount, 0);
-    expect(result.deletedNfcAssociation, isFalse);
-    expect(events.last, 'delete-album');
+    await expectLater(
+      service.deleteAlbum('album-1'),
+      throwsA(isA<StateError>()),
+    );
+    expect(events, isNot(contains('delete-artwork')));
   });
 
   test(
-    'does not attempt album deletion after an association delete fails',
+    'artwork cleanup failure does not turn a committed delete into failure',
     () async {
       final events = <String>[];
-      final service = AlbumDeletionService(
+      final result = await AlbumDeletionService(
         albumRepository: _Albums(events),
-        playRepository: _Plays(events, [_play('play-1')], failDelete: true),
-        nfcTagRepository: _Nfc(events, linked: true),
-        artworkStorageService: _Artwork(events),
-      );
+        playRepository: _Plays(events, const []),
+        nfcTagRepository: _Nfc(events, linked: false),
+        artworkStorageService: _Artwork(events, failDelete: true),
+      ).deleteAlbum('album-1');
 
-      await expectLater(
-        service.deleteAlbum('album-1'),
-        throwsA(isA<StateError>()),
-      );
-
-      expect(events, isNot(contains('delete-album')));
-      expect(events, isNot(contains('delete-nfc')));
+      expect(result.deletedPlayCount, 0);
+      expect(result.deletedNfcAssociation, isFalse);
+      expect(events, contains('delete-album'));
     },
   );
 
@@ -101,8 +94,10 @@ Play _play(String id) => Play(
 );
 
 class _Albums implements IAlbumRepository {
-  _Albums(this.events);
+  _Albums(this.events, {this.failDelete = false});
+
   final List<String> events;
+  final bool failDelete;
 
   @override
   Future<Album?> findById(String id) async {
@@ -113,7 +108,7 @@ class _Albums implements IAlbumRepository {
   @override
   Future<int> delete(String id) async {
     events.add('delete-album');
-    return 1;
+    return failDelete ? 0 : 1;
   }
 
   @override
@@ -138,12 +133,10 @@ class _Albums implements IAlbumRepository {
 }
 
 class _Plays implements IPlayRepository {
-  _Plays(this.events, List<Play> plays, {this.failDelete = false})
-    : _plays = List.of(plays);
+  _Plays(this.events, List<Play> plays) : _plays = List.of(plays);
 
   final List<String> events;
   final List<Play> _plays;
-  final bool failDelete;
 
   @override
   Future<List<Play>> findByAlbum(String albumId) async {
@@ -152,12 +145,7 @@ class _Plays implements IPlayRepository {
   }
 
   @override
-  Future<int> deleteById(String id) async {
-    events.add('delete-play-$id');
-    if (failDelete) return 0;
-    _plays.removeWhere((play) => play.id == id);
-    return 1;
-  }
+  Future<int> deleteById(String id) => throw UnimplementedError();
 
   @override
   Future<List<Play>> findAll() async => List.unmodifiable(_plays);
@@ -195,10 +183,7 @@ class _Nfc implements INfcTagRepository {
   }
 
   @override
-  Future<int> delete(String id) async {
-    events.add('delete-nfc');
-    return 1;
-  }
+  Future<int> delete(String id) => throw UnimplementedError();
 
   @override
   Future<NfcTag> create({
@@ -212,12 +197,14 @@ class _Nfc implements INfcTagRepository {
 }
 
 class _Artwork extends ArtworkStorageService {
-  _Artwork(this.events);
+  _Artwork(this.events, {this.failDelete = false});
 
   final List<String> events;
+  final bool failDelete;
 
   @override
   Future<void> deleteArtwork(String? artworkPath) async {
     events.add('delete-artwork');
+    if (failDelete) throw const FileSystemException('cleanup failed');
   }
 }
