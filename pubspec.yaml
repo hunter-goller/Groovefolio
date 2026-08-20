@@ -28,6 +28,7 @@ dependencies:
   url_launcher: ^6.3.2
   app_links: ^7.2.1
   flutter_native_splash: ^2.4.8
+  mobile_scanner: ^7.4.0
 
 dev_dependencies:
   flutter_test:

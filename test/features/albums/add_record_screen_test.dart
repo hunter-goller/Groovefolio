@@ -252,6 +252,126 @@ void main() {
     },
   );
 
+  testWidgets(
+    'barcode scan looks up Discogs and autofills the selected release',
+    (tester) async {
+      final artistRepository = _FakeArtistRepository();
+      final albumRepository = _FakeAlbumRepository();
+      final catalog = _FakeDiscogsCatalogService(
+        barcodeResults: const [
+          DiscogsReleaseSearchResult(
+            releaseId: 456,
+            title: 'Blue Train',
+            artist: 'John Coltrane',
+            year: 1957,
+            label: 'Blue Note',
+            country: 'US',
+            formats: ['Vinyl', 'LP', 'Album'],
+          ),
+        ],
+        details: const DiscogsReleaseDetails(
+          releaseId: 456,
+          title: 'Blue Train',
+          artist: 'John Coltrane',
+          year: 1957,
+          label: 'Blue Note',
+          genres: ['Jazz'],
+          tracks: [
+            DiscogsTrack(
+              title: 'Blue Train',
+              position: 'A1',
+              side: 'A',
+              sequence: 0,
+              durationSeconds: 642,
+            ),
+          ],
+        ),
+      );
+      final links = _FakeDiscogsReleaseLinkRepository();
+      final tracks = _FakeTrackRepository();
+
+      await tester.pumpWidget(
+        _testApp(
+          artistRepository: artistRepository,
+          albumRepository: albumRepository,
+          catalogService: catalog,
+          credentialStore: _ConnectedCredentialStore(),
+          releaseLinkRepository: links,
+          trackRepository: tracks,
+          scannedBarcode: '074643377512',
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('scan-barcode-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('fake-barcode-result')));
+      await tester.pumpAndSettle();
+
+      expect(catalog.barcodeLookups, ['074643377512']);
+      expect(find.text('Barcode results'), findsOneWidget);
+      expect(find.text('Barcode 074643377512'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('barcode-result-456')));
+      await tester.pumpAndSettle();
+
+      final titleField = find.descendant(
+        of: find.byKey(const Key('add-record-title')),
+        matching: find.byType(EditableText),
+      );
+      final artistField = find.descendant(
+        of: find.byKey(const Key('add-record-artist')),
+        matching: find.byType(EditableText),
+      );
+
+      expect(
+        tester.widget<EditableText>(titleField).controller.text,
+        'Blue Train',
+      );
+      expect(
+        tester.widget<EditableText>(artistField).controller.text,
+        'John Coltrane',
+      );
+      expect(find.text('Jazz'), findsOneWidget);
+
+      tester.testTextInput.hide();
+      await tester.ensureVisible(find.text('Add to collection'));
+      await tester.tap(find.text('Add to collection'));
+      await tester.pumpAndSettle();
+
+      expect(links.links, {'album-1': 456});
+      expect(tracks.replacements['album-1'], hasLength(1));
+    },
+  );
+
+  testWidgets('barcode lookup shows a graceful not-found state', (
+    tester,
+  ) async {
+    final catalog = _FakeDiscogsCatalogService();
+
+    await tester.pumpWidget(
+      _testApp(
+        catalogService: catalog,
+        credentialStore: _ConnectedCredentialStore(),
+        releaseLinkRepository: _FakeDiscogsReleaseLinkRepository(),
+        scannedBarcode: '000000000000',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('scan-barcode-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('fake-barcode-result')));
+    await tester.pumpAndSettle();
+
+    expect(catalog.barcodeLookups, ['000000000000']);
+    expect(
+      find.text('No vinyl release found for this barcode.'),
+      findsOneWidget,
+    );
+    expect(find.text('Back to Add Record'), findsOneWidget);
+  });
+
   testWidgets('Discogs search shows empty and retryable failure states', (
     tester,
   ) async {
@@ -295,6 +415,7 @@ Widget _testApp({
   DiscogsCatalogService? catalogService,
   DiscogsCredentialStore? credentialStore,
   IDiscogsReleaseLinkRepository? releaseLinkRepository,
+  String? scannedBarcode,
 }) {
   final router = GoRouter(
     initialLocation: AppRoutes.addAlbum,
@@ -307,6 +428,18 @@ Widget _testApp({
         path: AppRoutes.collection,
         builder: (context, state) =>
             const Scaffold(body: Center(child: Text('Collection test'))),
+      ),
+      GoRoute(
+        path: AppRoutes.barcodeScan,
+        builder: (context, state) => Scaffold(
+          body: Center(
+            child: FilledButton(
+              key: const Key('fake-barcode-result'),
+              onPressed: () => context.pop(scannedBarcode),
+              child: const Text('Return barcode'),
+            ),
+          ),
+        ),
       ),
     ],
   );
@@ -505,13 +638,16 @@ class _FakeTrackRepository implements ITrackRepository {
 class _FakeDiscogsCatalogService implements DiscogsCatalogService {
   _FakeDiscogsCatalogService({
     this.results = const [],
+    this.barcodeResults = const [],
     this.details,
     this.failure,
   });
 
   List<DiscogsReleaseSearchResult> results;
+  List<DiscogsReleaseSearchResult> barcodeResults;
   DiscogsReleaseDetails? details;
   DiscogsFailure? failure;
+  final List<String> barcodeLookups = [];
 
   @override
   Future<List<DiscogsReleaseSearchResult>> searchReleases({
@@ -521,6 +657,16 @@ class _FakeDiscogsCatalogService implements DiscogsCatalogService {
     final current = failure;
     if (current != null) throw current;
     return results;
+  }
+
+  @override
+  Future<List<DiscogsReleaseSearchResult>> searchReleasesByBarcode(
+    String barcode,
+  ) async {
+    barcodeLookups.add(barcode);
+    final current = failure;
+    if (current != null) throw current;
+    return barcodeResults;
   }
 
   @override

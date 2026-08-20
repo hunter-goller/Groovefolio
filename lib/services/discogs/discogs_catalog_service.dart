@@ -10,6 +10,10 @@ abstract interface class DiscogsCatalogService {
     required String title,
   });
 
+  Future<List<DiscogsReleaseSearchResult>> searchReleasesByBarcode(
+    String barcode,
+  );
+
   Future<DiscogsReleaseDetails> release(int releaseId);
 
   Future<DiscogsCollectionPage> collectionPage({
@@ -38,6 +42,18 @@ class DefaultDiscogsCatalogService implements DiscogsCatalogService {
       artist: artist,
       title: title,
       limit: 5,
+    );
+  }
+
+  @override
+  Future<List<DiscogsReleaseSearchResult>> searchReleasesByBarcode(
+    String barcode,
+  ) async {
+    final credentials = await _requireCredentials();
+    return _apiClient.searchReleasesByBarcode(
+      credentials: credentials,
+      barcode: barcode,
+      limit: 10,
     );
   }
 

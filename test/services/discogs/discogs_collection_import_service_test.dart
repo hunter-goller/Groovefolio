@@ -336,4 +336,11 @@ class _FakeCatalogService implements DiscogsCatalogService {
   }) async {
     return const [];
   }
+
+  @override
+  Future<List<DiscogsReleaseSearchResult>> searchReleasesByBarcode(
+    String barcode,
+  ) async {
+    return const [];
+  }
 }
