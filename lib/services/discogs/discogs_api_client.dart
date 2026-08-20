@@ -1,16 +1,46 @@
+// ignore_for_file: prefer_initializing_formals
+
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:vinyl_app/services/discogs/discogs_config.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_oauth_signer.dart';
 
+class DiscogsHttpResponse {
+  const DiscogsHttpResponse({
+    required this.statusCode,
+    required this.body,
+    this.headers = const {},
+  });
+
+  final int statusCode;
+  final Uint8List body;
+  final Map<String, String> headers;
+}
+
+typedef DiscogsRequestSender =
+    Future<DiscogsHttpResponse> Function(
+      String method,
+      Uri uri,
+      Map<String, String> headers,
+      int maxResponseBytes,
+    );
+
+typedef DiscogsDelay = Future<void> Function(Duration duration);
+
 class DiscogsApiClient {
   DiscogsApiClient({
     required DiscogsConfig config,
     HttpClient? httpClient,
     DiscogsOAuthSigner? signer,
+    DiscogsRequestSender? requestSender,
+    DiscogsDelay? delay,
+    Random? random,
+    this.requestTimeout = const Duration(seconds: 20),
   }) : _config = config,
        _httpClient = httpClient ?? HttpClient(),
        _signer =
@@ -18,11 +48,27 @@ class DiscogsApiClient {
            DiscogsOAuthSigner(
              consumerKey: config.consumerKey,
              consumerSecret: config.consumerSecret,
-           );
+           ),
+       _requestSender = requestSender,
+       _delay = delay ?? ((duration) => Future<void>.delayed(duration)),
+       _random = random ?? Random();
 
   final DiscogsConfig _config;
   final HttpClient _httpClient;
   final DiscogsOAuthSigner _signer;
+  final DiscogsRequestSender? _requestSender;
+  final DiscogsDelay _delay;
+  final Random _random;
+  final Duration requestTimeout;
+
+  static const int _maxTextResponseBytes = 4 * 1024 * 1024;
+  static const int _maxArtworkResponseBytes = 20 * 1024 * 1024;
+  static const int _maxGetAttempts = 3;
+  static const Set<String> _allowedArtworkHosts = {
+    'i.discogs.com',
+    'img.discogs.com',
+    'api-img.discogs.com',
+  };
 
   static final _requestTokenUri = Uri.parse(
     'https://api.discogs.com/oauth/request_token',
@@ -81,10 +127,20 @@ class DiscogsApiClient {
 
   Future<DiscogsAccount> identity(DiscogsOAuthCredentials credentials) async {
     final json = await _getJson(_identityUri, credentials);
+    final id = json['id'];
+    final username = json['username'];
+    if (id is! int || username is! String || username.trim().isEmpty) {
+      throw const DiscogsApiFailure(
+        'Discogs returned an invalid identity response.',
+      );
+    }
+    final resourceUrl = json['resource_url'];
     return DiscogsAccount(
-      id: json['id'] as int,
-      username: json['username'] as String,
-      resourceUrl: json['resource_url'] as String?,
+      id: id,
+      username: username.trim(),
+      resourceUrl: resourceUrl is String && resourceUrl.trim().isNotEmpty
+          ? resourceUrl.trim()
+          : null,
     );
   }
 
@@ -164,12 +220,23 @@ class DiscogsApiClient {
     required DiscogsOAuthCredentials credentials,
     required String url,
   }) async {
+    _ensureConfigured();
     final uri = Uri.tryParse(url);
-    if (uri == null || !uri.hasScheme) {
-      throw const DiscogsApiFailure('Discogs returned an invalid artwork URL.');
+    if (!_isAllowedArtworkUri(uri)) {
+      throw const DiscogsApiFailure(
+        'Discogs returned an untrusted artwork URL.',
+      );
     }
-    final oauth = _oauthFor('GET', uri, credentials);
-    return _sendBytes('GET', uri, oauth);
+
+    // Discogs CDN artwork is fetched without OAuth. Never forward the user's
+    // OAuth token/Authorization header to a host merely because an API response
+    // supplied its URL.
+    return _sendBytes(
+      'GET',
+      uri!,
+      null,
+      maxResponseBytes: _maxArtworkResponseBytes,
+    );
   }
 
   Future<Map<String, dynamic>> _getJson(
@@ -178,11 +245,19 @@ class DiscogsApiClient {
   ) async {
     final oauth = _oauthFor('GET', uri, credentials);
     final body = await _sendText('GET', uri, oauth);
-    final decoded = jsonDecode(body);
-    if (decoded is! Map<String, dynamic>) {
-      throw const DiscogsApiFailure('Discogs returned an unexpected response.');
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is! Map<String, dynamic>) {
+        throw const DiscogsApiFailure(
+          'Discogs returned an unexpected response.',
+        );
+      }
+      return decoded;
+    } on DiscogsFailure {
+      rethrow;
+    } on FormatException {
+      throw const DiscogsApiFailure('Discogs returned malformed JSON.');
     }
-    return decoded;
   }
 
   Map<String, String> _oauthFor(
@@ -204,30 +279,75 @@ class DiscogsApiClient {
     Uri uri,
     Map<String, String> oauth,
   ) async {
-    final bytes = await _sendBytes(method, uri, oauth);
-    return utf8.decode(bytes);
+    final bytes = await _sendBytes(
+      method,
+      uri,
+      oauth,
+      maxResponseBytes: _maxTextResponseBytes,
+    );
+    try {
+      return utf8.decode(bytes, allowMalformed: false);
+    } on FormatException {
+      throw const DiscogsApiFailure('Discogs returned malformed text data.');
+    }
   }
 
   Future<Uint8List> _sendBytes(
     String method,
     Uri uri,
-    Map<String, String> oauth,
-  ) async {
-    try {
-      final request = await _httpClient.openUrl(method, uri);
-      request.headers.set(
-        HttpHeaders.authorizationHeader,
-        _signer.authorizationHeader(oauth),
-      );
-      request.headers.set(HttpHeaders.userAgentHeader, _config.userAgent);
-      final response = await request.close();
-      final bytes = await response.fold<List<int>>(<int>[], (buffer, chunk) {
-        buffer.addAll(chunk);
-        return buffer;
-      });
+    Map<String, String>? oauth, {
+    required int maxResponseBytes,
+  }) async {
+    final normalizedMethod = method.toUpperCase();
+    final maxAttempts = normalizedMethod == 'GET' ? _maxGetAttempts : 1;
+    final headers = <String, String>{
+      HttpHeaders.userAgentHeader: _config.userAgent,
+      if (oauth != null)
+        HttpHeaders.authorizationHeader: _signer.authorizationHeader(oauth),
+    };
+
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      DiscogsHttpResponse response;
+      try {
+        final sender = _requestSender ?? _sendWithHttpClient;
+        response = await sender(
+          normalizedMethod,
+          uri,
+          headers,
+          maxResponseBytes,
+        ).timeout(requestTimeout);
+      } on DiscogsFailure {
+        rethrow;
+      } on TimeoutException {
+        if (attempt + 1 < maxAttempts) {
+          await _delay(_retryDelay(attempt));
+          continue;
+        }
+        throw const DiscogsNetworkFailure('Discogs request timed out.');
+      } on SocketException {
+        if (attempt + 1 < maxAttempts) {
+          await _delay(_retryDelay(attempt));
+          continue;
+        }
+        throw const DiscogsNetworkFailure('Could not reach Discogs.');
+      } on HandshakeException {
+        if (attempt + 1 < maxAttempts) {
+          await _delay(_retryDelay(attempt));
+          continue;
+        }
+        throw const DiscogsNetworkFailure(
+          'Could not establish a secure connection to Discogs.',
+        );
+      } on HttpException {
+        if (attempt + 1 < maxAttempts) {
+          await _delay(_retryDelay(attempt));
+          continue;
+        }
+        throw const DiscogsNetworkFailure('Discogs connection failed.');
+      }
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return Uint8List.fromList(bytes);
+        return response.body;
       }
       if (response.statusCode == 401 || response.statusCode == 403) {
         throw DiscogsAuthenticationFailure(
@@ -235,19 +355,103 @@ class DiscogsApiClient {
         );
       }
       if (response.statusCode == 429) {
-        throw const DiscogsRateLimitFailure(
+        final retryAfter = _retryAfter(response.headers);
+        if (attempt + 1 < maxAttempts) {
+          await _delay(retryAfter ?? _retryDelay(attempt));
+          continue;
+        }
+        throw DiscogsRateLimitFailure(
           'Discogs rate limit reached. Try again shortly.',
+          retryAfter: retryAfter,
         );
+      }
+      if (_isRetryableServerStatus(response.statusCode) &&
+          attempt + 1 < maxAttempts) {
+        await _delay(_retryDelay(attempt));
+        continue;
       }
       throw DiscogsApiFailure(
         'Discogs request failed (${response.statusCode}).',
         statusCode: response.statusCode,
       );
-    } on DiscogsFailure {
-      rethrow;
-    } on SocketException catch (e) {
-      throw DiscogsNetworkFailure('Could not reach Discogs: $e');
     }
+
+    throw const DiscogsNetworkFailure('Discogs request failed.');
+  }
+
+  Future<DiscogsHttpResponse> _sendWithHttpClient(
+    String method,
+    Uri uri,
+    Map<String, String> headers,
+    int maxResponseBytes,
+  ) async {
+    final request = await _httpClient.openUrl(method, uri);
+    for (final entry in headers.entries) {
+      request.headers.set(entry.key, entry.value);
+    }
+    final response = await request.close();
+    final bytes = <int>[];
+    await for (final chunk in response) {
+      if (bytes.length + chunk.length > maxResponseBytes) {
+        throw const DiscogsApiFailure(
+          'Discogs response exceeded the allowed size.',
+        );
+      }
+      bytes.addAll(chunk);
+    }
+
+    final responseHeaders = <String, String>{};
+    response.headers.forEach((name, values) {
+      responseHeaders[name.toLowerCase()] = values.join(',');
+    });
+
+    return DiscogsHttpResponse(
+      statusCode: response.statusCode,
+      body: Uint8List.fromList(bytes),
+      headers: responseHeaders,
+    );
+  }
+
+  bool _isAllowedArtworkUri(Uri? uri) {
+    if (uri == null || uri.scheme.toLowerCase() != 'https') return false;
+    if (uri.userInfo.isNotEmpty) return false;
+    return _allowedArtworkHosts.contains(uri.host.toLowerCase());
+  }
+
+  bool _isRetryableServerStatus(int statusCode) {
+    return statusCode == 500 ||
+        statusCode == 502 ||
+        statusCode == 503 ||
+        statusCode == 504;
+  }
+
+  Duration _retryDelay(int attempt) {
+    final exponentialMs = 400 * (1 << attempt);
+    final jitterMs = _random.nextInt(201);
+    return Duration(milliseconds: exponentialMs + jitterMs);
+  }
+
+  Duration? _retryAfter(Map<String, String> headers) {
+    final raw = headers[HttpHeaders.retryAfterHeader]?.trim();
+    if (raw == null || raw.isEmpty) return null;
+
+    final seconds = int.tryParse(raw);
+    if (seconds != null) {
+      return _capRetryAfter(Duration(seconds: seconds < 0 ? 0 : seconds));
+    }
+
+    try {
+      final target = HttpDate.parse(raw).toUtc();
+      final duration = target.difference(DateTime.now().toUtc());
+      return _capRetryAfter(duration.isNegative ? Duration.zero : duration);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Duration _capRetryAfter(Duration value) {
+    const maxDelay = Duration(seconds: 30);
+    return value > maxDelay ? maxDelay : value;
   }
 
   void close() => _httpClient.close(force: true);

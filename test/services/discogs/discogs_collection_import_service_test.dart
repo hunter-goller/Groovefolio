@@ -13,6 +13,7 @@ import 'package:vinyl_app/services/artwork_storage_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_catalog_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_collection_import_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
+import 'package:vinyl_app/services/record_write_service.dart';
 
 void main() {
   test('prepares paginated import and classifies duplicates/review', () async {
@@ -63,10 +64,9 @@ void main() {
       catalog,
       albums,
       artists,
-      genres,
-      tracks,
       links,
       artwork,
+      _recordWriter(db, albums, artists, genres, tracks, links),
     );
 
     final preview = await service.prepare('hunter');
@@ -154,10 +154,9 @@ void main() {
         catalog,
         albums,
         artists,
-        genres,
-        tracks,
         links,
         artwork,
+        _recordWriter(db, albums, artists, genres, tracks, links),
       );
 
       final progress = <DiscogsImportProgress>[];
@@ -200,6 +199,70 @@ void main() {
       expect(storedTracks.first.durationSeconds, 642);
     },
   );
+
+  test('systemic rate limit aborts the remaining import batch', () async {
+    final db = AppDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final albums = AlbumRepository(db);
+    final artists = ArtistRepository(db);
+    final genres = GenreRepository(db);
+    final tracks = TrackRepository(db);
+    final links = DiscogsReleaseLinkRepository(db);
+    final artwork = ArtworkStorageService(
+      documentsDirectoryResolver: () async => Directory.systemTemp,
+    );
+    final catalog = _FakeCatalogService(
+      releaseFailures: {
+        100: const DiscogsRateLimitFailure(
+          'Rate limited.',
+          retryAfter: Duration(seconds: 2),
+        ),
+      },
+    );
+    final service = DefaultDiscogsCollectionImportService(
+      catalog,
+      albums,
+      artists,
+      links,
+      artwork,
+      _recordWriter(db, albums, artists, genres, tracks, links),
+    );
+
+    await expectLater(
+      service.importCandidates([
+        DiscogsCollectionCandidate(
+          item: _item(100, 1, 'First', 'Artist'),
+          status: DiscogsCollectionCandidateStatus.newRecord,
+        ),
+        DiscogsCollectionCandidate(
+          item: _item(101, 2, 'Second', 'Artist'),
+          status: DiscogsCollectionCandidateStatus.newRecord,
+        ),
+      ]),
+      throwsA(isA<DiscogsRateLimitFailure>()),
+    );
+
+    expect(catalog.requestedReleases, [100]);
+    expect(await albums.findAll(), isEmpty);
+  });
+}
+
+RecordWriteService _recordWriter(
+  AppDatabase db,
+  IAlbumRepository albums,
+  IArtistRepository artists,
+  IGenreRepository genres,
+  ITrackRepository tracks,
+  IDiscogsReleaseLinkRepository links,
+) {
+  return RecordWriteService(
+    transactionRunner: DriftDatabaseTransactionRunner(db),
+    albumRepository: albums,
+    artistRepository: artists,
+    genreRepository: genres,
+    trackRepository: tracks,
+    releaseLinkRepository: links,
+  );
 }
 
 DiscogsCollectionItem _item(
@@ -230,6 +293,7 @@ class _FakeCatalogService implements DiscogsCatalogService {
   final Map<int, DiscogsReleaseDetails> details;
   final Map<int, DiscogsFailure> releaseFailures;
   final List<int> requestedPages = [];
+  final List<int> requestedReleases = [];
 
   @override
   Future<DiscogsCollectionPage> collectionPage({
@@ -254,6 +318,7 @@ class _FakeCatalogService implements DiscogsCatalogService {
 
   @override
   Future<DiscogsReleaseDetails> release(int releaseId) async {
+    requestedReleases.add(releaseId);
     final failure = releaseFailures[releaseId];
     if (failure != null) throw failure;
     return details[releaseId] ??

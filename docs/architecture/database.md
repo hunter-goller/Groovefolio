@@ -10,7 +10,7 @@ vinyl_app_db.sqlite
 
 The filename is a technical identifier retained from the project's original name.
 
-## Current schema: v5
+## Current schema: v6
 
 ### v1 — frozen baseline
 - `artists`
@@ -38,6 +38,13 @@ Each local album can link to one exact Discogs release ID, and a Discogs release
 
 Tracks belong to an album and cascade away with it. `sequence` preserves exact release ordering; optional `position`, `side`, and `duration_seconds` retain Discogs vinyl metadata such as A1/A2/B1/B2.
 
+### v6 — deletion reliability + play history index
+- rebuilds `plays.album_id` with `ON DELETE CASCADE`
+- rebuilds `nfc_tags.album_id` with `ON DELETE CASCADE`
+- adds `plays_album_played_at_idx` on `(album_id, played_at)`
+
+This makes one album delete atomically remove database-owned play/NFC associations while artwork cleanup happens after the DB commit.
+
 ## Relationships
 
 ```text
@@ -52,9 +59,9 @@ Artists 1 ─── * Albums 1 ─── * Plays
 
 ## Migration rule
 
-`migration_v1.dart` through `migration_v5.dart` are historical schema definitions once shipped and must remain frozen. A new physical schema change gets a new schema version and migration file.
+`migration_v1.dart` through `migration_v6.dart` are historical schema definitions once shipped and must remain frozen. A new physical schema change gets a new schema version and migration file.
 
-Fresh installs deliberately execute v1 → v2 → v3 → v4 → v5 so the resulting physical schema follows the same path as an upgraded database.
+Fresh installs deliberately execute v1 → v2 → v3 → v4 → v5 → v6 so the resulting physical schema follows the same path as an upgraded database.
 
 ## Foreign keys
 
@@ -68,4 +75,4 @@ Run:
 .\tools\verify_vinylapp_012.ps1
 ```
 
-The script exports the current Drift schema to `drift_schemas/drift_schema_v5.json` after tests pass.
+The script exports the current Drift schema to `drift_schemas/drift_schema_v6.json` after tests pass.

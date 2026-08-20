@@ -311,28 +311,6 @@ void main() {
         'Kind of Blue Deluxe',
       );
     });
-
-    test('delete invalidates albumsProvider and removes the album', () async {
-      final albumRepository = _FakeAlbumRepository([kindOfBlue, blueTrain]);
-      final container = _container(
-        albumRepository: albumRepository,
-        artistRepository: _FakeArtistRepository([miles, coltrane]),
-        playRepository: _FakePlayRepository(const []),
-      );
-      addTearDown(container.dispose);
-      final subscription = container.listen(albumsProvider, (_, _) {});
-      addTearDown(subscription.close);
-
-      final deleted = await container
-          .read(albumMutationsProvider.notifier)
-          .delete(blueTrain.id);
-
-      expect(deleted, 1);
-      expect(
-        (await container.read(albumsProvider.future)).map((album) => album.id),
-        [kindOfBlue.id],
-      );
-    });
   });
 }
 

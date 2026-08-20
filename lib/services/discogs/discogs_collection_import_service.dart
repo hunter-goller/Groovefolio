@@ -8,6 +8,7 @@ import 'package:vinyl_app/services/artwork_storage_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_catalog_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
+import 'package:vinyl_app/services/record_write_service.dart';
 
 enum DiscogsCollectionCandidateStatus { newRecord, exactDuplicate, needsReview }
 
@@ -129,19 +130,17 @@ class DefaultDiscogsCollectionImportService
     this._catalogService,
     this._albumRepository,
     this._artistRepository,
-    this._genreRepository,
-    this._trackRepository,
     this._releaseLinkRepository,
     this._artworkStorageService,
+    this._recordWriteService,
   );
 
   final DiscogsCatalogService _catalogService;
   final IAlbumRepository _albumRepository;
   final IArtistRepository _artistRepository;
-  final IGenreRepository _genreRepository;
-  final ITrackRepository _trackRepository;
   final IDiscogsReleaseLinkRepository _releaseLinkRepository;
   final ArtworkStorageService _artworkStorageService;
+  final RecordWriteService _recordWriteService;
 
   @override
   Future<DiscogsCollectionPreview> prepare(String username) async {
@@ -266,6 +265,12 @@ class DefaultDiscogsCollectionImportService
           if (warning != null) warnings.add(warning);
           imported += 1;
         }
+      } on DiscogsAuthenticationFailure {
+        rethrow;
+      } on DiscogsRateLimitFailure {
+        rethrow;
+      } on DiscogsNetworkFailure {
+        rethrow;
       } catch (error) {
         failures.add(
           DiscogsImportFailure(
@@ -313,47 +318,27 @@ class DefaultDiscogsCollectionImportService
       }
     }
 
-    Album? createdAlbum;
-    String? storedArtworkPath;
-    try {
-      final artist = await _artistRepository.findOrCreate(details.artist);
-      createdAlbum = await _albumRepository.create(
-        title: details.title,
-        artistId: artist.id,
-        releaseYear: details.year,
-        label: details.label,
-      );
+    final createdAlbum = await _recordWriteService.createRecord(
+      title: details.title,
+      artistName: details.artist,
+      releaseYear: details.year,
+      label: details.label,
+      discogsReleaseId: details.releaseId,
+      genreNames: details.genreNames,
+      tracks: details.tracks.map(
+        (track) => TrackDraft(
+          title: track.title,
+          sequence: track.sequence,
+          position: track.position,
+          side: track.side,
+          durationSeconds: track.durationSeconds,
+        ),
+      ),
+    );
 
-      await _releaseLinkRepository.link(
-        albumId: createdAlbum.id,
-        releaseId: details.releaseId,
-      );
-
-      if (details.tracks.isNotEmpty) {
-        await _trackRepository.replaceAlbumTracks(
-          createdAlbum.id,
-          details.tracks.map(
-            (track) => TrackDraft(
-              title: track.title,
-              sequence: track.sequence,
-              position: track.position,
-              side: track.side,
-              durationSeconds: track.durationSeconds,
-            ),
-          ),
-        );
-      }
-
-      if (details.genreNames.isNotEmpty) {
-        final genreIds = <String>[];
-        for (final name in details.genreNames) {
-          final genre = await _genreRepository.findOrCreate(name);
-          genreIds.add(genre.id);
-        }
-        await _genreRepository.setAlbumGenres(createdAlbum.id, genreIds);
-      }
-
-      if (artworkBytes != null && artworkBytes.isNotEmpty) {
+    if (artworkBytes != null && artworkBytes.isNotEmpty) {
+      String? storedArtworkPath;
+      try {
         storedArtworkPath = await _artworkStorageService.saveArtworkBytes(
           artworkBytes,
           createdAlbum.id,
@@ -375,18 +360,24 @@ class DefaultDiscogsCollectionImportService
             'Imported artwork could not be linked to the album.',
           );
         }
+      } catch (error) {
+        if (storedArtworkPath != null) {
+          try {
+            await _artworkStorageService.deleteArtwork(storedArtworkPath);
+          } catch (_) {
+            // Orphan cleanup is best-effort; the database record is already a
+            // valid atomic import and must not be rolled back for artwork.
+          }
+        }
+        warning = DiscogsImportWarning(
+          releaseId: candidate.item.releaseId,
+          title: details.title,
+          message: 'Imported without artwork: ${_failureMessage(error)}',
+        );
       }
-
-      return warning;
-    } catch (_) {
-      if (storedArtworkPath != null) {
-        await _artworkStorageService.deleteArtwork(storedArtworkPath);
-      }
-      if (createdAlbum != null) {
-        await _albumRepository.delete(createdAlbum.id);
-      }
-      rethrow;
     }
+
+    return warning;
   }
 
   String _albumKey(String title, String artist) {
@@ -411,9 +402,8 @@ final discogsCollectionImportServiceProvider =
         ref.watch(discogsCatalogServiceProvider),
         ref.watch(albumRepositoryProvider),
         ref.watch(artistRepositoryProvider),
-        ref.watch(genreRepositoryProvider),
-        ref.watch(trackRepositoryProvider),
         ref.watch(discogsReleaseLinkRepositoryProvider),
         ref.watch(artworkStorageServiceProvider),
+        ref.watch(recordWriteServiceProvider),
       );
     });

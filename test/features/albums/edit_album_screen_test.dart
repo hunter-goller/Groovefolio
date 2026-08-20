@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/albums/screens/edit_album_screen.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
+import 'package:vinyl_app/repositories/discogs_release_link_repository.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/record_write_service.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/types/side_played.dart';
 import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
@@ -154,6 +156,13 @@ Widget _testApp({
       playRepositoryProvider.overrideWithValue(_FakePlayRepository()),
       nfcTagRepositoryProvider.overrideWithValue(
         _FakeNfcRepository(hasNfc: hasNfc),
+      ),
+      trackRepositoryProvider.overrideWithValue(_FakeTrackRepository()),
+      discogsReleaseLinkRepositoryProvider.overrideWithValue(
+        _FakeReleaseLinkRepository(),
+      ),
+      databaseTransactionRunnerProvider.overrideWithValue(
+        _ImmediateTransactionRunner(),
       ),
     ],
     child: MaterialApp.router(
@@ -351,4 +360,34 @@ class _FakeNfcRepository implements INfcTagRepository {
 
   @override
   Future<int> delete(String id) => throw UnimplementedError();
+}
+
+class _FakeTrackRepository implements ITrackRepository {
+  @override
+  Future<List<Track>> findByAlbum(String albumId) async => const [];
+
+  @override
+  Future<List<Track>> replaceAlbumTracks(
+    String albumId,
+    Iterable<TrackDraft> tracks,
+  ) async => const [];
+}
+
+class _FakeReleaseLinkRepository implements IDiscogsReleaseLinkRepository {
+  @override
+  Future<Set<int>> findAllReleaseIds() async => const {};
+
+  @override
+  Future<String?> findAlbumIdForRelease(int releaseId) async => null;
+
+  @override
+  Future<int?> findReleaseIdForAlbum(String albumId) async => null;
+
+  @override
+  Future<void> link({required String albumId, required int releaseId}) async {}
+}
+
+class _ImmediateTransactionRunner implements DatabaseTransactionRunner {
+  @override
+  Future<T> run<T>(Future<T> Function() operation) => operation();
 }

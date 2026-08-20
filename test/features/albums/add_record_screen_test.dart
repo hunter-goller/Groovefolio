@@ -13,6 +13,7 @@ import 'package:vinyl_app/services/discogs/discogs_catalog_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_credential_store.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
+import 'package:vinyl_app/services/record_write_service.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 
 void main() {
@@ -333,6 +334,9 @@ Widget _testApp({
       discogsReleaseLinkRepositoryProvider.overrideWithValue(
         releaseLinkRepository ?? _FakeDiscogsReleaseLinkRepository(),
       ),
+      databaseTransactionRunnerProvider.overrideWithValue(
+        _ImmediateTransactionRunner(),
+      ),
     ],
     child: MaterialApp.router(
       theme: AppTheme.light,
@@ -602,4 +606,9 @@ class _FakeDiscogsReleaseLinkRepository
   Future<void> link({required String albumId, required int releaseId}) async {
     links[albumId] = releaseId;
   }
+}
+
+class _ImmediateTransactionRunner implements DatabaseTransactionRunner {
+  @override
+  Future<T> run<T>(Future<T> Function() operation) => operation();
 }

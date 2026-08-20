@@ -10,11 +10,11 @@ import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/providers/track_providers.dart';
-import 'package:vinyl_app/repositories/discogs_release_link_repository.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/artwork_storage_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
+import 'package:vinyl_app/services/record_write_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
 import 'package:vinyl_app/widgets/shared/discogs_banner.dart';
@@ -183,105 +183,86 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);
-    Album? createdAlbum;
-    String? storedArtworkPath;
     try {
-      final artist = await ref
-          .read(artistRepositoryProvider)
-          .findOrCreate(_artistController.text);
       final yearText = _yearController.text.trim();
       final labelText = _labelController.text.trim();
-      createdAlbum = await ref
-          .read(albumMutationsProvider.notifier)
-          .create(
+      final createdAlbum = await ref
+          .read(recordWriteServiceProvider)
+          .createRecord(
             title: _titleController.text,
-            artistId: artist.id,
+            artistName: _artistController.text,
             releaseYear: yearText.isEmpty ? null : int.parse(yearText),
             label: labelText.isEmpty ? null : labelText,
-          );
-
-      final releaseId = _selectedDiscogsReleaseId;
-      if (releaseId != null) {
-        final links = ref.read(discogsReleaseLinkRepositoryProvider);
-        final existingAlbumId = await links.findAlbumIdForRelease(releaseId);
-        if (existingAlbumId != null && existingAlbumId != createdAlbum.id) {
-          throw StateError(
-            'That exact Discogs release is already linked to another record in your collection.',
-          );
-        }
-        await links.link(albumId: createdAlbum.id, releaseId: releaseId);
-      }
-
-      if (_selectedDiscogsTracks.isNotEmpty) {
-        await ref
-            .read(trackRepositoryProvider)
-            .replaceAlbumTracks(
-              createdAlbum.id,
-              _selectedDiscogsTracks.map(
-                (track) => TrackDraft(
-                  title: track.title,
-                  sequence: track.sequence,
-                  position: track.position,
-                  side: track.side,
-                  durationSeconds: track.durationSeconds,
-                ),
+            discogsReleaseId: _selectedDiscogsReleaseId,
+            genreNames: _selectedGenres,
+            tracks: _selectedDiscogsTracks.map(
+              (track) => TrackDraft(
+                title: track.title,
+                sequence: track.sequence,
+                position: track.position,
+                side: track.side,
+                durationSeconds: track.durationSeconds,
               ),
-            );
-        ref.invalidate(albumTracksProvider(createdAlbum.id));
-      }
+            ),
+          );
 
+      String? artworkWarning;
       if (_selectedArtwork != null) {
-        storedArtworkPath = await ref
-            .read(artworkStorageServiceProvider)
-            .saveArtwork(_selectedArtwork!, createdAlbum.id);
-        final albumWithArtwork = Album(
-          id: createdAlbum.id,
-          title: createdAlbum.title,
-          artistId: createdAlbum.artistId,
-          releaseYear: createdAlbum.releaseYear,
-          label: createdAlbum.label,
-          artworkPath: storedArtworkPath,
-          purchaseDate: createdAlbum.purchaseDate,
-          purchasePriceCents: createdAlbum.purchasePriceCents,
-          createdAt: createdAlbum.createdAt,
-        );
-        final updated = await ref
-            .read(albumMutationsProvider.notifier)
-            .update(albumWithArtwork);
-        if (!updated) {
-          throw StateError('Artwork could not be linked to the record.');
+        String? storedArtworkPath;
+        try {
+          storedArtworkPath = await ref
+              .read(artworkStorageServiceProvider)
+              .saveArtwork(_selectedArtwork!, createdAlbum.id);
+          final albumWithArtwork = Album(
+            id: createdAlbum.id,
+            title: createdAlbum.title,
+            artistId: createdAlbum.artistId,
+            releaseYear: createdAlbum.releaseYear,
+            label: createdAlbum.label,
+            artworkPath: storedArtworkPath,
+            purchaseDate: createdAlbum.purchaseDate,
+            purchasePriceCents: createdAlbum.purchasePriceCents,
+            createdAt: createdAlbum.createdAt,
+          );
+          final updated = await ref
+              .read(albumMutationsProvider.notifier)
+              .update(albumWithArtwork);
+          if (!updated) {
+            throw StateError('Artwork could not be linked to the record.');
+          }
+        } catch (_) {
+          if (storedArtworkPath != null) {
+            await ref
+                .read(artworkStorageServiceProvider)
+                .deleteArtwork(storedArtworkPath);
+          }
+          artworkWarning =
+              'Record added, but its artwork could not be saved. You can add it again from Edit record.';
         }
       }
 
-      if (_selectedGenres.isNotEmpty) {
-        final genreRepository = ref.read(genreRepositoryProvider);
-        final genreIds = <String>[];
-        for (final name in _selectedGenres) {
-          genreIds.add((await genreRepository.findOrCreate(name)).id);
-        }
-        await genreRepository.setAlbumGenres(createdAlbum.id, genreIds);
-        ref.invalidate(genresProvider);
-        ref.invalidate(albumGenresProvider(createdAlbum.id));
+      ref.invalidate(albumsProvider);
+      ref.invalidate(albumProvider(createdAlbum.id));
+      ref.invalidate(albumDetailProvider(createdAlbum.id));
+      ref.invalidate(albumGenresProvider(createdAlbum.id));
+      ref.invalidate(albumTracksProvider(createdAlbum.id));
+      ref.invalidate(genresProvider);
+
+      try {
+        await _deleteDiscogsTempArtwork();
+      } catch (_) {
+        // Temporary artwork cleanup is best-effort and must not undo a valid
+        // database commit.
       }
 
-      await _deleteDiscogsTempArtwork();
       if (!mounted) return;
       context.go(AppRoutes.collection);
+      if (artworkWarning != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(artworkWarning)));
+      }
     } catch (error) {
-      if (storedArtworkPath != null) {
-        await ref
-            .read(artworkStorageServiceProvider)
-            .deleteArtwork(storedArtworkPath);
-      }
-      if (createdAlbum != null) {
-        try {
-          await ref
-              .read(albumMutationsProvider.notifier)
-              .delete(createdAlbum.id);
-        } catch (_) {
-          // Preserve the original failure; cleanup is best-effort.
-        }
-      }
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
