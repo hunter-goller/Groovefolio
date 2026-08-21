@@ -12,6 +12,7 @@ class AlbumListTile extends StatelessWidget {
     required this.artist,
     required this.playCount,
     required this.onTap,
+    this.onLongPress,
     this.releaseYear,
     this.artworkPath,
     this.lastPlayedAt,
@@ -27,6 +28,7 @@ class AlbumListTile extends StatelessWidget {
   final DateTime? lastPlayedAt;
   final List<String> genres;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -37,11 +39,13 @@ class AlbumListTile extends StatelessWidget {
     return Semantics(
       button: true,
       label: '$title by $artist',
+      onLongPress: onLongPress,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(tokens.radiusSmall),
           onTap: onTap,
+          onLongPress: onLongPress,
           child: Padding(
             padding: EdgeInsets.symmetric(vertical: tokens.space8),
             child: Row(
