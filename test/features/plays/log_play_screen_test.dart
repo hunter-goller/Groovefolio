@@ -60,12 +60,9 @@ void main() {
         ),
       ),
     );
-    // The NFC pulse intentionally repeats while scanning, so the widget tree
-    // never becomes fully idle until scanning stops or the route is disposed.
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
 
-    expect(find.text('Scanning for NFC…'), findsOneWidget);
+    expect(find.textContaining('NFC'), findsNothing);
     expect(find.text('Blue Train'), findsOneWidget);
     tester.testTextInput.hide();
     await tester.ensureVisible(find.text('Blue Train'));

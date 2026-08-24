@@ -70,6 +70,7 @@ class MyApp extends ConsumerWidget {
 
     return MaterialApp.router(
       title: 'Groovefolio',
+      debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: themeMode,

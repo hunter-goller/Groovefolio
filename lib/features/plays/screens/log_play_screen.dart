@@ -9,15 +9,14 @@ import 'package:vinyl_app/services/play_logging_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/types/side_played.dart';
 import 'package:vinyl_app/widgets/shared/album_select_tile.dart';
-import 'package:vinyl_app/widgets/shared/nfc_prompt.dart';
 import 'package:vinyl_app/widgets/shared/side_selector.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 import 'package:vinyl_app/widgets/ui/search_field.dart';
 
-/// Play logging flow with manual album selection and the animated NFC prompt.
+/// Play logging flow with manual album selection.
 ///
-/// VinylApp-020 owns the scanning UI. Hardware tag detection remains deferred
-/// to VinylApp-066, which can set [_selectedAlbum] and reuse the same save path.
+/// NFC controls stay hidden while the hardware feature is marked Coming soon.
+/// The held NFC tickets can later set [_selectedAlbum] and reuse this save path.
 class LogPlayScreen extends ConsumerStatefulWidget {
   const LogPlayScreen({
     this.isBottomSheet = false,
@@ -41,7 +40,6 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
   late TimeOfDay _selectedTime;
   SidePlayed _side = SidePlayed.full;
   bool _isSaving = false;
-  late bool _isNfcScanning;
 
   @override
   void initState() {
@@ -51,7 +49,6 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
     _selectedTime = TimeOfDay.fromDateTime(now);
     _searchController = TextEditingController();
     _selectedAlbum = widget.initialAlbum;
-    _isNfcScanning = widget.initialAlbum == null;
   }
 
   @override
@@ -74,26 +71,8 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
     setState(() => _query = '');
   }
 
-  void _startNfcScan() {
-    FocusScope.of(context).unfocus();
-    setState(() => _isNfcScanning = true);
-  }
-
-  void _cancelNfcScan() {
-    setState(() => _isNfcScanning = false);
-  }
-
-  void _beginManualSearch() {
-    if (_isNfcScanning) {
-      setState(() => _isNfcScanning = false);
-    }
-  }
-
   void _selectAlbum(CollectionAlbum album) {
-    setState(() {
-      _selectedAlbum = album;
-      _isNfcScanning = false;
-    });
+    setState(() => _selectedAlbum = album);
   }
 
   Future<void> _pickDate() async {
@@ -202,12 +181,6 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
             ),
             SizedBox(height: tokens.space8),
           ],
-          NFCPrompt(
-            isScanning: _isNfcScanning,
-            onStart: _startNfcScan,
-            onCancel: _cancelNfcScan,
-          ),
-          SizedBox(height: tokens.space16),
           Text(
             'Choose a record',
             style: context.theme.textTheme.titleMedium?.copyWith(
@@ -220,7 +193,6 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
             key: const Key('log-play-search'),
             controller: _searchController,
             hint: 'Search your collection…',
-            onTap: _beginManualSearch,
             onChanged: _scheduleSearch,
             onClear: _clearSearch,
           ),
