@@ -65,6 +65,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   .read(discogsAuthorizationControllerProvider.notifier)
                   .clearFailure(),
             ),
+            SizedBox(height: tokens.space24),
+            Text(
+              'Help',
+              style: context.theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            SizedBox(height: tokens.space12),
+            Card(
+              child: ListTile(
+                key: const Key('replay-onboarding'),
+                contentPadding: EdgeInsets.all(tokens.space16),
+                leading: const Icon(Icons.school_outlined),
+                title: const Text('Replay getting started'),
+                subtitle: const Text(
+                  'Review how to build your shelf, log plays, and use Groovefolio.',
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => context.push(AppRoutes.onboarding),
+              ),
+            ),
             if (showDeveloperTools) ...[
               SizedBox(height: tokens.space24),
               Text(

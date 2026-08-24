@@ -6,6 +6,8 @@ import 'package:vinyl_app/features/albums/screens/barcode_scanner_screen.dart';
 import 'package:vinyl_app/features/albums/screens/collection_screen.dart';
 import 'package:vinyl_app/features/albums/screens/edit_album_screen.dart';
 import 'package:vinyl_app/features/discover/screens/discover_screen.dart';
+import 'package:vinyl_app/features/onboarding/screens/onboarding_screen.dart';
+import 'package:vinyl_app/features/onboarding/widgets/onboarding_gate.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/features/settings/screens/discogs_collection_import_screen.dart';
 import 'package:vinyl_app/features/settings/screens/settings_screen.dart';
@@ -33,7 +35,8 @@ GoRouter router(Ref ref) {
     routes: [
       GoRoute(
         path: AppRoutes.collection,
-        builder: (context, state) => const CollectionScreen(),
+        builder: (context, state) =>
+            const OnboardingGate(child: CollectionScreen()),
       ),
       GoRoute(
         path: AppRoutes.stats,
@@ -72,6 +75,10 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: AppRoutes.settings,
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.onboarding,
+        builder: (context, state) => const OnboardingScreen(replay: true),
       ),
       GoRoute(
         path: AppRoutes.discogsCollectionImport,
