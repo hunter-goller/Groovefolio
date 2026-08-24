@@ -10,7 +10,7 @@ import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
 void main() {
-  testWidgets('long press exposes Edit/Delete and delete still confirms', (
+  testWidgets('swipe left reveals Edit/Delete and delete can be cancelled', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(430, 900));
@@ -27,13 +27,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.longPress(find.text('Blue Train'));
-    await tester.pumpAndSettle();
+    await _revealActions(tester);
 
-    expect(find.byKey(const Key('collection-quick-edit')), findsOneWidget);
-    expect(find.byKey(const Key('collection-quick-delete')), findsOneWidget);
+    expect(find.byKey(const Key('collection-swipe-edit')), findsOneWidget);
+    expect(find.byKey(const Key('collection-swipe-delete')), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('collection-quick-delete')));
+    await tester.tap(find.byKey(const Key('collection-swipe-delete')));
     await tester.pumpAndSettle();
 
     expect(find.text('Delete Blue Train?'), findsOneWidget);
@@ -44,7 +43,7 @@ void main() {
     expect(find.text('Blue Train'), findsOneWidget);
   });
 
-  testWidgets('long press edit navigates to the existing edit route', (
+  testWidgets('swipe edit navigates to the existing edit route', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(430, 900));
@@ -98,9 +97,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.longPress(find.text('Blue Train'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('collection-quick-edit')));
+    await _revealActions(tester);
+    await tester.tap(find.byKey(const Key('collection-swipe-edit')));
     await tester.pumpAndSettle();
 
     expect(find.text('Edit test'), findsOneWidget);
@@ -159,21 +157,122 @@ void main() {
 
     expect(find.text('Album detail test'), findsOneWidget);
   });
+
+  testWidgets('full swipe never deletes and reverse swipe closes actions', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final albums = _Albums();
+    await tester.pumpWidget(
+      _providerScope(
+        MaterialApp(
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          home: const CollectionScreen(),
+        ),
+        albums: albums,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final row = find.byKey(const Key('collection-album-swipe-album-1'));
+    await tester.drag(row, const Offset(-500, 0));
+    await tester.pumpAndSettle();
+
+    expect(albums.deletedIds, isEmpty);
+    expect(find.byKey(const Key('collection-swipe-delete')), findsOneWidget);
+
+    await tester.drag(row, const Offset(240, 0));
+    await tester.pumpAndSettle();
+
+    final deleteAction = tester.widget<IgnorePointer>(
+      find
+          .ancestor(
+            of: find.byKey(const Key('collection-swipe-delete')),
+            matching: find.byType(IgnorePointer),
+          )
+          .first,
+    );
+    expect(deleteAction.ignoring, isTrue);
+  });
+
+  testWidgets('confirmed swipe delete uses the canonical delete flow', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final albums = _Albums();
+    await tester.pumpWidget(
+      _providerScope(
+        MaterialApp(
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          home: const CollectionScreen(),
+        ),
+        albums: albums,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _revealActions(tester);
+    await tester.tap(find.byKey(const Key('collection-swipe-delete')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete-record-confirm')));
+    await tester.pumpAndSettle();
+
+    expect(albums.deletedIds, ['album-1']);
+  });
+
+  testWidgets('swipe actions fit a narrow phone viewport', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      _providerScope(
+        MaterialApp(
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          home: const CollectionScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _revealActions(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const Key('collection-swipe-edit')), findsOneWidget);
+    expect(find.byKey(const Key('collection-swipe-delete')), findsOneWidget);
+  });
 }
 
-Widget _providerScope(Widget child) {
+Future<void> _revealActions(WidgetTester tester) async {
+  await tester.drag(
+    find.byKey(const Key('collection-album-swipe-album-1')),
+    const Offset(-240, 0),
+  );
+  await tester.pumpAndSettle();
+}
+
+Widget _providerScope(Widget child, {_Albums? albums}) {
   return ProviderScope(
     overrides: [
-      albumRepositoryProvider.overrideWithValue(_Albums()),
+      albumRepositoryProvider.overrideWithValue(albums ?? _Albums()),
       artistRepositoryProvider.overrideWithValue(_Artists()),
       playRepositoryProvider.overrideWithValue(_Plays()),
       genreRepositoryProvider.overrideWithValue(_Genres()),
+      nfcTagRepositoryProvider.overrideWithValue(_NfcTags()),
     ],
     child: child,
   );
 }
 
 class _Albums implements IAlbumRepository {
+  final List<String> deletedIds = [];
+
   static const album = Album(
     id: 'album-1',
     title: 'Blue Train',
@@ -204,7 +303,10 @@ class _Albums implements IAlbumRepository {
   }) => throw UnimplementedError();
 
   @override
-  Future<int> delete(String id) => throw UnimplementedError();
+  Future<int> delete(String id) async {
+    deletedIds.add(id);
+    return 1;
+  }
 
   @override
   Future<bool> update(Album album) => throw UnimplementedError();
@@ -249,6 +351,24 @@ class _Plays implements IPlayRepository {
 
   @override
   Future<int> deleteById(String id) => throw UnimplementedError();
+}
+
+class _NfcTags implements INfcTagRepository {
+  @override
+  Future<NfcTag> create({
+    required String albumId,
+    required String nfcTagId,
+    DateTime? writtenAt,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<int> delete(String id) => throw UnimplementedError();
+
+  @override
+  Future<NfcTag?> findByAlbum(String albumId) async => null;
+
+  @override
+  Future<NfcTag?> findByTagId(String nfcTagId) async => null;
 }
 
 class _Genres implements IGenreRepository {

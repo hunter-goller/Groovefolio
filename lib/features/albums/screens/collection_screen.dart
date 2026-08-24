@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
@@ -31,6 +32,7 @@ class CollectionScreen extends ConsumerStatefulWidget {
 
 class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   late final TextEditingController _searchController;
+  late final ValueNotifier<String?> _openSwipeAlbumId;
   bool _showSearch = false;
 
   @override
@@ -39,12 +41,14 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     _searchController = TextEditingController(
       text: ref.read(collectionFiltersProvider).searchQuery,
     );
+    _openSwipeAlbumId = ValueNotifier<String?>(null);
     _showSearch = _searchController.text.trim().isNotEmpty;
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _openSwipeAlbumId.dispose();
     super.dispose();
   }
 
@@ -212,6 +216,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
 
             return _CollectionBody(
               albums: visibleAlbums,
+              openSwipeAlbumId: _openSwipeAlbumId,
               filters: filters,
               showSearch: _showSearch,
               searchController: _searchController,
@@ -250,13 +255,80 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   }
 }
 
-class _CollectionAlbumTile extends ConsumerWidget {
-  const _CollectionAlbumTile({required this.album});
+class _CollectionAlbumTile extends ConsumerStatefulWidget {
+  const _CollectionAlbumTile({
+    required this.album,
+    required this.openSwipeAlbumId,
+  });
 
   final CollectionAlbum album;
+  final ValueNotifier<String?> openSwipeAlbumId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_CollectionAlbumTile> createState() =>
+      _CollectionAlbumTileState();
+}
+
+class _CollectionAlbumTileState extends ConsumerState<_CollectionAlbumTile> {
+  static const double _actionWidth = 88;
+  static const double _revealedOffset = -(_actionWidth * 2);
+
+  double _offset = 0;
+  bool _isDragging = false;
+
+  CollectionAlbum get album => widget.album;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.openSwipeAlbumId.addListener(_handleOpenRowChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant _CollectionAlbumTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.openSwipeAlbumId != widget.openSwipeAlbumId) {
+      oldWidget.openSwipeAlbumId.removeListener(_handleOpenRowChanged);
+      widget.openSwipeAlbumId.addListener(_handleOpenRowChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.openSwipeAlbumId.removeListener(_handleOpenRowChanged);
+    super.dispose();
+  }
+
+  void _handleOpenRowChanged() {
+    if (widget.openSwipeAlbumId.value != album.id && _offset != 0) {
+      setState(() => _offset = 0);
+    }
+  }
+
+  void _open() {
+    widget.openSwipeAlbumId.value = album.id;
+    setState(() => _offset = _revealedOffset);
+  }
+
+  void _close() {
+    if (widget.openSwipeAlbumId.value == album.id) {
+      widget.openSwipeAlbumId.value = null;
+    }
+    setState(() => _offset = 0);
+  }
+
+  Future<void> _edit() async {
+    _close();
+    await context.push(AppRoutes.editAlbumPath(album.id));
+  }
+
+  Future<void> _delete() async {
+    _close();
+    await confirmAndDeleteAlbum(context, ref, album.id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final genres =
         ref
             .watch(albumGenresProvider(album.id))
@@ -265,85 +337,165 @@ class _CollectionAlbumTile extends ConsumerWidget {
             .toList(growable: false) ??
         const <String>[];
 
-    return AlbumListTile(
-      title: album.title,
-      artist: album.artistName,
-      releaseYear: album.album.releaseYear,
-      artworkPath: album.album.artworkPath,
-      playCount: album.playCount,
-      lastPlayedAt: album.lastPlayedAt,
-      genres: genres,
-      onTap: () => context.push(AppRoutes.albumDetailPath(album.id)),
-      onLongPress: () => _showQuickActions(context, ref),
-    );
-  }
+    final actionsAreVisible = _offset < -1;
 
-  Future<void> _showQuickActions(BuildContext context, WidgetRef ref) async {
-    final action = await showModalBottomSheet<_CollectionAlbumAction>(
-      context: context,
-      showDragHandle: true,
-      useSafeArea: true,
-      builder: (sheetContext) => Column(
-        mainAxisSize: MainAxisSize.min,
+    return ClipRect(
+      child: Stack(
         children: [
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: sheetContext.tokens.space16,
-            ),
+          Positioned.fill(
             child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                album.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: sheetContext.theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
+              alignment: Alignment.centerRight,
+              child: ExcludeSemantics(
+                excluding: !actionsAreVisible,
+                child: IgnorePointer(
+                  ignoring: !actionsAreVisible,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _SwipeAction(
+                        key: const Key('collection-swipe-edit'),
+                        width: _actionWidth,
+                        icon: Icons.edit_outlined,
+                        label: 'Edit',
+                        color: AppThemeTokens.accent,
+                        foregroundColor: Colors.black,
+                        onPressed: () {
+                          _edit();
+                        },
+                      ),
+                      _SwipeAction(
+                        key: const Key('collection-swipe-delete'),
+                        width: _actionWidth,
+                        icon: Icons.delete_outline_rounded,
+                        label: 'Delete',
+                        color: context.theme.colorScheme.error,
+                        foregroundColor: context.theme.colorScheme.onError,
+                        onPressed: () {
+                          _delete();
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-          ListTile(
-            key: const Key('collection-quick-edit'),
-            leading: const Icon(Icons.edit_outlined),
-            title: const Text('Edit record'),
-            onTap: () =>
-                Navigator.of(sheetContext).pop(_CollectionAlbumAction.edit),
-          ),
-          ListTile(
-            key: const Key('collection-quick-delete'),
-            leading: Icon(
-              Icons.delete_outline_rounded,
-              color: sheetContext.theme.colorScheme.error,
+          AnimatedContainer(
+            duration: _isDragging
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            transform: Matrix4.translationValues(_offset, 0, 0),
+            child: GestureDetector(
+              key: Key('collection-album-swipe-${album.id}'),
+              behavior: HitTestBehavior.opaque,
+              onHorizontalDragStart: (_) => setState(() => _isDragging = true),
+              onHorizontalDragUpdate: (details) {
+                setState(() {
+                  _offset = (_offset + details.delta.dx)
+                      .clamp(_revealedOffset, 0)
+                      .toDouble();
+                });
+              },
+              onHorizontalDragEnd: (details) {
+                setState(() => _isDragging = false);
+                final shouldOpen =
+                    (details.primaryVelocity != null &&
+                        details.primaryVelocity! < -300) ||
+                    _offset < _revealedOffset / 2;
+                shouldOpen ? _open() : _close();
+              },
+              onHorizontalDragCancel: () {
+                setState(() => _isDragging = false);
+                _offset < _revealedOffset / 2 ? _open() : _close();
+              },
+              child: Semantics(
+                customSemanticsActions: {
+                  const CustomSemanticsAction(label: 'Edit record'): () {
+                    _edit();
+                  },
+                  const CustomSemanticsAction(label: 'Delete record'): () {
+                    _delete();
+                  },
+                },
+                child: ColoredBox(
+                  color: context.theme.scaffoldBackgroundColor,
+                  child: AlbumListTile(
+                    title: album.title,
+                    artist: album.artistName,
+                    releaseYear: album.album.releaseYear,
+                    artworkPath: album.album.artworkPath,
+                    playCount: album.playCount,
+                    lastPlayedAt: album.lastPlayedAt,
+                    genres: genres,
+                    onTap: () {
+                      if (actionsAreVisible) {
+                        _close();
+                      } else {
+                        context.push(AppRoutes.albumDetailPath(album.id));
+                      }
+                    },
+                  ),
+                ),
+              ),
             ),
-            title: Text(
-              'Delete record',
-              style: TextStyle(color: sheetContext.theme.colorScheme.error),
-            ),
-            onTap: () =>
-                Navigator.of(sheetContext).pop(_CollectionAlbumAction.delete),
           ),
-          SizedBox(height: sheetContext.tokens.space8),
         ],
       ),
     );
-
-    if (action == null || !context.mounted) return;
-    switch (action) {
-      case _CollectionAlbumAction.edit:
-        await context.push(AppRoutes.editAlbumPath(album.id));
-        break;
-      case _CollectionAlbumAction.delete:
-        await confirmAndDeleteAlbum(context, ref, album.id);
-        break;
-    }
   }
 }
 
-enum _CollectionAlbumAction { edit, delete }
+class _SwipeAction extends StatelessWidget {
+  const _SwipeAction({
+    super.key,
+    required this.width,
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.foregroundColor,
+    required this.onPressed,
+  });
+
+  final double width;
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color foregroundColor;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: Material(
+        color: color,
+        child: InkWell(
+          onTap: onPressed,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: foregroundColor),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: context.theme.textTheme.labelMedium?.copyWith(
+                  color: foregroundColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _CollectionBody extends StatelessWidget {
   const _CollectionBody({
     required this.albums,
+    required this.openSwipeAlbumId,
     required this.filters,
     required this.showSearch,
     required this.searchController,
@@ -356,6 +508,7 @@ class _CollectionBody extends StatelessWidget {
   });
 
   final List<CollectionAlbum> albums;
+  final ValueNotifier<String?> openSwipeAlbumId;
   final CollectionFilterState filters;
   final bool showSearch;
   final TextEditingController searchController;
@@ -418,7 +571,10 @@ class _CollectionBody extends StatelessWidget {
                   : '${albums.length} records',
             ),
             for (var index = 0; index < albums.length; index++) ...[
-              _CollectionAlbumTile(album: albums[index]),
+              _CollectionAlbumTile(
+                album: albums[index],
+                openSwipeAlbumId: openSwipeAlbumId,
+              ),
               if (index != albums.length - 1)
                 Divider(
                   indent: 70,
