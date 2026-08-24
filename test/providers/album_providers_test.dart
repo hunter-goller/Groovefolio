@@ -47,6 +47,7 @@ void main() {
 
       expect(filters.sort, CollectionSort.recent);
       expect(filters.searchQuery, isEmpty);
+      expect(filters.genre, isNull);
     });
 
     test('updates search and sort state', () {
@@ -56,10 +57,18 @@ void main() {
       final notifier = container.read(collectionFiltersProvider.notifier);
       notifier.setSearchQuery('  miles  ');
       notifier.setSort(CollectionSort.alphabetical);
+      notifier.setGenre('Jazz');
 
       final filters = container.read(collectionFiltersProvider);
       expect(filters.normalizedSearchQuery, 'miles');
       expect(filters.sort, CollectionSort.alphabetical);
+      expect(filters.genre, 'Jazz');
+
+      notifier.reset();
+      final reset = container.read(collectionFiltersProvider);
+      expect(reset.searchQuery, isEmpty);
+      expect(reset.sort, CollectionSort.recent);
+      expect(reset.genre, isNull);
     });
   });
 

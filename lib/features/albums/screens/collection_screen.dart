@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
+import 'package:vinyl_app/features/albums/album_delete_flow.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
@@ -31,7 +32,6 @@ class CollectionScreen extends ConsumerStatefulWidget {
 class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   late final TextEditingController _searchController;
   bool _showSearch = false;
-  String? _selectedGenre;
 
   @override
   void initState() {
@@ -68,6 +68,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     final genres = await ref.read(genresProvider.future);
     if (!mounted) return;
 
+    final currentGenre = ref.read(collectionFiltersProvider).genre;
     final selected = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
@@ -106,14 +107,14 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                       children: [
                         ChoiceChip(
                           label: const Text('All genres'),
-                          selected: _selectedGenre == null,
+                          selected: currentGenre == null,
                           onSelected: (_) => Navigator.of(sheetContext).pop(''),
                         ),
                         for (final genre in genres)
                           ChoiceChip(
                             label: Text(genre.name),
                             selected:
-                                _selectedGenre?.toLowerCase() ==
+                                currentGenre?.toLowerCase() ==
                                 genre.name.toLowerCase(),
                             onSelected: (_) =>
                                 Navigator.of(sheetContext).pop(genre.name),
@@ -130,9 +131,9 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     );
 
     if (selected == null || !mounted) return;
-    setState(() {
-      _selectedGenre = selected.isEmpty ? null : selected;
-    });
+    ref
+        .read(collectionFiltersProvider.notifier)
+        .setGenre(selected.isEmpty ? null : selected);
   }
 
   void _openLogPlaySheet(BuildContext context) {
@@ -193,7 +194,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
             onRetry: () => ref.invalidate(albumsProvider),
           ),
           data: (albums) {
-            final selectedGenre = _selectedGenre;
+            final selectedGenre = filters.genre;
             final visibleAlbums = selectedGenre == null
                 ? albums
                 : albums
@@ -214,7 +215,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
               filters: filters,
               showSearch: _showSearch,
               searchController: _searchController,
-              selectedGenre: _selectedGenre,
+              selectedGenre: filters.genre,
               onSearchChanged: (query) => ref
                   .read(collectionFiltersProvider.notifier)
                   .setSearchQuery(query),
@@ -273,9 +274,72 @@ class _CollectionAlbumTile extends ConsumerWidget {
       lastPlayedAt: album.lastPlayedAt,
       genres: genres,
       onTap: () => context.push(AppRoutes.albumDetailPath(album.id)),
+      onLongPress: () => _showQuickActions(context, ref),
     );
   }
+
+  Future<void> _showQuickActions(BuildContext context, WidgetRef ref) async {
+    final action = await showModalBottomSheet<_CollectionAlbumAction>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (sheetContext) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: sheetContext.tokens.space16,
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                album.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: sheetContext.theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          ListTile(
+            key: const Key('collection-quick-edit'),
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Edit record'),
+            onTap: () =>
+                Navigator.of(sheetContext).pop(_CollectionAlbumAction.edit),
+          ),
+          ListTile(
+            key: const Key('collection-quick-delete'),
+            leading: Icon(
+              Icons.delete_outline_rounded,
+              color: sheetContext.theme.colorScheme.error,
+            ),
+            title: Text(
+              'Delete record',
+              style: TextStyle(color: sheetContext.theme.colorScheme.error),
+            ),
+            onTap: () =>
+                Navigator.of(sheetContext).pop(_CollectionAlbumAction.delete),
+          ),
+          SizedBox(height: sheetContext.tokens.space8),
+        ],
+      ),
+    );
+
+    if (action == null || !context.mounted) return;
+    switch (action) {
+      case _CollectionAlbumAction.edit:
+        await context.push(AppRoutes.editAlbumPath(album.id));
+        break;
+      case _CollectionAlbumAction.delete:
+        await confirmAndDeleteAlbum(context, ref, album.id);
+        break;
+    }
+  }
 }
+
+enum _CollectionAlbumAction { edit, delete }
 
 class _CollectionBody extends StatelessWidget {
   const _CollectionBody({

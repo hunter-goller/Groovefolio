@@ -71,6 +71,20 @@ class ArtworkStorageService {
     }
   }
 
+  /// Removes all persisted album artwork owned by Groovefolio.
+  ///
+  /// This is used by the debug-only local-data reset workflow. The artwork
+  /// directory is recreated lazily the next time artwork is saved.
+  Future<void> clearAllArtwork() async {
+    final documentsDirectory = await _documentsDirectoryResolver();
+    final artworkDirectory = Directory(
+      p.join(documentsDirectory.path, 'artwork'),
+    );
+    if (await artworkDirectory.exists()) {
+      await artworkDirectory.delete(recursive: true);
+    }
+  }
+
   File? artworkFile(String? artworkPath) {
     final normalizedPath = artworkPath?.trim();
     if (normalizedPath == null || normalizedPath.isEmpty) return null;

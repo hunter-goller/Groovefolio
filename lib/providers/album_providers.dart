@@ -10,10 +10,12 @@ class CollectionFilterState {
   const CollectionFilterState({
     this.searchQuery = '',
     this.sort = CollectionSort.recent,
+    this.genre,
   });
 
   final String searchQuery;
   final CollectionSort sort;
+  final String? genre;
 
   String get normalizedSearchQuery => searchQuery.trim();
 
@@ -21,6 +23,7 @@ class CollectionFilterState {
     return CollectionFilterState(
       searchQuery: searchQuery ?? this.searchQuery,
       sort: sort ?? this.sort,
+      genre: genre,
     );
   }
 }
@@ -60,6 +63,15 @@ class CollectionFilters extends Notifier<CollectionFilterState> {
 
   void setSort(CollectionSort sort) {
     state = state.copyWith(sort: sort);
+  }
+
+  void setGenre(String? genre) {
+    final normalized = genre?.trim();
+    state = CollectionFilterState(
+      searchQuery: state.searchQuery,
+      sort: state.sort,
+      genre: normalized == null || normalized.isEmpty ? null : normalized,
+    );
   }
 
   void reset() {

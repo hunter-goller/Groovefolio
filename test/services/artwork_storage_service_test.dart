@@ -92,6 +92,26 @@ void main() {
     expect(await File(storedPath).exists(), isFalse);
   });
 
+  test('clearAllArtwork removes the managed artwork directory', () async {
+    final first = await service.saveArtworkBytes(
+      Uint8List.fromList([1, 2, 3]),
+      'album-1',
+    );
+    final second = await service.saveArtworkBytes(
+      Uint8List.fromList([4, 5, 6]),
+      'album-2',
+    );
+
+    await service.clearAllArtwork();
+
+    expect(await File(first).exists(), isFalse);
+    expect(await File(second).exists(), isFalse);
+    expect(
+      await Directory(p.join(documentsDirectory.path, 'artwork')).exists(),
+      isFalse,
+    );
+  });
+
   test('artworkFile returns a file only while the path exists', () async {
     final source = File(p.join(tempRoot.path, 'picked.jpg'));
     await source.writeAsBytes([7, 8]);

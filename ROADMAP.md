@@ -58,7 +58,14 @@ Groovefolio is being built as a local-first vinyl collection and listening-histo
    - schema v6 cascade/index reliability migration
    - atomic multi-repository record writes and canonical deletion
    - Discogs transport/artwork hardening + release-build CI check (not published)
-6. 🚧 **VinylApp-091 — Barcode → exact Discogs release**
+6. ✅ **VinylApp-091 — Barcode → exact Discogs release**
+
+## Current UX/testing work
+
+- 🚧 **VinylApp-111 — Developer tools + Collection quick actions**
+  - debug-only local data reset that preserves Discogs credentials
+  - long-press Collection rows for Edit/Delete
+  - canonical delete confirmation shared with Album Detail
 
 ## NFC
 
