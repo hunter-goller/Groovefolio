@@ -55,7 +55,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Log a play'), findsOneWidget);
-    expect(find.text('Scan an NFC tag'), findsOneWidget);
+    expect(find.text('Scan an NFC tag'), findsNothing);
     expect(find.text('Blue Train'), findsAtLeastNWidgets(1));
 
     await tester.drag(find.byType(ListView).last, const Offset(0, -900));

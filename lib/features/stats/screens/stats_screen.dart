@@ -833,6 +833,13 @@ class _NoPlaysCard extends StatelessWidget {
               color: tokens.textMuted,
             ),
           ),
+          SizedBox(height: tokens.space16),
+          FilledButton.icon(
+            key: const Key('stats-log-play'),
+            onPressed: () => context.push(AppRoutes.logPlay),
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Log a play'),
+          ),
         ],
       ),
     );
