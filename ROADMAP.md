@@ -62,10 +62,15 @@ Groovefolio is being built as a local-first vinyl collection and listening-histo
 
 ## Current UX/testing work
 
-- 🚧 **VinylApp-111 — Developer tools + Collection quick actions**
+- ✅ **VinylApp-111 — Developer tools + Collection quick actions**
   - debug-only local data reset that preserves Discogs credentials
   - long-press Collection rows for Edit/Delete
   - canonical delete confirmation shared with Album Detail
+- 🚧 **VinylApp-115 — Discover + explainable recommendations**
+  - local taste profile derived from actual play history
+  - rediscovery suggestions using last-played recency
+  - genre and favorite-era shelf picks
+  - concise explanation attached to every recommendation
 
 ## NFC
 
@@ -77,10 +82,10 @@ Persistence exists; device flows remain:
 
 ## Discover / recommendations
 
-- ⬜ Discover production screen
-- ⬜ recommendation service using genres, artists, play history, recency, and future metadata
-- ⬜ explainable recommendations (“because you play…”, “similar genre…”, etc.)
-- ⬜ rediscovery insights / not-played-recently suggestions
+- 🚧 Discover production screen (`VinylApp-115`)
+- 🚧 recommendation service using genres, artists, play history, recency, and release years (`VinylApp-115`)
+- 🚧 explainable recommendations (“because you play…”, “similar genre…”, etc.) (`VinylApp-115`)
+- 🚧 rediscovery insights / not-played-recently suggestions (`VinylApp-115`)
 - ⬜ Album Wrapped / yearly listening story
 
 ## Release polish
