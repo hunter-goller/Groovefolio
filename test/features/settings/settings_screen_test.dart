@@ -91,6 +91,9 @@ void main() {
   testWidgets(
     'developer reset confirms, clears local data, and keeps Discogs',
     (tester) async {
+      await tester.binding.setSurfaceSize(const Size(430, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
       final resetRepository = _FakeLocalDataResetRepository();
       final artworkStorageService = _FakeArtworkStorageService();
       final resetService = LocalDataResetService(

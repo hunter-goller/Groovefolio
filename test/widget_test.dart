@@ -6,6 +6,7 @@ import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/db/database_provider.dart';
 import 'package:vinyl_app/main.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
+import 'package:vinyl_app/services/onboarding_service.dart';
 
 void main() {
   testWidgets('App boots and resolves to the Collection screen', (
@@ -19,6 +20,7 @@ void main() {
         overrides: [
           databaseProvider.overrideWithValue(db),
           discogsDeepLinksEnabledProvider.overrideWithValue(false),
+          onboardingRequiredProvider.overrideWithValue(const AsyncData(false)),
         ],
         child: const MyApp(),
       ),
