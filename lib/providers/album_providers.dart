@@ -148,9 +148,10 @@ final albumSearchProvider = FutureProvider.autoDispose
       final artistRepository = ref.watch(artistRepositoryProvider);
       final playRepository = ref.watch(playRepositoryProvider);
 
-      final albumRows = normalizedQuery.isEmpty
-          ? await albumRepository.findAll()
-          : await albumRepository.search(normalizedQuery);
+      // Load once and filter after artists are joined so selection flows can
+      // match both album titles and artist names. AlbumRepository.search()
+      // intentionally only understands album fields.
+      final albumRows = await albumRepository.findAll();
 
       if (albumRows.isEmpty) {
         return const [];
@@ -184,8 +185,23 @@ final albumSearchProvider = FutureProvider.autoDispose
         );
       }
 
-      rows.sort(_compareTitles);
-      return rows;
+      final normalizedLower = normalizedQuery.toLowerCase();
+      final filtered = normalizedLower.isEmpty
+          ? rows
+          : rows
+                .where(
+                  (row) =>
+                      row.title.toLowerCase().contains(normalizedLower) ||
+                      row.artistName.toLowerCase().contains(normalizedLower),
+                )
+                .toList();
+
+      if (normalizedLower.isEmpty) {
+        filtered.sort(_compareLogPlayRecency);
+      } else {
+        filtered.sort(_compareTitles);
+      }
+      return filtered;
     });
 
 /// Single album lookup used by details/edit flows.
@@ -448,4 +464,25 @@ int _compareTitles(CollectionAlbum a, CollectionAlbum b) {
     return titleComparison;
   }
   return a.id.compareTo(b.id);
+}
+
+int _compareLogPlayRecency(CollectionAlbum a, CollectionAlbum b) {
+  final playedComparison = _compareNullableDatesDescending(
+    a.lastPlayedAt,
+    b.lastPlayedAt,
+  );
+  if (playedComparison != 0) {
+    return playedComparison;
+  }
+
+  final aCreatedAt = DateTime.tryParse(a.album.createdAt);
+  final bCreatedAt = DateTime.tryParse(b.album.createdAt);
+  final createdComparison = _compareNullableDatesDescending(
+    aCreatedAt,
+    bCreatedAt,
+  );
+  if (createdComparison != 0) {
+    return createdComparison;
+  }
+  return _compareTitles(a, b);
 }
