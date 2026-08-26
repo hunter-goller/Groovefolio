@@ -162,9 +162,8 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Couldn’t log play: $error')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Couldn’t log play: $error')));
     }
   }
 
@@ -213,10 +212,7 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
           ),
           SizedBox(height: tokens.space8),
           if (_selectedAlbum != null)
-            _SelectedAlbum(
-              album: _selectedAlbum!,
-              onChange: _changeAlbum,
-            )
+            _SelectedAlbum(album: _selectedAlbum!, onChange: _changeAlbum)
           else ...[
             SearchField(
               key: const Key('log-play-search'),
@@ -267,9 +263,8 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
               Expanded(
                 child: _PickerButton(
                   icon: Icons.schedule_rounded,
-                  label: MaterialLocalizations.of(
-                    context,
-                  ).formatTimeOfDay(_selectedTime),
+                  label: MaterialLocalizations.of(context)
+                      .formatTimeOfDay(_selectedTime),
                   onPressed: _pickTime,
                 ),
               ),
