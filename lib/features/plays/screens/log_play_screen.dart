@@ -32,9 +32,12 @@ class LogPlayScreen extends ConsumerStatefulWidget {
 }
 
 class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
+  static const _recentRecordLimit = 6;
+
   late final TextEditingController _searchController;
   Timer? _searchDebounce;
   String _query = '';
+  bool _browseAll = false;
   CollectionAlbum? _selectedAlbum;
   late DateTime _selectedDate;
   late TimeOfDay _selectedTime;
@@ -62,17 +65,37 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       if (!mounted) return;
-      setState(() => _query = value.trim());
+      setState(() {
+        _query = value.trim();
+        _browseAll = false;
+      });
     });
   }
 
   void _clearSearch() {
     _searchDebounce?.cancel();
-    setState(() => _query = '');
+    setState(() {
+      _query = '';
+      _browseAll = false;
+    });
   }
 
   void _selectAlbum(CollectionAlbum album) {
-    setState(() => _selectedAlbum = album);
+    _searchDebounce?.cancel();
+    _searchController.clear();
+    setState(() {
+      _selectedAlbum = album;
+      _query = '';
+      _browseAll = false;
+    });
+  }
+
+  void _changeAlbum() {
+    setState(() {
+      _selectedAlbum = null;
+      _query = '';
+      _browseAll = false;
+    });
   }
 
   Future<void> _pickDate() async {
@@ -189,29 +212,39 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
             ),
           ),
           SizedBox(height: tokens.space8),
-          SearchField(
-            key: const Key('log-play-search'),
-            controller: _searchController,
-            hint: 'Search your collection…',
-            onChanged: _scheduleSearch,
-            onClear: _clearSearch,
-          ),
-          SizedBox(height: tokens.space12),
-          albumsAsync.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: CircularProgressIndicator()),
+          if (_selectedAlbum != null)
+            _SelectedAlbum(
+              album: _selectedAlbum!,
+              onChange: _changeAlbum,
+            )
+          else ...[
+            SearchField(
+              key: const Key('log-play-search'),
+              controller: _searchController,
+              hint: 'Search by record or artist…',
+              onChanged: _scheduleSearch,
+              onClear: _clearSearch,
             ),
-            error: (error, stackTrace) => _SearchError(
-              onRetry: () => ref.invalidate(albumSearchProvider(_query)),
+            SizedBox(height: tokens.space12),
+            albumsAsync.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (error, stackTrace) => _SearchError(
+                onRetry: () => ref.invalidate(albumSearchProvider(_query)),
+              ),
+              data: (albums) => _AlbumResults(
+                albums: albums,
+                query: _query,
+                browseAll: _browseAll,
+                recentLimit: _recentRecordLimit,
+                onBrowseAll: () => setState(() => _browseAll = true),
+                onShowRecent: () => setState(() => _browseAll = false),
+                onSelected: _selectAlbum,
+              ),
             ),
-            data: (albums) => _AlbumResults(
-              albums: albums,
-              selectedAlbumId: _selectedAlbum?.id,
-              query: _query,
-              onSelected: _selectAlbum,
-            ),
-          ),
+          ],
           SizedBox(height: tokens.space24),
           Text(
             'When',
@@ -289,14 +322,20 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
 class _AlbumResults extends StatelessWidget {
   const _AlbumResults({
     required this.albums,
-    required this.selectedAlbumId,
     required this.query,
+    required this.browseAll,
+    required this.recentLimit,
+    required this.onBrowseAll,
+    required this.onShowRecent,
     required this.onSelected,
   });
 
   final List<CollectionAlbum> albums;
-  final String? selectedAlbumId;
   final String query;
+  final bool browseAll;
+  final int recentLimit;
+  final VoidCallback onBrowseAll;
+  final VoidCallback onShowRecent;
   final ValueChanged<CollectionAlbum> onSelected;
 
   @override
@@ -304,33 +343,124 @@ class _AlbumResults extends StatelessWidget {
     final tokens = context.tokens;
 
     if (albums.isEmpty) {
+      if (query.isNotEmpty) {
+        return Padding(
+          padding: EdgeInsets.symmetric(vertical: tokens.space16),
+          child: Text(
+            'No records match “$query”. Try an album title or artist.',
+            style: context.theme.textTheme.bodyMedium?.copyWith(
+              color: tokens.textMuted,
+            ),
+          ),
+        );
+      }
+
       return Padding(
         padding: EdgeInsets.symmetric(vertical: tokens.space16),
-        child: Text(
-          query.isEmpty
-              ? 'Your collection is empty. Add a record before logging a play.'
-              : 'No records match “$query”.',
-          style: context.theme.textTheme.bodyMedium?.copyWith(
-            color: tokens.textMuted,
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Your collection is empty. Add a record before logging a play.',
+              style: context.theme.textTheme.bodyMedium?.copyWith(
+                color: tokens.textMuted,
+              ),
+            ),
+            SizedBox(height: tokens.space8),
+            TextButton.icon(
+              key: const Key('log-play-add-record'),
+              onPressed: () => context.push(AppRoutes.addAlbum),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add a record'),
+            ),
+          ],
         ),
       );
     }
 
+    final searching = query.isNotEmpty;
+    final visibleAlbums = searching || browseAll
+        ? albums
+        : albums.take(recentLimit).toList();
+    final heading = searching
+        ? 'Search results'
+        : browseAll
+        ? 'All records'
+        : 'Recent records';
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (var index = 0; index < albums.length; index++) ...[
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                heading,
+                style: context.theme.textTheme.labelLarge?.copyWith(
+                  color: tokens.textMuted,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            if (!searching && albums.length > recentLimit)
+              TextButton(
+                key: Key(browseAll ? 'show-recent' : 'browse-all-records'),
+                onPressed: browseAll ? onShowRecent : onBrowseAll,
+                child: Text(browseAll ? 'Show recent' : 'Browse all'),
+              ),
+          ],
+        ),
+        SizedBox(height: tokens.space4),
+        for (var index = 0; index < visibleAlbums.length; index++) ...[
           AlbumSelectTile(
-            title: albums[index].title,
-            artist: albums[index].artistName,
-            releaseYear: albums[index].album.releaseYear,
-            artworkPath: albums[index].album.artworkPath,
-            playCount: albums[index].playCount,
-            isSelected: albums[index].id == selectedAlbumId,
-            onTap: () => onSelected(albums[index]),
+            title: visibleAlbums[index].title,
+            artist: visibleAlbums[index].artistName,
+            releaseYear: visibleAlbums[index].album.releaseYear,
+            artworkPath: visibleAlbums[index].album.artworkPath,
+            playCount: visibleAlbums[index].playCount,
+            isSelected: false,
+            onTap: () => onSelected(visibleAlbums[index]),
           ),
-          if (index != albums.length - 1) SizedBox(height: tokens.space8),
+          if (index != visibleAlbums.length - 1)
+            SizedBox(height: tokens.space8),
         ],
+      ],
+    );
+  }
+}
+
+class _SelectedAlbum extends StatelessWidget {
+  const _SelectedAlbum({required this.album, required this.onChange});
+
+  final CollectionAlbum album;
+  final VoidCallback onChange;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AlbumSelectTile(
+          title: album.title,
+          artist: album.artistName,
+          releaseYear: album.album.releaseYear,
+          artworkPath: album.album.artworkPath,
+          playCount: album.playCount,
+          isSelected: true,
+          onTap: onChange,
+        ),
+        SizedBox(height: tokens.space4),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            key: const Key('change-log-play-album'),
+            onPressed: onChange,
+            icon: const Icon(Icons.swap_horiz_rounded),
+            label: const Text('Change record'),
+          ),
+        ),
       ],
     );
   }
