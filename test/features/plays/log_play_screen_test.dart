@@ -85,11 +85,7 @@ void main() {
       lastPlayedAt: null,
     );
 
-    await _pumpLogPlay(
-      tester,
-      fixture: fixture,
-      initialAlbum: initialAlbum,
-    );
+    await _pumpLogPlay(tester, fixture: fixture, initialAlbum: initialAlbum);
 
     expect(find.text('Blue Train'), findsOneWidget);
     expect(find.byKey(const Key('log-play-search')), findsNothing);
