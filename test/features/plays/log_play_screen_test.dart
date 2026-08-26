@@ -74,7 +74,9 @@ void main() {
     expect(find.text('Blue Train'), findsNothing);
   });
 
-  testWidgets('preselected album is compact and can be changed', (tester) async {
+  testWidgets('preselected album is compact and can be changed', (
+    tester,
+  ) async {
     final fixture = _Fixture.single();
     final initialAlbum = CollectionAlbum(
       album: fixture.albums.single,
