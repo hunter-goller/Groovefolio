@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +6,8 @@ import 'package:vinyl_app/services/recommendation_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/widgets/shared/bottom_nav_bar.dart';
+import 'package:vinyl_app/widgets/shared/resilient_image.dart';
+import 'package:vinyl_app/widgets/ui/app_error_state.dart';
 
 class DiscoverScreen extends ConsumerWidget {
   const DiscoverScreen({super.key});
@@ -22,8 +22,16 @@ class DiscoverScreen extends ConsumerWidget {
         top: false,
         child: recommendations.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => _DiscoverErrorState(
+          error: (error, stackTrace) => AppErrorState(
+            key: const Key('discover-error-state'),
+            title: 'Couldn’t build recommendations',
+            message: 'Your collection is safe. Try loading Discover again.',
+            error: error,
+            stackTrace: stackTrace,
+            operation: 'build recommendations',
             onRetry: () => ref.invalidate(discoverRecommendationsProvider),
+            retryLabel: 'Retry',
+            retryButtonKey: const Key('discover-error-retry'),
           ),
           data: (data) => RefreshIndicator(
             onRefresh: () async {
@@ -380,11 +388,11 @@ class _AlbumArtwork extends StatelessWidget {
         dimension: 76,
         child: artworkPath == null || artworkPath.trim().isEmpty
             ? const _ArtworkPlaceholder()
-            : Image.file(
-                File(artworkPath),
+            : ResilientImage.file(
+                path: artworkPath,
+                fallback: const _ArtworkPlaceholder(),
+                operation: 'load Discover album artwork',
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    const _ArtworkPlaceholder(),
               ),
       ),
     );
@@ -538,50 +546,6 @@ class _EmptyCollectionCard extends StatelessWidget {
               onPressed: () => context.push(AppRoutes.addAlbum),
               icon: const Icon(Icons.add_rounded),
               label: const Text('Add record'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DiscoverErrorState extends StatelessWidget {
-  const _DiscoverErrorState({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(tokens.space24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline_rounded, size: 40),
-            SizedBox(height: tokens.space12),
-            Text(
-              'Couldn’t build recommendations',
-              style: context.theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            SizedBox(height: tokens.space8),
-            Text(
-              'Your collection is safe. Try loading Discover again.',
-              textAlign: TextAlign.center,
-              style: context.theme.textTheme.bodyMedium?.copyWith(
-                color: tokens.textMuted,
-              ),
-            ),
-            SizedBox(height: tokens.space16),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Retry'),
             ),
           ],
         ),

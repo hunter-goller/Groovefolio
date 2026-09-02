@@ -4,6 +4,7 @@ import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/providers/track_providers.dart';
 import 'package:vinyl_app/services/album_deletion_service.dart';
+import 'package:vinyl_app/utils/error_reporting.dart';
 
 /// Shows the canonical record-delete confirmation and, when confirmed,
 /// delegates deletion to [AlbumDeletionService].
@@ -60,11 +61,16 @@ Future<bool> confirmAndDeleteAlbum(
     ref.invalidate(recentlyPlayedProvider);
 
     return true;
-  } catch (error) {
+  } catch (error, stackTrace) {
+    logAppError('delete record', error, stackTrace);
     if (!context.mounted) return false;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Couldn’t delete record: $error')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Couldn’t delete this record. Your collection was not changed.',
+        ),
+      ),
+    );
     return false;
   }
 }

@@ -10,6 +10,7 @@ class EmptyState extends StatelessWidget {
     required this.subtitle,
     this.ctaLabel,
     this.onCtaTap,
+    this.ctaKey,
     super.key,
   }) : assert(
          (ctaLabel == null) == (onCtaTap == null),
@@ -21,6 +22,7 @@ class EmptyState extends StatelessWidget {
   final String subtitle;
   final String? ctaLabel;
   final VoidCallback? onCtaTap;
+  final Key? ctaKey;
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +66,7 @@ class EmptyState extends StatelessWidget {
           ),
           if (ctaLabel != null) ...[
             SizedBox(height: tokens.space24),
-            PrimaryButton(label: ctaLabel!, onPressed: onCtaTap),
+            PrimaryButton(key: ctaKey, label: ctaLabel!, onPressed: onCtaTap),
           ],
         ],
       ),

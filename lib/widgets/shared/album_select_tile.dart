@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
+import 'package:vinyl_app/widgets/shared/resilient_image.dart';
 
 /// Album search result used by the Log Play selection flow.
 class AlbumSelectTile extends StatelessWidget {
@@ -131,10 +130,11 @@ class _Artwork extends StatelessWidget {
         borderRadius: BorderRadius.circular(tokens.radiusSmall),
         child: normalizedPath == null || normalizedPath.isEmpty
             ? placeholder
-            : Image.file(
-                File(normalizedPath),
+            : ResilientImage.file(
+                path: normalizedPath,
+                fallback: placeholder,
+                operation: 'load record picker artwork',
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => placeholder,
               ),
       ),
     );

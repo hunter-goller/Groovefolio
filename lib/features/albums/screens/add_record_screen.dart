@@ -16,9 +16,11 @@ import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/record_write_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
+import 'package:vinyl_app/utils/error_reporting.dart';
 import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
 import 'package:vinyl_app/widgets/shared/discogs_banner.dart';
 import 'package:vinyl_app/widgets/shared/genre_chip_input.dart';
+import 'package:vinyl_app/widgets/shared/resilient_image.dart';
 import 'package:vinyl_app/widgets/ui/labeled_text_field.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 
@@ -83,10 +85,15 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
       if (picked == null || !mounted) return;
       await _deleteDiscogsTempArtwork();
       setState(() => _selectedArtwork = File(picked.path));
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logAppError('choose album artwork', error, stackTrace);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Couldn’t choose artwork: $error')),
+        const SnackBar(
+          content: Text(
+            'Couldn’t open your photos. Check photo access and try again.',
+          ),
+        ),
       );
     }
   }
@@ -284,7 +291,8 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
 
       try {
         await _deleteDiscogsTempArtwork();
-      } catch (_) {
+      } catch (error, stackTrace) {
+        logAppError('delete temporary Discogs artwork', error, stackTrace);
         // Temporary artwork cleanup is best-effort and must not undo a valid
         // database commit.
       }
@@ -296,11 +304,16 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
           context,
         ).showSnackBar(SnackBar(content: Text(artworkWarning)));
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logAppError('add record', error, stackTrace);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Couldn’t add record: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Couldn’t add this record. Your collection was not changed.',
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -929,10 +942,11 @@ class _DiscogsCoverState extends ConsumerState<_DiscogsCover> {
                 future: _future,
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) return _placeholder(context);
-                  return Image.memory(
-                    snapshot.data!,
+                  return ResilientImage.memory(
+                    bytes: snapshot.data!,
+                    fallback: _placeholder(context),
+                    operation: 'decode Discogs album artwork',
                     fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => _placeholder(context),
                   );
                 },
               ),

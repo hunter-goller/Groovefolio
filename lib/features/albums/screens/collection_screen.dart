@@ -12,6 +12,7 @@ import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/widgets/shared/album_list_tile.dart';
 import 'package:vinyl_app/widgets/shared/bottom_nav_bar.dart';
+import 'package:vinyl_app/widgets/ui/app_error_state.dart';
 import 'package:vinyl_app/widgets/ui/empty_state.dart';
 import 'package:vinyl_app/widgets/ui/filter_chip_row.dart';
 import 'package:vinyl_app/widgets/ui/section_header.dart';
@@ -194,8 +195,17 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         top: false,
         child: albumsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => _CollectionErrorState(
+          error: (error, stackTrace) => AppErrorState(
+            key: const Key('collection-error-state'),
+            title: 'Couldn’t load your collection',
+            message:
+                'Something went wrong while reading your local collection. '
+                'Your records are still safe.',
+            error: error,
+            stackTrace: stackTrace,
+            operation: 'load collection',
             onRetry: () => ref.invalidate(albumsProvider),
+            retryButtonKey: const Key('collection-error-retry'),
           ),
           data: (albums) {
             final selectedGenre = filters.genre;
@@ -801,23 +811,6 @@ class _CollectionSearchField extends StatelessWidget {
               )
             : null,
       ),
-    );
-  }
-}
-
-class _CollectionErrorState extends StatelessWidget {
-  const _CollectionErrorState({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return EmptyState(
-      icon: Icons.error_outline_rounded,
-      title: 'Couldn’t load your collection',
-      subtitle: 'Something went wrong while reading your local collection.',
-      ctaLabel: 'Try again',
-      onCtaTap: onRetry,
     );
   }
 }

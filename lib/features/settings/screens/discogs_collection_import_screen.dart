@@ -10,6 +10,7 @@ import 'package:vinyl_app/services/discogs/discogs_collection_import_service.dar
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
+import 'package:vinyl_app/utils/error_reporting.dart';
 
 class DiscogsCollectionImportScreen extends ConsumerStatefulWidget {
   const DiscogsCollectionImportScreen({super.key});
@@ -64,7 +65,8 @@ class _DiscogsCollectionImportScreenState
         };
         _loading = false;
       });
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logAppError('prepare Discogs collection import', error, stackTrace);
       if (!mounted) return;
       setState(() {
         _error = error;
@@ -112,7 +114,8 @@ class _DiscogsCollectionImportScreenState
         _result = result;
         _importing = false;
       });
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logAppError('import Discogs collection', error, stackTrace);
       if (!mounted) return;
       setState(() {
         _error = error;
