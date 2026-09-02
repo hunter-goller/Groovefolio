@@ -11,6 +11,8 @@ import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/local_data_reset_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
+import 'package:vinyl_app/utils/error_reporting.dart';
+import 'package:vinyl_app/widgets/ui/app_error_state.dart';
 
 final developerToolsEnabledProvider = Provider<bool>((ref) => kDebugMode);
 
@@ -159,10 +161,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           content: Text('Local app data reset. Discogs connection kept.'),
         ),
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logAppError('reset local app data', error, stackTrace);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Couldn’t reset local data: $error')),
+        const SnackBar(
+          content: Text(
+            'Couldn’t reset local data. Your existing data was kept.',
+          ),
+        ),
       );
     } finally {
       if (mounted) {
@@ -278,9 +285,23 @@ class _DiscogsConnectionCard extends StatelessWidget {
             else
               accountAsync.when(
                 loading: () => const _LoadingRow(label: 'Checking connection…'),
-                error: (error, stackTrace) => _IdentityError(
+                error: (error, stackTrace) => AppErrorState.inline(
+                  key: const Key('discogs-identity-error-state'),
+                  title: 'Couldn’t verify your Discogs connection',
+                  message:
+                      'Try again, or disconnect the saved connection and '
+                      'reconnect your account.',
+                  error: error,
+                  stackTrace: stackTrace,
+                  operation: 'verify Discogs connection',
                   onRetry: onRetryIdentity,
-                  onDisconnect: onDisconnect,
+                  retryLabel: 'Retry',
+                  secondaryActionLabel: 'Disconnect',
+                  onSecondaryAction: onDisconnect,
+                  retryButtonKey: const Key('discogs-identity-error-retry'),
+                  secondaryButtonKey: const Key(
+                    'discogs-identity-error-disconnect',
+                  ),
                 ),
                 data: (account) => _ConnectionBody(
                   account: account,
@@ -464,43 +485,6 @@ class _DiscogsDataLink extends StatelessWidget {
         icon: const Icon(Icons.open_in_new_rounded, size: 16),
         label: const Text('Data provided by Discogs.'),
       ),
-    );
-  }
-}
-
-class _IdentityError extends StatelessWidget {
-  const _IdentityError({required this.onRetry, required this.onDisconnect});
-
-  final VoidCallback onRetry;
-  final Future<void> Function() onDisconnect;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const _MessagePanel(
-          icon: Icons.cloud_off_rounded,
-          message: 'Could not verify the saved Discogs connection.',
-        ),
-        SizedBox(height: tokens.space12),
-        Row(
-          children: [
-            OutlinedButton.icon(
-              onPressed: () => onDisconnect(),
-              icon: const Icon(Icons.link_off_rounded),
-              label: const Text('Disconnect'),
-            ),
-            const Spacer(),
-            FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Retry'),
-            ),
-          ],
-        ),
-      ],
     );
   }
 }

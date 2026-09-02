@@ -9,6 +9,7 @@ import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/widgets/shared/bottom_nav_bar.dart';
 import 'package:vinyl_app/widgets/shared/genre_breakdown_list.dart';
+import 'package:vinyl_app/widgets/ui/app_error_state.dart';
 
 enum StatsRange { currentYear, allTime }
 
@@ -158,8 +159,17 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
         top: false,
         child: dataAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => _StatsErrorState(
+          error: (error, stackTrace) => AppErrorState(
+            key: const Key('stats-error-state'),
+            title: 'Couldn’t load your stats',
+            message:
+                'Your listening history is still safe. Try loading your '
+                'stats again.',
+            error: error,
+            stackTrace: stackTrace,
+            operation: 'load stats dashboard',
             onRetry: () => ref.invalidate(statsDashboardProvider(_range)),
+            retryButtonKey: const Key('stats-error-retry'),
           ),
           data: (data) => RefreshIndicator(
             onRefresh: () async {
@@ -841,32 +851,6 @@ class _NoPlaysCard extends StatelessWidget {
             label: const Text('Log a play'),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _StatsErrorState extends StatelessWidget {
-  const _StatsErrorState({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(tokens.space24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline_rounded, size: 40),
-            SizedBox(height: tokens.space12),
-            const Text('Could not load stats'),
-            SizedBox(height: tokens.space12),
-            OutlinedButton(onPressed: onRetry, child: const Text('Try again')),
-          ],
-        ),
       ),
     );
   }

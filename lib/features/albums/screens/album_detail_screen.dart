@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +12,8 @@ import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/types/side_played.dart';
 import 'package:vinyl_app/widgets/shared/genre_chip.dart';
+import 'package:vinyl_app/widgets/shared/resilient_image.dart';
+import 'package:vinyl_app/widgets/ui/app_error_state.dart';
 import 'package:vinyl_app/widgets/ui/empty_state.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 import 'package:vinyl_app/widgets/ui/section_header.dart';
@@ -77,8 +77,17 @@ class AlbumDetailScreen extends ConsumerWidget {
           top: false,
           child: detailAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, stackTrace) => _DetailError(
+            error: (error, stackTrace) => AppErrorState(
+              key: const Key('album-detail-error-state'),
+              title: 'Couldn’t load this record',
+              message:
+                  'Something went wrong while reading your local collection. '
+                  'Your record is still safe.',
+              error: error,
+              stackTrace: stackTrace,
+              operation: 'load album details',
               onRetry: () => ref.invalidate(albumDetailProvider(albumId)),
+              retryButtonKey: const Key('album-detail-error-retry'),
             ),
             data: (detail) {
               if (detail == null) {
@@ -606,10 +615,11 @@ class _AlbumArtwork extends StatelessWidget {
         borderRadius: BorderRadius.circular(tokens.radiusMedium),
         child: normalizedPath == null || normalizedPath.isEmpty
             ? placeholder
-            : Image.file(
-                File(normalizedPath),
+            : ResilientImage.file(
+                path: normalizedPath,
+                fallback: placeholder,
+                operation: 'load album detail artwork',
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => placeholder,
               ),
       ),
     );
@@ -749,22 +759,6 @@ class _NoPlayHistory extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _DetailError extends StatelessWidget {
-  const _DetailError({required this.onRetry});
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return EmptyState(
-      icon: Icons.error_outline_rounded,
-      title: 'Couldn’t load this record',
-      subtitle: 'Something went wrong while reading your local collection.',
-      ctaLabel: 'Try again',
-      onCtaTap: onRetry,
     );
   }
 }

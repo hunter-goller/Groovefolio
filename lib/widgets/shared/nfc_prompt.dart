@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:vinyl_app/widgets/ui/app_error_state.dart';
+
+enum NfcFailureKind { unavailable, disabled, readFailed, writeFailed, unknown }
 
 /// Visual NFC prompt used by the Log Play flow.
 ///
@@ -9,12 +12,20 @@ class NFCPrompt extends StatefulWidget {
     required this.isScanning,
     this.onStart,
     this.onCancel,
+    this.error,
+    this.stackTrace,
+    this.failureKind = NfcFailureKind.unknown,
+    this.onRetry,
     super.key,
   });
 
   final bool isScanning;
   final VoidCallback? onStart;
   final VoidCallback? onCancel;
+  final Object? error;
+  final StackTrace? stackTrace;
+  final NfcFailureKind failureKind;
+  final VoidCallback? onRetry;
 
   @override
   State<NFCPrompt> createState() => _NFCPromptState();
@@ -37,13 +48,14 @@ class _NFCPromptState extends State<NFCPrompt>
   @override
   void didUpdateWidget(covariant NFCPrompt oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.isScanning != widget.isScanning) {
+    if (oldWidget.isScanning != widget.isScanning ||
+        oldWidget.error != widget.error) {
       _syncAnimation();
     }
   }
 
   void _syncAnimation() {
-    if (widget.isScanning) {
+    if (widget.isScanning && widget.error == null) {
       _pulseController.repeat();
     } else {
       _pulseController
@@ -60,6 +72,21 @@ class _NFCPromptState extends State<NFCPrompt>
 
   @override
   Widget build(BuildContext context) {
+    final error = widget.error;
+    if (error != null) {
+      return AppErrorState.inline(
+        key: const Key('nfc-error-state'),
+        title: _failureTitle(widget.failureKind),
+        message: _failureMessage(widget.failureKind),
+        error: error,
+        stackTrace: widget.stackTrace ?? StackTrace.empty,
+        operation: 'use NFC',
+        onRetry: widget.onRetry,
+        icon: Icons.nfc_rounded,
+        retryButtonKey: const Key('nfc-error-retry'),
+      );
+    }
+
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
@@ -150,6 +177,27 @@ class _NFCPromptState extends State<NFCPrompt>
     );
   }
 }
+
+String _failureTitle(NfcFailureKind kind) => switch (kind) {
+  NfcFailureKind.unavailable => 'NFC isn’t available on this device',
+  NfcFailureKind.disabled => 'NFC is turned off',
+  NfcFailureKind.readFailed => 'Couldn’t read that NFC tag',
+  NfcFailureKind.writeFailed => 'Couldn’t write to that NFC tag',
+  NfcFailureKind.unknown => 'Couldn’t use NFC',
+};
+
+String _failureMessage(NfcFailureKind kind) => switch (kind) {
+  NfcFailureKind.unavailable =>
+    'Choose a record manually to continue without NFC.',
+  NfcFailureKind.disabled =>
+    'Turn on NFC in your device settings, then try again.',
+  NfcFailureKind.readFailed =>
+    'Hold your phone near the tag and keep it still, then try again.',
+  NfcFailureKind.writeFailed =>
+    'Make sure the tag is writable and hold your phone steady, then try again.',
+  NfcFailureKind.unknown =>
+    'Move your phone away from the tag, then try again.',
+};
 
 class _NfcPulsePainter extends CustomPainter {
   const _NfcPulsePainter({

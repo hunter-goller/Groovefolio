@@ -8,8 +8,10 @@ import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/play_logging_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/types/side_played.dart';
+import 'package:vinyl_app/utils/error_reporting.dart';
 import 'package:vinyl_app/widgets/shared/album_select_tile.dart';
 import 'package:vinyl_app/widgets/shared/side_selector.dart';
+import 'package:vinyl_app/widgets/ui/app_error_state.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 import 'package:vinyl_app/widgets/ui/search_field.dart';
 
@@ -159,12 +161,17 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
       } else {
         context.go(AppRoutes.collection);
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logAppError('log play', error, stackTrace);
       if (!mounted) return;
       setState(() => _isSaving = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Couldn’t log play: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Couldn’t log this play. Your listening history was not changed.',
+          ),
+        ),
+      );
     }
   }
 
@@ -228,8 +235,15 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(child: CircularProgressIndicator()),
               ),
-              error: (error, stackTrace) => _SearchError(
+              error: (error, stackTrace) => AppErrorState.inline(
+                key: const Key('log-play-search-error'),
+                title: 'Couldn’t load your collection',
+                message: 'Try loading your records again.',
+                error: error,
+                stackTrace: stackTrace,
+                operation: 'load Log Play record picker',
                 onRetry: () => ref.invalidate(albumSearchProvider(_query)),
+                retryButtonKey: const Key('log-play-search-retry'),
               ),
               data: (albums) => _AlbumResults(
                 albums: albums,
@@ -459,34 +473,6 @@ class _SelectedAlbum extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _SearchError extends StatelessWidget {
-  const _SearchError({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: tokens.space12),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Couldn’t load your collection.',
-              style: context.theme.textTheme.bodyMedium?.copyWith(
-                color: tokens.textMuted,
-              ),
-            ),
-          ),
-          TextButton(onPressed: onRetry, child: const Text('Try again')),
-        ],
-      ),
     );
   }
 }
