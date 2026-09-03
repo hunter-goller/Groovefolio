@@ -86,8 +86,9 @@ class NfcService {
   NfcService({
     required INfcPlatformAdapter platform,
     required INfcTagRepository repository,
-  }) : _platform = platform,
-       _repository = repository;
+  }) : this._(platform, repository);
+
+  NfcService._(this._platform, this._repository);
 
   final INfcPlatformAdapter _platform;
   final INfcTagRepository _repository;
