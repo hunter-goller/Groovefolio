@@ -3,8 +3,8 @@
 > **Historical note:** This patch note uses the original `VinylApp-###`
 > ticket prefix. The product is now named Groovefolio.
 
-This change starts from the VinylApp-120 branch and adds the Android NFC
-foundation without exposing unfinished NFC controls in the app UI.
+This change adds the Android NFC foundation without exposing unfinished NFC
+controls in the app UI.
 
 ## Implements
 
