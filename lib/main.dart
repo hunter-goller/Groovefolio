@@ -5,6 +5,7 @@ import 'package:vinyl_app/db/database_provider.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/routing/router.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
+import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/theme/theme_provider.dart';
 
@@ -47,6 +48,11 @@ class MyApp extends ConsumerWidget {
     // Watching it here keeps the root widget tied to the same app-lifetime
     // provider instance used during startup.
     ref.watch(databaseProvider);
+
+    // Warm the optional Android NFC availability check once at app launch.
+    // Unsupported and disabled devices remain fully usable through manual
+    // collection and play-logging flows.
+    ref.watch(nfcAvailabilityProvider);
 
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeControllerProvider);

@@ -29,6 +29,8 @@ dependencies:
   app_links: ^7.2.1
   flutter_native_splash: ^2.4.8
   mobile_scanner: ^7.4.0
+  flutter_nfc_kit: 3.6.2
+  ndef: 0.4.0
 
 dev_dependencies:
   flutter_test:
