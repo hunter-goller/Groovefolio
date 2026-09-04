@@ -118,6 +118,17 @@ void main() {
     );
     expect(albumIdFromNfcUri(Uri.parse('https://groovefolio.app')), isNull);
   });
+
+  test('a written tag scans back to the same album', () async {
+    final fixture = _Fixture();
+
+    await fixture.service.writeTag('album-1');
+    final albumId = await fixture.service.startScan().single;
+
+    expect(albumId, 'album-1');
+    expect(fixture.repository.createdTags, hasLength(1));
+    expect(fixture.platform.finishCalls, 2);
+  });
 }
 
 Matcher _nfcFailure(NfcFailure failure) {

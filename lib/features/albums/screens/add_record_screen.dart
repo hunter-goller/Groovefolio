@@ -14,11 +14,14 @@ import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/artwork_storage_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
+import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
+import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/record_write_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
 import 'package:vinyl_app/widgets/shared/discogs_banner.dart';
 import 'package:vinyl_app/widgets/shared/genre_chip_input.dart';
+import 'package:vinyl_app/widgets/shared/nfc_write_dialog.dart';
 import 'package:vinyl_app/widgets/ui/labeled_text_field.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 
@@ -42,6 +45,7 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
   int? _selectedDiscogsReleaseId;
   List<DiscogsTrack> _selectedDiscogsTracks = const [];
   bool _isSubmitting = false;
+  bool _writeNfcAfterSave = false;
 
   @override
   void initState() {
@@ -216,6 +220,11 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
+    final shouldWriteNfc =
+        _writeNfcAfterSave &&
+        ref.read(nfcAvailabilityProvider).value ==
+            NfcAvailabilityState.available;
+
     setState(() => _isSubmitting = true);
     try {
       final yearText = _yearController.text.trim();
@@ -290,11 +299,30 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
       }
 
       if (!mounted) return;
-      context.go(AppRoutes.collection);
-      if (artworkWarning != null) {
-        ScaffoldMessenger.of(
+      NfcWriteOutcome? nfcOutcome;
+      if (shouldWriteNfc) {
+        nfcOutcome = await showNfcWriteDialog(
           context,
-        ).showSnackBar(SnackBar(content: Text(artworkWarning)));
+          albumId: createdAlbum.id,
+        );
+      }
+
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      context.go(AppRoutes.collection);
+      if (nfcOutcome == NfcWriteOutcome.written) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Record added and NFC tag linked.')),
+        );
+      } else if (nfcOutcome == NfcWriteOutcome.skipped) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Record added. You can link an NFC tag later.'),
+          ),
+        );
+      }
+      if (artworkWarning != null) {
+        messenger.showSnackBar(SnackBar(content: Text(artworkWarning)));
       }
     } catch (error) {
       if (!mounted) return;
@@ -311,7 +339,9 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
     final tokens = context.tokens;
     final mutationState = ref.watch(albumMutationsProvider);
     final genresState = ref.watch(genresProvider);
+    final nfcAvailability = ref.watch(nfcAvailabilityProvider);
     final isSaving = mutationState.isLoading || _isSubmitting;
+    final canWriteNfc = nfcAvailability.value == NfcAvailabilityState.available;
     final genreSuggestions =
         genresState.value?.map((genre) => genre.name).toList(growable: false) ??
         const <String>[];
@@ -454,6 +484,26 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
                     ],
                   ),
                 ),
+                if (canWriteNfc) ...[
+                  SizedBox(height: tokens.space16),
+                  _SectionCard(
+                    child: SwitchListTile.adaptive(
+                      key: const Key('add-record-write-nfc'),
+                      contentPadding: EdgeInsets.zero,
+                      secondary: const Icon(Icons.nfc_rounded),
+                      title: const Text('Write NFC tag after saving'),
+                      subtitle: const Text(
+                        'After the record is saved, hold your phone near a '
+                        'writable NFC tag.',
+                      ),
+                      value: _writeNfcAfterSave,
+                      onChanged: isSaving
+                          ? null
+                          : (value) =>
+                                setState(() => _writeNfcAfterSave = value),
+                    ),
+                  ),
+                ],
                 SizedBox(height: tokens.space24),
                 PrimaryButton(
                   label: 'Add to collection',
