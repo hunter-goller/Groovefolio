@@ -1027,6 +1027,16 @@ class _FakeNfcTagRepository implements INfcTagRepository {
   }
 
   @override
+  Future<NfcTag> replaceForAlbum({
+    required String albumId,
+    required String nfcTagId,
+    DateTime? writtenAt,
+  }) async {
+    createdTags.removeWhere((tag) => tag.albumId == albumId);
+    return create(albumId: albumId, nfcTagId: nfcTagId, writtenAt: writtenAt);
+  }
+
+  @override
   Future<int> delete(String id) async {
     final previousLength = createdTags.length;
     createdTags.removeWhere((tag) => tag.id == id);

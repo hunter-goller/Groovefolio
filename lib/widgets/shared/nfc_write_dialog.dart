@@ -7,11 +7,13 @@ enum NfcWriteOutcome { written, skipped }
 Future<NfcWriteOutcome> showNfcWriteDialog(
   BuildContext context, {
   required String albumId,
+  bool replaceExisting = false,
 }) async {
   return await showDialog<NfcWriteOutcome>(
         context: context,
         barrierDismissible: false,
-        builder: (context) => NfcWriteDialog(albumId: albumId),
+        builder: (context) =>
+            NfcWriteDialog(albumId: albumId, replaceExisting: replaceExisting),
       ) ??
       NfcWriteOutcome.skipped;
 }
@@ -19,9 +21,14 @@ Future<NfcWriteOutcome> showNfcWriteDialog(
 /// Blocking, retryable prompt used after an album has already been saved.
 /// Skipping NFC never rolls back the record that was just created.
 class NfcWriteDialog extends ConsumerStatefulWidget {
-  const NfcWriteDialog({required this.albumId, super.key});
+  const NfcWriteDialog({
+    required this.albumId,
+    this.replaceExisting = false,
+    super.key,
+  });
 
   final String albumId;
+  final bool replaceExisting;
 
   @override
   ConsumerState<NfcWriteDialog> createState() => _NfcWriteDialogState();
@@ -47,7 +54,9 @@ class _NfcWriteDialogState extends ConsumerState<NfcWriteDialog> {
     });
 
     try {
-      await ref.read(nfcServiceProvider).writeTag(widget.albumId);
+      await ref
+          .read(nfcServiceProvider)
+          .writeTag(widget.albumId, replaceExisting: widget.replaceExisting);
       if (!mounted || attempt != _attempt) return;
       Navigator.of(context).pop(NfcWriteOutcome.written);
     } on NfcException catch (failure) {
@@ -83,6 +92,9 @@ class _NfcWriteDialogState extends ConsumerState<NfcWriteDialog> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final failure = _failure;
+    final activeTitle = widget.replaceExisting
+        ? 'Rewrite or replace NFC tag'
+        : 'Write NFC tag';
 
     return PopScope(
       canPop: false,
@@ -93,7 +105,7 @@ class _NfcWriteDialogState extends ConsumerState<NfcWriteDialog> {
           color: failure == null ? colors.primary : colors.error,
           size: 38,
         ),
-        title: Text(failure == null ? 'Write NFC tag' : 'Couldn’t write tag'),
+        title: Text(failure == null ? activeTitle : 'Couldn’t write tag'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -103,9 +115,13 @@ class _NfcWriteDialogState extends ConsumerState<NfcWriteDialog> {
                 child: CircularProgressIndicator(strokeWidth: 3),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Hold the top of your phone close to the NFC tag and keep it '
-                'still until writing finishes.',
+              Text(
+                widget.replaceExisting
+                    ? 'Hold the top of your phone close to the tag you want '
+                          'linked to this record. It can be the current tag or '
+                          'a new one.'
+                    : 'Hold the top of your phone close to the NFC tag and '
+                          'keep it still until writing finishes.',
                 textAlign: TextAlign.center,
               ),
             ] else ...[

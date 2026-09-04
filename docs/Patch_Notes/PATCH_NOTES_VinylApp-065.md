@@ -4,7 +4,8 @@
 > ticket prefix. The product is now named Groovefolio.
 
 This change builds on the merged VinylApp-045/064 NFC foundation. It exposes NFC
-only on supported Android devices and keeps manual record creation unchanged.
+only on supported Android devices, supports both new and existing records, and
+keeps NFC fully optional.
 
 ## Implements
 
@@ -15,17 +16,26 @@ only on supported Android devices and keeps manual record creation unchanged.
 - **Try again** without creating a duplicate record
 - **Skip for now** while preserving the saved record
 - success and skipped-write confirmation messages
+- **Link NFC tag** from Album Details for existing records
+- **Rewrite or replace NFC tag** for records that are already linked
+- atomic association replacement without losing the previous link on a failed
+  database update
+- the same existing-record action for manual and Discogs-imported records
 - service round-trip coverage proving a written tag resolves to its album
-- widget coverage for unavailable, opt-in, success, retry, and active skip
+- widget coverage for unavailable, opt-in, success, retry, active skip, link,
+  rewrite, and replacement behavior
 
 ## Still required before release
 
-- run the full verifier after NFC dependencies resolve
-- verify writing on the Galaxy S22 Ultra with a writable NDEF tag
+- verify first link, same-tag rewrite, and new-tag replacement on the Galaxy
+  S22 Ultra with the ordered NTAG215 tags
 - implement VinylApp-066 to scan a linked tag from Log Play
 
 ## Verify
 
 ```powershell
-.\tools\verify_vinylapp_012.ps1
+dart format .
+dart run build_runner build
+flutter analyze
+flutter test
 ```

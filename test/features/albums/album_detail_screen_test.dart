@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/albums/screens/album_detail_screen.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
+import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
+import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
@@ -195,6 +197,85 @@ void main() {
 
     expect(find.text('Record not found'), findsOneWidget);
   });
+
+  testWidgets('hides existing-record NFC actions when NFC is unavailable', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _testApp(playRepository: _FakePlayRepository(const [])),
+    );
+    await tester.pumpAndSettle();
+
+    await _openRecordActions(tester);
+
+    expect(find.text('Link NFC tag'), findsNothing);
+    expect(find.text('Rewrite or replace NFC tag'), findsNothing);
+  });
+
+  testWidgets('links an NFC tag to an existing record', (tester) async {
+    final repository = _FakeNfcTagRepository();
+    final nfc = _NfcFixture(repository: repository);
+
+    await tester.pumpWidget(
+      _testApp(
+        playRepository: _FakePlayRepository(const []),
+        nfcAvailability: NfcAvailabilityState.available,
+        nfcTagRepository: repository,
+        nfcService: nfc.service,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openRecordActions(tester);
+    expect(find.text('Link NFC tag'), findsOneWidget);
+    await tester.tap(find.text('Link NFC tag'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('NFC tag linked to this record.'), findsOneWidget);
+    expect(nfc.platform.writtenUris, [
+      Uri.parse('groovefolio://album/album-1'),
+    ]);
+    expect(
+      (await repository.findByAlbum('album-1'))?.nfcTagId,
+      '04A7392B916180',
+    );
+  });
+
+  testWidgets('rewrites or replaces the NFC tag for an existing record', (
+    tester,
+  ) async {
+    final repository = _FakeNfcTagRepository();
+    await repository.create(albumId: 'album-1', nfcTagId: '01020304');
+    final nfc = _NfcFixture(repository: repository);
+
+    await tester.pumpWidget(
+      _testApp(
+        playRepository: _FakePlayRepository(const []),
+        nfcAvailability: NfcAvailabilityState.available,
+        nfcTagRepository: repository,
+        nfcService: nfc.service,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openRecordActions(tester);
+    expect(find.text('Rewrite or replace NFC tag'), findsOneWidget);
+    await tester.tap(find.text('Rewrite or replace NFC tag'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('NFC tag updated for this record.'), findsOneWidget);
+    expect(repository.replaceCalls, 1);
+    expect(await repository.findByTagId('01020304'), isNull);
+    expect(
+      (await repository.findByAlbum('album-1'))?.nfcTagId,
+      '04A7392B916180',
+    );
+  });
+}
+
+Future<void> _openRecordActions(WidgetTester tester) async {
+  await tester.tap(find.byTooltip('Record actions'));
+  await tester.pumpAndSettle();
 }
 
 Widget _testApp({
@@ -202,7 +283,11 @@ Widget _testApp({
   required IPlayRepository playRepository,
   IGenreRepository? genreRepository,
   ITrackRepository? trackRepository,
+  NfcAvailabilityState nfcAvailability = NfcAvailabilityState.unsupported,
+  INfcTagRepository? nfcTagRepository,
+  NfcService? nfcService,
 }) {
+  final resolvedNfcTagRepository = nfcTagRepository ?? _FakeNfcTagRepository();
   return ProviderScope(
     overrides: [
       albumRepositoryProvider.overrideWithValue(_FakeAlbumRepository()),
@@ -214,6 +299,9 @@ Widget _testApp({
       trackRepositoryProvider.overrideWithValue(
         trackRepository ?? const _FakeTrackRepository([]),
       ),
+      nfcTagRepositoryProvider.overrideWithValue(resolvedNfcTagRepository),
+      nfcAvailabilityProvider.overrideWithValue(AsyncData(nfcAvailability)),
+      if (nfcService != null) nfcServiceProvider.overrideWithValue(nfcService),
     ],
     child: MaterialApp(
       theme: AppTheme.light,
@@ -378,4 +466,96 @@ class _FakeGenreRepository implements IGenreRepository {
 
   @override
   Future<int> delete(String genreId) => throw UnimplementedError();
+}
+
+class _NfcFixture {
+  _NfcFixture({required this.repository}) : platform = _FakeNfcPlatform() {
+    service = NfcService(platform: platform, repository: repository);
+  }
+
+  final _FakeNfcPlatform platform;
+  final _FakeNfcTagRepository repository;
+  late final NfcService service;
+}
+
+class _FakeNfcPlatform implements INfcPlatformAdapter {
+  final List<Uri> writtenUris = [];
+  int finishCalls = 0;
+
+  @override
+  Future<NfcAvailabilityState> availability() async {
+    return NfcAvailabilityState.available;
+  }
+
+  @override
+  Future<void> finish() async {
+    finishCalls += 1;
+  }
+
+  @override
+  Future<NfcPlatformTag> poll({required Duration timeout}) async {
+    return const NfcPlatformTag(
+      identifier: '04:A7:39:2B:91:61:80',
+      ndefAvailable: true,
+      ndefWritable: true,
+    );
+  }
+
+  @override
+  Future<void> writeUri(Uri uri) async => writtenUris.add(uri);
+}
+
+class _FakeNfcTagRepository implements INfcTagRepository {
+  final List<NfcTag> tags = [];
+  int replaceCalls = 0;
+
+  @override
+  Future<NfcTag> create({
+    required String albumId,
+    required String nfcTagId,
+    DateTime? writtenAt,
+  }) async {
+    final tag = NfcTag(
+      id: 'nfc-${tags.length + 1}',
+      albumId: albumId,
+      nfcTagId: nfcTagId,
+      writtenAt: (writtenAt ?? DateTime.utc(2026, 9, 4)).toIso8601String(),
+    );
+    tags.add(tag);
+    return tag;
+  }
+
+  @override
+  Future<int> delete(String id) async {
+    final previousLength = tags.length;
+    tags.removeWhere((tag) => tag.id == id);
+    return previousLength - tags.length;
+  }
+
+  @override
+  Future<NfcTag?> findByAlbum(String albumId) async {
+    for (final tag in tags) {
+      if (tag.albumId == albumId) return tag;
+    }
+    return null;
+  }
+
+  @override
+  Future<NfcTag?> findByTagId(String nfcTagId) async {
+    for (final tag in tags) {
+      if (tag.nfcTagId == nfcTagId) return tag;
+    }
+    return null;
+  }
+
+  @override
+  Future<NfcTag> replaceForAlbum({
+    required String albumId,
+    required String nfcTagId,
+    DateTime? writtenAt,
+  }) async {
+    replaceCalls += 1;
+    tags.removeWhere((tag) => tag.albumId == albumId);
+    return create(albumId: albumId, nfcTagId: nfcTagId, writtenAt: writtenAt);
+  }
 }

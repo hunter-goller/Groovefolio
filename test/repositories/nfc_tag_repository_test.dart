@@ -110,6 +110,46 @@ void main() {
     expect(result, isNull);
   });
 
+  test('replaceForAlbum swaps the association to a new tag', () async {
+    await seedAlbum('album-1');
+    final original = await repository.create(
+      albumId: 'album-1',
+      nfcTagId: 'tag-001',
+    );
+
+    final replacement = await repository.replaceForAlbum(
+      albumId: 'album-1',
+      nfcTagId: 'tag-002',
+      writtenAt: DateTime.utc(2026, 9, 4, 14, 30),
+    );
+
+    expect(replacement.albumId, 'album-1');
+    expect(replacement.nfcTagId, 'tag-002');
+    expect(
+      replacement.writtenAt,
+      DateTime.utc(2026, 9, 4, 14, 30).toIso8601String(),
+    );
+    expect(await repository.findByTagId(original.nfcTagId), isNull);
+    expect(await repository.findByAlbum('album-1'), replacement);
+  });
+
+  test('failed replacement keeps the original association', () async {
+    await seedAlbum('album-1');
+    await seedAlbum('album-2');
+    final original = await repository.create(
+      albumId: 'album-1',
+      nfcTagId: 'tag-001',
+    );
+    await repository.create(albumId: 'album-2', nfcTagId: 'tag-002');
+
+    await expectLater(
+      repository.replaceForAlbum(albumId: 'album-1', nfcTagId: 'tag-002'),
+      throwsA(anything),
+    );
+
+    expect(await repository.findByAlbum('album-1'), original);
+  });
+
   test('create rejects empty album and NFC tag IDs', () async {
     expect(
       () => repository.create(albumId: '   ', nfcTagId: 'tag-001'),
