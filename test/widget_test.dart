@@ -6,6 +6,8 @@ import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/db/database_provider.dart';
 import 'package:vinyl_app/main.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
+import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
+import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/onboarding_service.dart';
 
 void main() {
@@ -14,6 +16,7 @@ void main() {
   ) async {
     final db = AppDatabase(NativeDatabase.memory());
     addTearDown(db.close);
+    var nfcAvailabilityChecks = 0;
 
     await tester.pumpWidget(
       ProviderScope(
@@ -21,6 +24,10 @@ void main() {
           databaseProvider.overrideWithValue(db),
           discogsDeepLinksEnabledProvider.overrideWithValue(false),
           onboardingRequiredProvider.overrideWithValue(const AsyncData(false)),
+          nfcAvailabilityProvider.overrideWith((ref) async {
+            nfcAvailabilityChecks += 1;
+            return NfcAvailabilityState.unsupported;
+          }),
         ],
         child: const MyApp(),
       ),
@@ -33,5 +40,6 @@ void main() {
     expect(find.text('Recent'), findsNothing);
     expect(find.text('A–Z'), findsNothing);
     expect(find.text('Most played'), findsNothing);
+    expect(nfcAvailabilityChecks, 1);
   });
 }

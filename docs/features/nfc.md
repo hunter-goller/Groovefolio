@@ -1,6 +1,8 @@
 # NFC
 
-Groovefolio has the persistence foundation for NFC but not the production device flow yet.
+Groovefolio keeps NFC optional and local-first. The Android foundation is now
+in place, while the record and play-logging screens remain intentionally hidden
+until the physical-tag workflow has been tested on a device.
 
 ## Implemented
 - schema v2 `NfcTags`
@@ -10,12 +12,18 @@ Groovefolio has the persistence foundation for NFC but not the production device
 - delete association
 - album deletion cleans up linked NFC association
 - UI placeholders/prompts for future NFC behavior
+- optional Android NFC permission and `NDEF_DISCOVERED` intent filter
+- `FlutterNfcPlatformAdapter` boundary around `flutter_nfc_kit`
+- typed `NfcService` for availability, foreground write, scan, cancellation,
+  cleanup, and tag-to-album resolution
+- URI payloads in the form `groovefolio://album/<album-id>`
+- canonical hexadecimal tag identifiers before persistence
+- unit and manifest coverage for the platform/service foundation
 
 ## Still needed
-- Android NFC permissions/manifest setup
-- tag write service/flow
-- scan handling
+- record/detail UI for writing or rewriting a tag
+- scan handling in Log Play and foreground auto-log play
 - foreground scan → album lookup → auto log play
-- clear user feedback for unsupported/invalid tags
+- physical-device validation with the Galaxy S22 Ultra and the chosen tags
 
 The NFC payload/association design should continue to keep the local database as the source of truth.
