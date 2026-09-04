@@ -1035,12 +1035,13 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: tokens.surface,
+    return Material(
+      color: tokens.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(tokens.radiusMedium),
-        border: Border.all(color: tokens.textMuted.withValues(alpha: 0.16)),
+        side: BorderSide(color: tokens.textMuted.withValues(alpha: 0.16)),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Padding(padding: EdgeInsets.all(tokens.space12), child: child),
     );
   }
