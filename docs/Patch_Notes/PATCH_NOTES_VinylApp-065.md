@@ -27,8 +27,5 @@ only on supported Android devices and keeps manual record creation unchanged.
 ## Verify
 
 ```powershell
-dart format .
-dart run build_runner build
-flutter analyze
-flutter test
+.\tools\verify_vinylapp_012.ps1
 ```
