@@ -585,9 +585,7 @@ Future<void> _enterRequiredRecord(WidgetTester tester) async {
 }
 
 Future<void> _submitRecord(WidgetTester tester) async {
-  await tester.ensureVisible(find.text('Add to collection'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('Add to collection'));
+  await tester.tap(find.widgetWithText(TextButton, 'Save'));
 }
 
 Widget _testApp({
