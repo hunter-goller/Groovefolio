@@ -487,7 +487,8 @@ void main() {
     await tester.pump();
 
     await _submitRecord(tester);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('Couldn’t write tag'), findsOneWidget);
     expect(
