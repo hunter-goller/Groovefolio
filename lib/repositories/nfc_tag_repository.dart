@@ -20,6 +20,15 @@ abstract interface class INfcTagRepository {
     DateTime? writtenAt,
   });
 
+  /// Atomically replaces an album's current NFC-tag association.
+  ///
+  /// If the album is not linked yet, this behaves like [create].
+  Future<NfcTag> replaceForAlbum({
+    required String albumId,
+    required String nfcTagId,
+    DateTime? writtenAt,
+  });
+
   /// Finds the association for a physical NFC tag, or null when unregistered.
   Future<NfcTag?> findByTagId(String nfcTagId);
 
@@ -68,6 +77,43 @@ class NfcTagRepository implements INfcTagRepository {
     );
 
     return _db.into(_db.nfcTags).insertReturning(companion);
+  }
+
+  @override
+  Future<NfcTag> replaceForAlbum({
+    required String albumId,
+    required String nfcTagId,
+    DateTime? writtenAt,
+  }) {
+    final normalizedAlbumId = albumId.trim();
+    final normalizedTagId = nfcTagId.trim();
+
+    if (normalizedAlbumId.isEmpty) {
+      throw ArgumentError.value(
+        albumId,
+        'albumId',
+        'Album ID cannot be empty.',
+      );
+    }
+    if (normalizedTagId.isEmpty) {
+      throw ArgumentError.value(
+        nfcTagId,
+        'nfcTagId',
+        'NFC tag ID cannot be empty.',
+      );
+    }
+
+    return _db.transaction(() async {
+      final deleteQuery = _db.delete(_db.nfcTags)
+        ..where((tag) => tag.albumId.equals(normalizedAlbumId));
+      await deleteQuery.go();
+
+      return create(
+        albumId: normalizedAlbumId,
+        nfcTagId: normalizedTagId,
+        writtenAt: writtenAt,
+      );
+    });
   }
 
   @override

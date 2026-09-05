@@ -80,8 +80,7 @@ String normalizeNfcTagIdentifier(String identifier) {
 }
 
 /// Coordinates foreground NFC polling, NDEF writing, and local tag-to-album
-/// resolution. NFC UI remains hidden until VinylApp-065/066 wire these methods
-/// into the record and Log Play flows.
+/// resolution for the record and Log Play flows.
 class NfcService {
   NfcService({
     required INfcPlatformAdapter platform,
@@ -108,9 +107,13 @@ class NfcService {
   }
 
   /// Writes an album URI to one NFC tag and saves the physical tag mapping.
+  ///
+  /// [replaceExisting] allows an album's current association to move to the
+  /// presented tag. A tag linked to a different album is never reassigned.
   Future<NfcTag> writeTag(
     String albumId, {
     Duration timeout = _defaultNfcTimeout,
+    bool replaceExisting = false,
   }) async {
     final normalizedAlbumId = albumId.trim();
     if (normalizedAlbumId.isEmpty) {
@@ -136,10 +139,13 @@ class NfcService {
 
       final existingForTag = await _findByTagId(tagIdentifier);
       final existingForAlbum = await _findByAlbum(normalizedAlbumId);
-      if ((existingForTag != null &&
-              existingForTag.albumId != normalizedAlbumId) ||
-          (existingForAlbum != null &&
-              existingForAlbum.nfcTagId != tagIdentifier)) {
+      if (existingForTag != null &&
+          existingForTag.albumId != normalizedAlbumId) {
+        throw NfcException.forFailure(NfcFailure.alreadyRegistered);
+      }
+      if (!replaceExisting &&
+          existingForAlbum != null &&
+          existingForAlbum.nfcTagId != tagIdentifier) {
         throw NfcException.forFailure(NfcFailure.alreadyRegistered);
       }
 
@@ -149,11 +155,17 @@ class NfcService {
         _throwMapped(error, stackTrace, fallback: NfcFailure.writeFailed);
       }
 
-      if (existingForTag != null) {
+      if (existingForTag != null && !replaceExisting) {
         return existingForTag;
       }
 
       try {
+        if (replaceExisting && existingForAlbum != null) {
+          return await _repository.replaceForAlbum(
+            albumId: normalizedAlbumId,
+            nfcTagId: tagIdentifier,
+          );
+        }
         return await _repository.create(
           albumId: normalizedAlbumId,
           nfcTagId: tagIdentifier,
@@ -369,4 +381,13 @@ final nfcServiceProvider = Provider<NfcService>((ref) {
 
 final nfcAvailabilityProvider = FutureProvider<NfcAvailabilityState>((ref) {
   return ref.watch(nfcServiceProvider).availability();
+});
+
+/// The local NFC-tag association for one album, used to choose link versus
+/// rewrite/replace actions without exposing the physical tag ID to the UI.
+final albumNfcTagProvider = FutureProvider.autoDispose.family<NfcTag?, String>((
+  ref,
+  albumId,
+) {
+  return ref.watch(nfcTagRepositoryProvider).findByAlbum(albumId);
 });

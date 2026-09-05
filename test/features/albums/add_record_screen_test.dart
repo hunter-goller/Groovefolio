@@ -1,6 +1,7 @@
-import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +14,8 @@ import 'package:vinyl_app/services/discogs/discogs_catalog_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_credential_store.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
+import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
+import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/record_write_service.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 
@@ -405,6 +408,185 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('No matching Discogs releases found.'), findsOneWidget);
   });
+
+  testWidgets('shows the NFC write toggle only when NFC is available', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testApp());
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('add-record-write-nfc')), findsNothing);
+
+    await tester.pumpWidget(
+      _testApp(nfcAvailability: NfcAvailabilityState.available),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('add-record-write-nfc')), findsOneWidget);
+  });
+
+  testWidgets('writes and links an NFC tag after saving the record', (
+    tester,
+  ) async {
+    final albums = _FakeAlbumRepository();
+    final nfc = _NfcFixture();
+
+    await tester.pumpWidget(
+      _testApp(
+        albumRepository: albums,
+        nfcAvailability: NfcAvailabilityState.available,
+        nfcService: nfc.service,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _enterRequiredRecord(tester);
+    await tester.ensureVisible(find.byKey(const Key('add-record-write-nfc')));
+    await tester.tap(find.byKey(const Key('add-record-write-nfc')));
+    await tester.pump();
+
+    await _submitRecord(tester);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Collection test'), findsOneWidget);
+    expect(find.text('Record added and NFC tag linked.'), findsOneWidget);
+    expect(albums.created, hasLength(1));
+    expect(nfc.platform.writtenUris, [
+      Uri.parse('groovefolio://album/album-1'),
+    ]);
+    expect(nfc.repository.createdTags.single.albumId, 'album-1');
+  });
+
+  testWidgets('retries NFC without creating a duplicate record', (
+    tester,
+  ) async {
+    final albums = _FakeAlbumRepository();
+    final nfc = _NfcFixture(
+      tags: const [
+        NfcPlatformTag(
+          identifier: '04:A7:39:2B:91:61:80',
+          ndefAvailable: true,
+          ndefWritable: false,
+        ),
+        NfcPlatformTag(
+          identifier: '04:A7:39:2B:91:61:80',
+          ndefAvailable: true,
+          ndefWritable: true,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      _testApp(
+        albumRepository: albums,
+        nfcAvailability: NfcAvailabilityState.available,
+        nfcService: nfc.service,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _enterRequiredRecord(tester);
+    await tester.ensureVisible(find.byKey(const Key('add-record-write-nfc')));
+    await tester.tap(find.byKey(const Key('add-record-write-nfc')));
+    await tester.pump();
+
+    await _submitRecord(tester);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Couldn’t write tag'), findsOneWidget);
+    expect(
+      find.text('That NFC tag is read-only or not writable.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('nfc-write-retry')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('nfc-write-retry')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Collection test'), findsOneWidget);
+    expect(albums.created, hasLength(1));
+    expect(nfc.platform.pollCalls, 2);
+    expect(nfc.repository.createdTags, hasLength(1));
+  });
+
+  testWidgets('skipping an active NFC write keeps the saved record', (
+    tester,
+  ) async {
+    final albums = _FakeAlbumRepository();
+    final nfc = _NfcFixture(holdPoll: true, tags: const []);
+
+    await tester.pumpWidget(
+      _testApp(
+        albumRepository: albums,
+        nfcAvailability: NfcAvailabilityState.available,
+        nfcService: nfc.service,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _enterRequiredRecord(tester);
+    await tester.ensureVisible(find.byKey(const Key('add-record-write-nfc')));
+    await tester.tap(find.byKey(const Key('add-record-write-nfc')));
+    await tester.pump();
+
+    await _submitRecord(tester);
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('nfc-write-dialog')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('nfc-write-skip')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Collection test'), findsOneWidget);
+    expect(
+      find.text('Record added. You can link an NFC tag later.'),
+      findsOneWidget,
+    );
+    expect(albums.created, hasLength(1));
+    expect(nfc.repository.createdTags, isEmpty);
+    expect(nfc.platform.finishCalls, 1);
+  });
+
+  testWidgets('available NFC remains opt-in', (tester) async {
+    final albums = _FakeAlbumRepository();
+    final nfc = _NfcFixture();
+
+    await tester.pumpWidget(
+      _testApp(
+        albumRepository: albums,
+        nfcAvailability: NfcAvailabilityState.available,
+        nfcService: nfc.service,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _enterRequiredRecord(tester);
+
+    await _submitRecord(tester);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Collection test'), findsOneWidget);
+    expect(albums.created, hasLength(1));
+    expect(nfc.platform.pollCalls, 0);
+    expect(nfc.repository.createdTags, isEmpty);
+  });
+}
+
+Future<void> _enterRequiredRecord(WidgetTester tester) async {
+  await tester.enterText(
+    find.descendant(
+      of: find.byKey(const Key('add-record-title')),
+      matching: find.byType(TextFormField),
+    ),
+    'Blue Train',
+  );
+  await tester.enterText(
+    find.descendant(
+      of: find.byKey(const Key('add-record-artist')),
+      matching: find.byType(TextFormField),
+    ),
+    'John Coltrane',
+  );
+  tester.testTextInput.hide();
+}
+
+Future<void> _submitRecord(WidgetTester tester) async {
+  await tester.tap(find.widgetWithText(TextButton, 'Save'));
 }
 
 Widget _testApp({
@@ -415,6 +597,8 @@ Widget _testApp({
   DiscogsCatalogService? catalogService,
   DiscogsCredentialStore? credentialStore,
   IDiscogsReleaseLinkRepository? releaseLinkRepository,
+  NfcAvailabilityState nfcAvailability = NfcAvailabilityState.unsupported,
+  NfcService? nfcService,
   String? scannedBarcode,
 }) {
   final router = GoRouter(
@@ -470,6 +654,8 @@ Widget _testApp({
       databaseTransactionRunnerProvider.overrideWithValue(
         _ImmediateTransactionRunner(),
       ),
+      nfcAvailabilityProvider.overrideWithValue(AsyncData(nfcAvailability)),
+      if (nfcService != null) nfcServiceProvider.overrideWithValue(nfcService),
     ],
     child: MaterialApp.router(
       theme: AppTheme.light,
@@ -757,4 +943,119 @@ class _FakeDiscogsReleaseLinkRepository
 class _ImmediateTransactionRunner implements DatabaseTransactionRunner {
   @override
   Future<T> run<T>(Future<T> Function() operation) => operation();
+}
+
+class _NfcFixture {
+  _NfcFixture({
+    List<NfcPlatformTag> tags = const [
+      NfcPlatformTag(
+        identifier: '04:A7:39:2B:91:61:80',
+        ndefAvailable: true,
+        ndefWritable: true,
+      ),
+    ],
+    bool holdPoll = false,
+  }) : platform = _QueuedNfcPlatform(tags: tags, holdPoll: holdPoll),
+       repository = _FakeNfcTagRepository() {
+    service = NfcService(platform: platform, repository: repository);
+  }
+
+  final _QueuedNfcPlatform platform;
+  final _FakeNfcTagRepository repository;
+  late final NfcService service;
+}
+
+class _QueuedNfcPlatform implements INfcPlatformAdapter {
+  _QueuedNfcPlatform({
+    required List<NfcPlatformTag> tags,
+    required this.holdPoll,
+  }) : _tags = List<NfcPlatformTag>.of(tags);
+
+  final List<NfcPlatformTag> _tags;
+  final bool holdPoll;
+  final List<Uri> writtenUris = [];
+  int pollCalls = 0;
+  int finishCalls = 0;
+  Completer<NfcPlatformTag>? _pendingPoll;
+
+  @override
+  Future<NfcAvailabilityState> availability() async {
+    return NfcAvailabilityState.available;
+  }
+
+  @override
+  Future<NfcPlatformTag> poll({required Duration timeout}) {
+    pollCalls += 1;
+    if (_tags.isNotEmpty) return Future.value(_tags.removeAt(0));
+    if (!holdPoll) throw StateError('No fake NFC tag is queued.');
+    _pendingPoll = Completer<NfcPlatformTag>();
+    return _pendingPoll!.future;
+  }
+
+  @override
+  Future<void> writeUri(Uri uri) async => writtenUris.add(uri);
+
+  @override
+  Future<void> finish() async {
+    finishCalls += 1;
+    final pendingPoll = _pendingPoll;
+    if (pendingPoll != null && !pendingPoll.isCompleted) {
+      pendingPoll.completeError(
+        PlatformException(code: 'cancelled', message: 'cancelled'),
+      );
+    }
+  }
+}
+
+class _FakeNfcTagRepository implements INfcTagRepository {
+  final List<NfcTag> createdTags = [];
+
+  @override
+  Future<NfcTag> create({
+    required String albumId,
+    required String nfcTagId,
+    DateTime? writtenAt,
+  }) async {
+    final tag = NfcTag(
+      id: 'nfc-${createdTags.length + 1}',
+      albumId: albumId,
+      nfcTagId: nfcTagId,
+      writtenAt: (writtenAt ?? DateTime.utc(2026, 9, 2)).toIso8601String(),
+    );
+    createdTags.add(tag);
+    return tag;
+  }
+
+  @override
+  Future<NfcTag> replaceForAlbum({
+    required String albumId,
+    required String nfcTagId,
+    DateTime? writtenAt,
+  }) async {
+    createdTags.removeWhere((tag) => tag.albumId == albumId);
+    return create(albumId: albumId, nfcTagId: nfcTagId, writtenAt: writtenAt);
+  }
+
+  @override
+  Future<int> delete(String id) async {
+    final previousLength = createdTags.length;
+    createdTags.removeWhere((tag) => tag.id == id);
+    return previousLength - createdTags.length;
+  }
+
+  @override
+  Future<NfcTag?> findByAlbum(String albumId) async {
+    for (final tag in createdTags) {
+      if (tag.albumId == albumId) return tag;
+    }
+    return null;
+  }
+
+  @override
+  Future<NfcTag?> findByTagId(String nfcTagId) async {
+    for (final tag in createdTags) {
+      if (tag.nfcTagId == nfcTagId) return tag;
+    }
+    return null;
+  }
 }

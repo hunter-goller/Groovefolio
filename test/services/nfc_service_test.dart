@@ -118,6 +118,59 @@ void main() {
     );
     expect(albumIdFromNfcUri(Uri.parse('https://groovefolio.app')), isNull);
   });
+
+  test('a written tag scans back to the same album', () async {
+    final fixture = _Fixture();
+
+    await fixture.service.writeTag('album-1');
+    final albumId = await fixture.service.startScan().single;
+
+    expect(albumId, 'album-1');
+    expect(fixture.repository.createdTags, hasLength(1));
+    expect(fixture.platform.finishCalls, 2);
+  });
+
+  test(
+    'replace mode moves an album association to the presented tag',
+    () async {
+      final fixture = _Fixture();
+      await fixture.repository.create(albumId: 'album-1', nfcTagId: '01020304');
+
+      final replacement = await fixture.service.writeTag(
+        'album-1',
+        replaceExisting: true,
+      );
+
+      expect(replacement.albumId, 'album-1');
+      expect(replacement.nfcTagId, '04A7392B916180');
+      expect(fixture.repository.replaceCalls, 1);
+      expect(fixture.repository.createdTags, hasLength(1));
+      expect(await fixture.repository.findByTagId('01020304'), isNull);
+      expect(fixture.platform.finishCalls, 1);
+    },
+  );
+
+  test('replace mode cannot take a tag linked to another album', () async {
+    final fixture = _Fixture();
+    final original = await fixture.repository.create(
+      albumId: 'album-1',
+      nfcTagId: '01020304',
+    );
+    await fixture.repository.create(
+      albumId: 'album-2',
+      nfcTagId: '04A7392B916180',
+    );
+
+    await expectLater(
+      fixture.service.writeTag('album-1', replaceExisting: true),
+      throwsA(_nfcFailure(NfcFailure.alreadyRegistered)),
+    );
+
+    expect(await fixture.repository.findByAlbum('album-1'), original);
+    expect(fixture.repository.replaceCalls, 0);
+    expect(fixture.platform.writtenUri, isNull);
+    expect(fixture.platform.finishCalls, 1);
+  });
 }
 
 Matcher _nfcFailure(NfcFailure failure) {
@@ -193,6 +246,7 @@ class _FakeNfcPlatform implements INfcPlatformAdapter {
 
 class _FakeNfcTagRepository implements INfcTagRepository {
   final List<NfcTag> createdTags = [];
+  int replaceCalls = 0;
 
   @override
   Future<NfcTag> create({
@@ -208,6 +262,17 @@ class _FakeNfcTagRepository implements INfcTagRepository {
     );
     createdTags.add(tag);
     return tag;
+  }
+
+  @override
+  Future<NfcTag> replaceForAlbum({
+    required String albumId,
+    required String nfcTagId,
+    DateTime? writtenAt,
+  }) async {
+    replaceCalls += 1;
+    createdTags.removeWhere((tag) => tag.albumId == albumId);
+    return create(albumId: albumId, nfcTagId: nfcTagId, writtenAt: writtenAt);
   }
 
   @override

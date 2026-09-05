@@ -10,10 +10,13 @@ import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/providers/track_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
+import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/types/side_played.dart';
 import 'package:vinyl_app/widgets/shared/genre_chip.dart';
+import 'package:vinyl_app/widgets/shared/nfc_write_dialog.dart';
 import 'package:vinyl_app/widgets/ui/empty_state.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 import 'package:vinyl_app/widgets/ui/section_header.dart';
@@ -30,6 +33,15 @@ class AlbumDetailScreen extends ConsumerWidget {
     final detailAsync = ref.watch(albumDetailProvider(albumId));
     final genresAsync = ref.watch(albumGenresProvider(albumId));
     final tracksAsync = ref.watch(albumTracksProvider(albumId));
+    final canWriteNfc =
+        ref.watch(nfcAvailabilityProvider).value ==
+        NfcAvailabilityState.available;
+    final nfcTagData = canWriteNfc
+        ? ref.watch(albumNfcTagProvider(albumId)).asData
+        : null;
+    final linkedNfcTag = nfcTagData?.value;
+    final canManageNfc =
+        canWriteNfc && nfcTagData != null && detailAsync.value != null;
     final canPop = Navigator.of(context).canPop();
 
     return PopScope(
@@ -48,12 +60,18 @@ class AlbumDetailScreen extends ConsumerWidget {
                 switch (action) {
                   case _AlbumMenuAction.edit:
                     context.push(AppRoutes.editAlbumPath(albumId));
+                  case _AlbumMenuAction.nfc:
+                    _manageNfc(
+                      context,
+                      ref,
+                      replaceExisting: linkedNfcTag != null,
+                    );
                   case _AlbumMenuAction.delete:
                     _confirmDelete(context, ref);
                 }
               },
-              itemBuilder: (context) => const [
-                PopupMenuItem(
+              itemBuilder: (context) => [
+                const PopupMenuItem(
                   value: _AlbumMenuAction.edit,
                   child: ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -61,7 +79,21 @@ class AlbumDetailScreen extends ConsumerWidget {
                     title: Text('Edit record'),
                   ),
                 ),
-                PopupMenuItem(
+                if (canManageNfc)
+                  PopupMenuItem(
+                    key: const Key('album-nfc-action'),
+                    value: _AlbumMenuAction.nfc,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.nfc_rounded),
+                      title: Text(
+                        linkedNfcTag == null
+                            ? 'Link NFC tag'
+                            : 'Rewrite or replace NFC tag',
+                      ),
+                    ),
+                  ),
+                const PopupMenuItem(
                   value: _AlbumMenuAction.delete,
                   child: ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -153,9 +185,33 @@ class AlbumDetailScreen extends ConsumerWidget {
     if (!deleted || !context.mounted) return;
     context.go(AppRoutes.collection);
   }
+
+  Future<void> _manageNfc(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool replaceExisting,
+  }) async {
+    final outcome = await showNfcWriteDialog(
+      context,
+      albumId: albumId,
+      replaceExisting: replaceExisting,
+    );
+    if (!context.mounted || outcome != NfcWriteOutcome.written) return;
+
+    ref.invalidate(albumNfcTagProvider(albumId));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          replaceExisting
+              ? 'NFC tag updated for this record.'
+              : 'NFC tag linked to this record.',
+        ),
+      ),
+    );
+  }
 }
 
-enum _AlbumMenuAction { edit, delete }
+enum _AlbumMenuAction { edit, nfc, delete }
 
 class _AlbumDetailBody extends StatelessWidget {
   const _AlbumDetailBody({

@@ -1,8 +1,9 @@
 # NFC
 
-Groovefolio keeps NFC optional and local-first. The Android foundation is now
-in place, while the record and play-logging screens remain intentionally hidden
-until the physical-tag workflow has been tested on a device.
+Groovefolio keeps NFC optional and local-first. The Android foundation,
+availability-gated Add Record write flow, and existing-record link/replace
+actions are now in place. Scan-to-log entry points remain hidden until the
+physical-tag workflow has been tested on a device.
 
 ## Implemented
 - schema v2 `NfcTags`
@@ -19,11 +20,19 @@ until the physical-tag workflow has been tested on a device.
 - URI payloads in the form `groovefolio://album/<album-id>`
 - canonical hexadecimal tag identifiers before persistence
 - unit and manifest coverage for the platform/service foundation
+- availability-gated **Write NFC tag after saving** option in Add Record
+- post-save write prompt with success confirmation, retry, and skip behavior
+- failed or cancelled NFC writes preserve the already-created record
+- **Link NFC tag** from Album Details for any existing record
+- **Rewrite or replace NFC tag** for an already-linked record
+- atomic association replacement that preserves the previous link if database
+  persistence fails
+- identical Album Details behavior for manually added and Discogs-imported
+  records
 
 ## Still needed
-- record/detail UI for writing or rewriting a tag
 - scan handling in Log Play and foreground auto-log play
 - foreground scan → album lookup → auto log play
-- physical-device validation with the Galaxy S22 Ultra and the chosen tags
+- physical-device validation with the Galaxy S22 Ultra and NTAG215 tags
 
 The NFC payload/association design should continue to keep the local database as the source of truth.
