@@ -144,6 +144,25 @@ void main() {
     expect(nfc.platform.pollCalls, 1);
   });
 
+  testWidgets('disabled NFC keeps the scanner hidden and does not poll', (
+    tester,
+  ) async {
+    final fixture = _Fixture.single();
+    final nfc = _NfcFixture(pending: true);
+
+    await _pumpLogPlay(
+      tester,
+      fixture: fixture,
+      nfc: nfc,
+      nfcAvailability: NfcAvailabilityState.disabled,
+    );
+
+    expect(find.byKey(const Key('log-play-nfc-prompt')), findsNothing);
+    expect(find.textContaining('NFC'), findsNothing);
+    expect(find.byKey(const Key('log-play-search')), findsOneWidget);
+    expect(nfc.platform.pollCalls, 0);
+  });
+
   testWidgets('registered NFC tag auto-selects its linked record', (
     tester,
   ) async {
@@ -233,6 +252,7 @@ Future<void> _pumpLogPlay(
   required _Fixture fixture,
   CollectionAlbum? initialAlbum,
   _NfcFixture? nfc,
+  NfcAvailabilityState? nfcAvailability,
   bool settle = true,
 }) async {
   final router = GoRouter(
@@ -267,9 +287,10 @@ Future<void> _pumpLogPlay(
         playRepositoryProvider.overrideWithValue(fixture.playRepository),
         nfcAvailabilityProvider.overrideWithValue(
           AsyncData(
-            nfc == null
-                ? NfcAvailabilityState.unsupported
-                : NfcAvailabilityState.available,
+            nfcAvailability ??
+                (nfc == null
+                    ? NfcAvailabilityState.unsupported
+                    : NfcAvailabilityState.available),
           ),
         ),
         if (nfc != null) nfcServiceProvider.overrideWithValue(nfc.service),
