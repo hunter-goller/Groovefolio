@@ -99,10 +99,10 @@ Schema v5 adds album tracks. Exact Discogs release details parse ordered positio
 
 ## Not implemented yet
 - production Discover/recommendations
-- NFC scan-to-log UI and auto-log flow (Android permission, platform adapter,
-  typed write/scan service, availability foundation, Add Record writing, and
-  existing-record link/replace actions are implemented in
-  VinylApp-045/064/065)
+- background/cold-launch NFC scan handling (Android permission, platform
+  adapter, typed write/scan service, availability foundation, Add Record
+  writing, existing-record link/replace actions, and foreground Log Play
+  selection are implemented in VinylApp-045/064/065/066)
 - barcode scanning
 - final icon/splash/release polish
 

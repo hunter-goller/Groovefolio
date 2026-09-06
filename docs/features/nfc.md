@@ -1,9 +1,9 @@
 # NFC
 
 Groovefolio keeps NFC optional and local-first. The Android foundation,
-availability-gated Add Record write flow, and existing-record link/replace
-actions are now in place. Scan-to-log entry points remain hidden until the
-physical-tag workflow has been tested on a device.
+availability-gated write and management flows, and foreground Log Play scan
+flow are in place. Background/cold-launch entry points remain deferred until
+the physical-tag workflow has been tested on a device.
 
 ## Implemented
 - schema v2 `NfcTags`
@@ -29,10 +29,19 @@ physical-tag workflow has been tested on a device.
   persistence fails
 - identical Album Details behavior for manually added and Discogs-imported
   records
+- availability-gated animated NFC prompt in Log Play
+- automatic foreground polling while the Log Play picker is open
+- registered tag lookup that selects the linked record without logging it
+  prematurely
+- exact unlinked-tag guidance plus cancel and retry controls
+- a single active scan across widget rebuilds, with cleanup on manual selection
+  and screen disposal
+- no scan when Album Details already supplied a preselected record
 
 ## Still needed
-- scan handling in Log Play and foreground auto-log play
-- foreground scan → album lookup → auto log play
-- physical-device validation with the Galaxy S22 Ultra and NTAG215 tags
+- physical-device validation of write, foreground scan, duplicate presentation,
+  cancellation, and unknown-tag behavior with the Galaxy S22 Ultra and NTAG215
+  tags
+- background/cold-launch scan handling in VinylApp-085
 
 The NFC payload/association design should continue to keep the local database as the source of truth.

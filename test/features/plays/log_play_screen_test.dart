@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +9,8 @@ import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
+import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
@@ -118,12 +122,118 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('available NFC starts one animated foreground scan', (
+    tester,
+  ) async {
+    final fixture = _Fixture.single();
+    final nfc = _NfcFixture(pending: true);
+
+    await _pumpLogPlay(tester, fixture: fixture, nfc: nfc, settle: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.byKey(const Key('log-play-nfc-prompt')), findsOneWidget);
+    expect(find.text('Scanning for NFC…'), findsOneWidget);
+    expect(find.byKey(const Key('nfc-cancel')), findsOneWidget);
+    expect(nfc.platform.pollCalls, 1);
+
+    await tester.enterText(find.byKey(const Key('log-play-search')), 'Blue');
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(nfc.platform.pollCalls, 1);
+  });
+
+  testWidgets('registered NFC tag auto-selects its linked record', (
+    tester,
+  ) async {
+    final fixture = _Fixture.single();
+    final nfc = _NfcFixture(linkedAlbumId: 'album-1');
+
+    await _pumpLogPlay(tester, fixture: fixture, nfc: nfc, settle: false);
+    await tester.pump();
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(nfc.platform.pollCalls, 1);
+    expect(find.text('Blue Train selected from NFC.'), findsOneWidget);
+    expect(find.byKey(const Key('change-log-play-album')), findsOneWidget);
+    expect(find.byKey(const Key('log-play-search')), findsNothing);
+    expect(find.byKey(const Key('log-play-nfc-prompt')), findsNothing);
+  });
+
+  testWidgets('unregistered NFC tag shows guidance and can scan again', (
+    tester,
+  ) async {
+    final fixture = _Fixture.single();
+    final nfc = _NfcFixture();
+
+    await _pumpLogPlay(tester, fixture: fixture, nfc: nfc, settle: false);
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('Tag not linked to any album'), findsOneWidget);
+    expect(find.byKey(const Key('nfc-start')), findsOneWidget);
+    expect(find.byKey(const Key('log-play-search')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('nfc-start')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(nfc.platform.pollCalls, 2);
+  });
+
+  testWidgets('cancelling NFC leaves manual record selection available', (
+    tester,
+  ) async {
+    final fixture = _Fixture.single();
+    final nfc = _NfcFixture(pending: true);
+
+    await _pumpLogPlay(tester, fixture: fixture, nfc: nfc, settle: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    await tester.tap(find.byKey(const Key('nfc-cancel')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(nfc.platform.finishCalls, 1);
+    expect(find.text('Scan an NFC tag'), findsOneWidget);
+    expect(find.byKey(const Key('nfc-start')), findsOneWidget);
+    expect(find.byKey(const Key('log-play-search')), findsOneWidget);
+    expect(find.text('Blue Train'), findsOneWidget);
+  });
+
+  testWidgets('preselected record does not start an NFC scan', (tester) async {
+    final fixture = _Fixture.single();
+    final nfc = _NfcFixture(pending: true);
+    final initialAlbum = CollectionAlbum(
+      album: fixture.albums.single,
+      artist: fixture.artists.single,
+      playCount: 0,
+      lastPlayedAt: null,
+    );
+
+    await _pumpLogPlay(
+      tester,
+      fixture: fixture,
+      initialAlbum: initialAlbum,
+      nfc: nfc,
+    );
+
+    expect(nfc.platform.pollCalls, 0);
+    expect(find.byKey(const Key('log-play-nfc-prompt')), findsNothing);
+    expect(find.byKey(const Key('change-log-play-album')), findsOneWidget);
+  });
 }
 
 Future<void> _pumpLogPlay(
   WidgetTester tester, {
   required _Fixture fixture,
   CollectionAlbum? initialAlbum,
+  _NfcFixture? nfc,
+  bool settle = true,
 }) async {
   final router = GoRouter(
     initialLocation: AppRoutes.logPlay,
@@ -155,6 +265,14 @@ Future<void> _pumpLogPlay(
           _FakeArtistRepository(fixture.artists),
         ),
         playRepositoryProvider.overrideWithValue(fixture.playRepository),
+        nfcAvailabilityProvider.overrideWithValue(
+          AsyncData(
+            nfc == null
+                ? NfcAvailabilityState.unsupported
+                : NfcAvailabilityState.available,
+          ),
+        ),
+        if (nfc != null) nfcServiceProvider.overrideWithValue(nfc.service),
       ],
       child: MaterialApp.router(
         theme: AppTheme.light,
@@ -163,7 +281,9 @@ Future<void> _pumpLogPlay(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  }
 }
 
 class _Fixture {
@@ -350,4 +470,101 @@ class _FakePlayRepository implements IPlayRepository {
 
   @override
   Future<List<Album>> getRecentlyPlayed(int limit) async => const [];
+}
+
+class _NfcFixture {
+  _NfcFixture({String? linkedAlbumId, bool pending = false})
+    : platform = _FakeNfcPlatform(pending: pending),
+      repository = _FakeNfcTagRepository() {
+    if (linkedAlbumId != null) {
+      repository.tags.add(
+        NfcTag(
+          id: 'nfc-1',
+          albumId: linkedAlbumId,
+          nfcTagId: platform.tag.identifier,
+          writtenAt: '2026-09-06T00:00:00.000Z',
+        ),
+      );
+    }
+    service = NfcService(platform: platform, repository: repository);
+  }
+
+  final _FakeNfcPlatform platform;
+  final _FakeNfcTagRepository repository;
+  late final NfcService service;
+}
+
+class _FakeNfcPlatform implements INfcPlatformAdapter {
+  _FakeNfcPlatform({required bool pending})
+    : _pollCompleter = pending ? Completer<NfcPlatformTag>() : null;
+
+  final Completer<NfcPlatformTag>? _pollCompleter;
+  final NfcPlatformTag tag = const NfcPlatformTag(
+    identifier: '04A7392B916180',
+    ndefAvailable: true,
+    ndefWritable: true,
+  );
+
+  int pollCalls = 0;
+  int finishCalls = 0;
+
+  @override
+  Future<NfcAvailabilityState> availability() async {
+    return NfcAvailabilityState.available;
+  }
+
+  @override
+  Future<void> finish() async {
+    finishCalls += 1;
+    final completer = _pollCompleter;
+    if (completer != null && !completer.isCompleted) {
+      completer.completeError(StateError('cancelled'));
+    }
+  }
+
+  @override
+  Future<NfcPlatformTag> poll({required Duration timeout}) {
+    pollCalls += 1;
+    return _pollCompleter?.future ?? Future.value(tag);
+  }
+
+  @override
+  Future<void> writeUri(Uri uri) => throw UnimplementedError();
+}
+
+class _FakeNfcTagRepository implements INfcTagRepository {
+  final List<NfcTag> tags = [];
+
+  @override
+  Future<NfcTag> create({
+    required String albumId,
+    required String nfcTagId,
+    DateTime? writtenAt,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<int> delete(String id) => throw UnimplementedError();
+
+  @override
+  Future<NfcTag?> findByAlbum(String albumId) async {
+    for (final tag in tags) {
+      if (tag.albumId == albumId) return tag;
+    }
+    return null;
+  }
+
+  @override
+  Future<NfcTag?> findByTagId(String nfcTagId) async {
+    for (final tag in tags) {
+      if (tag.nfcTagId == nfcTagId) return tag;
+    }
+    return null;
+  }
+
+  @override
+  Future<NfcTag> replaceForAlbum({
+    required String albumId,
+    required String nfcTagId,
+    DateTime? writtenAt,
+  }) => throw UnimplementedError();
 }
