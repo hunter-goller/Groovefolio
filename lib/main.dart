@@ -117,15 +117,14 @@ class MyApp extends ConsumerWidget {
       next.whenData((uri) {
         if (albumIdFromNfcUri(uri) == null) return;
 
-        ref
-            .read(nfcIntentPlayHandlerProvider)
-            .handle(uri)
-            .then((result) {
-              if (result != null) _showNfcResult(result);
-            })
-            .catchError((Object error) {
-              _showNfcError(error);
-            });
+        ref.read(nfcIntentPlayHandlerProvider).handle(uri).then<void>(
+          (result) {
+            if (result != null) _showNfcResult(result);
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            _showNfcError(error);
+          },
+        );
       });
     });
 
