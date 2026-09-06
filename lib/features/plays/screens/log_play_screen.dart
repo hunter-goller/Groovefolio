@@ -290,8 +290,9 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Couldn’t log play: $error')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Couldn’t log play: $error')));
     }
   }
 
@@ -404,8 +405,9 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
               Expanded(
                 child: _PickerButton(
                   icon: Icons.schedule_rounded,
-                  label: MaterialLocalizations.of(context)
-                      .formatTimeOfDay(_selectedTime),
+                  label: MaterialLocalizations.of(
+                    context,
+                  ).formatTimeOfDay(_selectedTime),
                   onPressed: _pickTime,
                 ),
               ),
