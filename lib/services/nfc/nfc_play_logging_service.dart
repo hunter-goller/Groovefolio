@@ -11,7 +11,9 @@ class NfcPlayLogResult {
     : suppressed = false,
       albumId = play.albumId;
 
-  const NfcPlayLogResult.suppressed(this.albumId) : play = null, suppressed = true;
+  const NfcPlayLogResult.suppressed(this.albumId)
+    : play = null,
+      suppressed = true;
 
   final Play? play;
   final String albumId;
@@ -75,6 +77,19 @@ class NfcPlayLoggingService {
     SidePlayed side = SidePlayed.full,
   }) async {
     final albumId = await _nfcService.startScan().single;
+    return logResolvedAlbum(albumId, playedAt: playedAt, side: side);
+  }
+
+  /// Logs a play for an album already resolved from an NFC URI/intent.
+  ///
+  /// This is used for Android NDEF intents, where the NFC payload contains the
+  /// Groovefolio album URI and Android delivers it directly to the app instead
+  /// of requiring a foreground NFC polling session.
+  Future<NfcPlayLogResult> logResolvedAlbum(
+    String albumId, {
+    DateTime? playedAt,
+    SidePlayed side = SidePlayed.full,
+  }) async {
     final normalizedAlbumId = albumId.trim();
     if (normalizedAlbumId.isEmpty) {
       throw StateError('NFC scan resolved to an empty album ID.');
@@ -82,7 +97,8 @@ class NfcPlayLoggingService {
 
     final timestamp = playedAt ?? _now();
     final previous = _lastLoggedAt[normalizedAlbumId];
-    if (previous != null && timestamp.difference(previous).abs() < duplicateWindow) {
+    if (previous != null &&
+        timestamp.difference(previous).abs() < duplicateWindow) {
       return NfcPlayLogResult.suppressed(normalizedAlbumId);
     }
 
