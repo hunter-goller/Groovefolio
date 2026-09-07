@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:vinyl_app/features/settings/screens/fake_nfc_tap_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/providers/track_providers.dart';
@@ -98,12 +99,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               SizedBox(height: tokens.space12),
               _DeveloperToolsCard(
                 isResetting: _isResettingLocalData,
+                onTestNfcTap: _openFakeNfcTap,
                 onReset: _confirmResetLocalData,
               ),
             ],
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _openFakeNfcTap() {
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (context) => const FakeNfcTapScreen()),
     );
   }
 
@@ -173,34 +181,55 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 }
 
 class _DeveloperToolsCard extends StatelessWidget {
-  const _DeveloperToolsCard({required this.isResetting, required this.onReset});
+  const _DeveloperToolsCard({
+    required this.isResetting,
+    required this.onTestNfcTap,
+    required this.onReset,
+  });
 
   final bool isResetting;
+  final Future<void> Function() onTestNfcTap;
   final Future<void> Function() onReset;
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     return Card(
-      child: ListTile(
-        key: const Key('developer-reset-local-data'),
-        enabled: !isResetting,
-        contentPadding: EdgeInsets.all(tokens.space16),
-        leading: isResetting
-            ? const SizedBox.square(
-                dimension: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Icon(
-                Icons.delete_sweep_outlined,
-                color: context.theme.colorScheme.error,
-              ),
-        title: const Text('Reset local app data'),
-        subtitle: const Text(
-          'Clears collection data and artwork, but keeps your Discogs login.',
-        ),
-        trailing: const Icon(Icons.chevron_right_rounded),
-        onTap: isResetting ? null : () => onReset(),
+      child: Column(
+        children: [
+          ListTile(
+            key: const Key('developer-test-nfc-tap'),
+            contentPadding: EdgeInsets.all(tokens.space16),
+            leading: const Icon(Icons.nfc_rounded),
+            title: const Text('Test NFC tap'),
+            subtitle: const Text(
+              'Choose a record and simulate an NFC play without a tag.',
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => onTestNfcTap(),
+          ),
+          Divider(height: 1, color: context.theme.dividerColor),
+          ListTile(
+            key: const Key('developer-reset-local-data'),
+            enabled: !isResetting,
+            contentPadding: EdgeInsets.all(tokens.space16),
+            leading: isResetting
+                ? const SizedBox.square(
+                    dimension: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(
+                    Icons.delete_sweep_outlined,
+                    color: context.theme.colorScheme.error,
+                  ),
+            title: const Text('Reset local app data'),
+            subtitle: const Text(
+              'Clears collection data and artwork, but keeps your Discogs login.',
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: isResetting ? null : () => onReset(),
+          ),
+        ],
       ),
     );
   }

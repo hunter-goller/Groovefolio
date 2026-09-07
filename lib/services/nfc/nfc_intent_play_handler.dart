@@ -5,8 +5,7 @@ import 'package:vinyl_app/services/nfc/nfc_play_logging_service.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 
 class NfcIntentPlayResult {
-  const NfcIntentPlayResult.logged({required this.album})
-    : suppressed = false;
+  const NfcIntentPlayResult.logged({required this.album}) : suppressed = false;
 
   const NfcIntentPlayResult.suppressed({required this.album})
     : suppressed = true;

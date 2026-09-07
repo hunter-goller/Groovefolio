@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -78,6 +80,15 @@ class MyApp extends ConsumerWidget {
       );
   }
 
+  Future<void> _handleNfcUri(WidgetRef ref, Uri uri) async {
+    try {
+      final result = await ref.read(nfcIntentPlayHandlerProvider).handle(uri);
+      if (result != null) _showNfcResult(result);
+    } on Object catch (error) {
+      _showNfcError(error);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // The database was explicitly opened during bootstrap before runApp.
@@ -108,25 +119,17 @@ class MyApp extends ConsumerWidget {
               .handleCallback(uri);
         });
       });
-    }
 
-    // AppLinks delivers the NFC URI for both cold-start and warm-app NFC
-    // intents. The handler reuses the same play-logging service as foreground
-    // NFC polling, so all play history follows one persistence path.
-    ref.listen(discogsIncomingUriProvider, (previous, next) {
-      next.whenData((uri) {
-        if (albumIdFromNfcUri(uri) == null) return;
-
-        ref.read(nfcIntentPlayHandlerProvider).handle(uri).then<void>(
-          (result) {
-            if (result != null) _showNfcResult(result);
-          },
-          onError: (Object error, StackTrace stackTrace) {
-            _showNfcError(error);
-          },
-        );
+      // AppLinks delivers the NFC URI for both cold-start and warm-app NFC
+      // intents. The handler reuses the same play-logging service as foreground
+      // NFC polling, so all play history follows one persistence path.
+      ref.listen(discogsIncomingUriProvider, (previous, next) {
+        next.whenData((uri) {
+          if (albumIdFromNfcUri(uri) == null) return;
+          unawaited(_handleNfcUri(ref, uri));
+        });
       });
-    });
+    }
 
     return MaterialApp.router(
       title: 'Groovefolio',

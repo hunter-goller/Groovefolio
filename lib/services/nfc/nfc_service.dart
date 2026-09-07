@@ -79,10 +79,18 @@ String normalizeNfcTagIdentifier(String identifier) {
   return compact.toUpperCase();
 }
 
+/// Resolves one physical NFC scan to the album associated with that tag.
+///
+/// Keeping the play-logging workflow behind this small boundary makes the
+/// software-only developer tap and unit tests independent of NFC hardware.
+abstract interface class INfcAlbumScanner {
+  Stream<String> startScan({Duration timeout = _defaultNfcTimeout});
+}
+
 /// Coordinates foreground NFC polling, NDEF writing, and local tag-to-album
 /// resolution. NFC UI remains hidden until VinylApp-065/066 wire these methods
 /// into the record and Log Play flows.
-class NfcService {
+class NfcService implements INfcAlbumScanner {
   NfcService({
     required INfcPlatformAdapter platform,
     required INfcTagRepository repository,
@@ -172,6 +180,7 @@ class NfcService {
 
   /// Starts one foreground scan and emits the locally registered album ID.
   /// The physical tag identifier is deliberately never exposed to UI callers.
+  @override
   Stream<String> startScan({Duration timeout = _defaultNfcTimeout}) async* {
     _beginOperation();
     try {

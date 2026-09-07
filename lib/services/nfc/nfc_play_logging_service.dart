@@ -23,11 +23,7 @@ class NfcPlayLogResult {
 /// Small boundary around play logging so the NFC workflow can be tested
 /// without constructing a database-backed PlayLoggingService.
 abstract interface class INfcPlayLogger {
-  Future<Play> logPlay(
-    String albumId,
-    DateTime playedAt,
-    SidePlayed side,
-  );
+  Future<Play> logPlay(String albumId, DateTime playedAt, SidePlayed side);
 }
 
 class PlayLoggingNfcAdapter implements INfcPlayLogger {
@@ -36,11 +32,8 @@ class PlayLoggingNfcAdapter implements INfcPlayLogger {
   final PlayLoggingService _service;
 
   @override
-  Future<Play> logPlay(
-    String albumId,
-    DateTime playedAt,
-    SidePlayed side,
-  ) => _service.logPlay(albumId, playedAt, side);
+  Future<Play> logPlay(String albumId, DateTime playedAt, SidePlayed side) =>
+      _service.logPlay(albumId, playedAt, side);
 }
 
 /// Converts one resolved NFC album scan into exactly one play-log operation.
@@ -54,7 +47,7 @@ class PlayLoggingNfcAdapter implements INfcPlayLogger {
 /// it is a duplicate-event guard, not a persistent play-history rule.
 class NfcPlayLoggingService {
   NfcPlayLoggingService({
-    required NfcService nfcService,
+    required INfcAlbumScanner nfcService,
     required INfcPlayLogger playLogger,
     DateTime Function()? now,
     this.duplicateWindow = const Duration(seconds: 5),
@@ -62,7 +55,7 @@ class NfcPlayLoggingService {
        _playLogger = playLogger,
        _now = now ?? DateTime.now;
 
-  final NfcService _nfcService;
+  final INfcAlbumScanner _nfcService;
   final INfcPlayLogger _playLogger;
   final DateTime Function() _now;
   final Duration duplicateWindow;
@@ -102,13 +95,24 @@ class NfcPlayLoggingService {
       return NfcPlayLogResult.suppressed(normalizedAlbumId);
     }
 
-    final play = await _playLogger.logPlay(
-      normalizedAlbumId,
-      timestamp,
-      side,
-    );
+    // Reserve the cooldown before awaiting persistence so overlapping Android
+    // callbacks for the same tag cannot both create a play.
     _lastLoggedAt[normalizedAlbumId] = timestamp;
-    return NfcPlayLogResult.logged(play);
+    try {
+      final play = await _playLogger.logPlay(
+        normalizedAlbumId,
+        timestamp,
+        side,
+      );
+      return NfcPlayLogResult.logged(play);
+    } on Object {
+      // A failed write must not prevent an immediate retry. Only remove this
+      // attempt if a newer callback has not replaced its timestamp.
+      if (_lastLoggedAt[normalizedAlbumId] == timestamp) {
+        _lastLoggedAt.remove(normalizedAlbumId);
+      }
+      rethrow;
+    }
   }
 
   /// Clears the in-memory duplicate guard. Useful after an explicit user
