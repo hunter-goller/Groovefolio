@@ -1,14 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/db/app_database.dart';
-import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/play_logging_service.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
 /// The result of handling one NFC scan.
 class NfcPlayLogResult {
-  const NfcPlayLogResult.logged(this.play)
+  NfcPlayLogResult.logged(Play play)
     : suppressed = false,
+      play = play,
       albumId = play.albumId;
 
   const NfcPlayLogResult.suppressed(this.albumId)
@@ -47,13 +47,11 @@ class PlayLoggingNfcAdapter implements INfcPlayLogger {
 /// it is a duplicate-event guard, not a persistent play-history rule.
 class NfcPlayLoggingService {
   NfcPlayLoggingService({
-    required INfcAlbumScanner nfcService,
-    required INfcPlayLogger playLogger,
+    required this._nfcService,
+    required this._playLogger,
     DateTime Function()? now,
     this.duplicateWindow = const Duration(seconds: 5),
-  }) : _nfcService = nfcService,
-       _playLogger = playLogger,
-       _now = now ?? DateTime.now;
+  }) : _now = now ?? DateTime.now;
 
   final INfcAlbumScanner _nfcService;
   final INfcPlayLogger _playLogger;

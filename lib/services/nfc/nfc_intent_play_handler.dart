@@ -22,10 +22,9 @@ class NfcIntentPlayResult {
 /// by foreground NFC scanning.
 class NfcIntentPlayHandler {
   NfcIntentPlayHandler({
-    required NfcPlayLoggingService playLogging,
-    required IAlbumRepository albumRepository,
-  }) : _playLogging = playLogging,
-       _albumRepository = albumRepository;
+    required this._playLogging,
+    required this._albumRepository,
+  });
 
   final NfcPlayLoggingService _playLogging;
   final IAlbumRepository _albumRepository;
