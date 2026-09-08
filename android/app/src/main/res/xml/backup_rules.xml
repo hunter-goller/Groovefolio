@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 11 and earlier backup rules.
+
+  Groovefolio does not yet provide a versioned, app-controlled collection
+  export. Exclude every app-private domain so Android cannot create a partial
+  or credential-bearing automatic backup. A future export/restore feature must
+  remain separate from this file and must never include authentication data.
+-->
+<full-backup-content>
+    <exclude domain="root" path="." />
+    <exclude domain="file" path="." />
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="external" path="." />
+    <exclude domain="device_root" path="." />
+    <exclude domain="device_file" path="." />
+    <exclude domain="device_database" path="." />
+    <exclude domain="device_sharedpref" path="." />
+</full-backup-content>
