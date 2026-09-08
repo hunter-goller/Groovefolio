@@ -149,7 +149,7 @@ class MainActivity : FlutterActivity() {
 
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
                 @Suppress("DEPRECATION")
-                builder.priority = Notification.PRIORITY_HIGH
+                builder.setPriority(Notification.PRIORITY_HIGH)
             }
 
             val artwork = decodeArtwork(notification.artworkPath)
