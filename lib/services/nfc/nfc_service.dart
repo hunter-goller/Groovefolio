@@ -295,9 +295,10 @@ class NfcService implements INfcAlbumScanner {
     if (!_platformIntentGateMayBeActive) return;
     final platform = _platform;
     if (platform is! INfcForegroundIntentGate) return;
+    final gate = platform as INfcForegroundIntentGate;
 
     try {
-      await platform.setForegroundNfcOperationActive(false);
+      await gate.setForegroundNfcOperationActive(false);
     } on Object catch (error, stackTrace) {
       if (kDebugMode) {
         debugPrint('[Groovefolio] NFC intent-gate cleanup failed: $error');
