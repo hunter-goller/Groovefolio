@@ -317,7 +317,7 @@ Future<Map<String, Object?>> _snapshot(File file) async {
     final version = await db.customSelect('PRAGMA user_version').getSingle();
     final schema = await db
         .customSelect(
-          "SELECT type, name, tbl_name, sql FROM sqlite_master "
+          'SELECT type, name, tbl_name, sql FROM sqlite_master '
           "WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name",
         )
         .get();
