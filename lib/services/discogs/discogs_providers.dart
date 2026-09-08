@@ -50,9 +50,10 @@ final discogsIncomingUriProvider = StreamProvider<Uri>((ref) {
   return ref.watch(discogsAppLinksProvider).uriLinkStream;
 });
 
-/// Lets widget tests opt out of platform deep-link registration without
-/// changing production behavior.
-final discogsDeepLinksEnabledProvider = Provider<bool>((ref) => true);
+/// Lets widget tests opt out of platform app-link registration without
+/// changing production behavior. The shared stream carries both Discogs OAuth
+/// callbacks and NFC album intents.
+final appLinksEnabledProvider = Provider<bool>((ref) => true);
 
 enum DiscogsAuthorizationStatus {
   idle,

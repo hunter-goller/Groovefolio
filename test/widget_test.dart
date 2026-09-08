@@ -22,7 +22,7 @@ void main() {
       ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(db),
-          discogsDeepLinksEnabledProvider.overrideWithValue(false),
+          appLinksEnabledProvider.overrideWithValue(false),
           onboardingRequiredProvider.overrideWithValue(const AsyncData(false)),
           nfcAvailabilityProvider.overrideWith((ref) async {
             nfcAvailabilityChecks += 1;

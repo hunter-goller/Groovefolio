@@ -76,9 +76,10 @@ Groovefolio is being built as a local-first vinyl collection and listening-histo
 
 - ✅ Android NFC permissions, platform adapter, and typed service (`VinylApp-045/064`)
 - ✅ optional write/link/replace flows (`VinylApp-065`)
-- 🚧 foreground scan → Log Play record selection (`VinylApp-066`)
+- ✅ foreground scan → Log Play record selection (`VinylApp-066`)
+- ✅ Android NDEF launch/resume → automatic full-album play (`VinylApp-066/085` partial)
 - ⬜ physical validation with the Galaxy S22 Ultra and NTAG215 tags
-- ⬜ background/cold-launch scan handling (`VinylApp-085`)
+- ⬜ define any remaining background NFC scope after physical validation (`VinylApp-085`)
 
 ## Discover / recommendations
 

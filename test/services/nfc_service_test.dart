@@ -109,14 +109,33 @@ void main() {
   });
 
   test('album NFC URIs round-trip and reject unrelated links', () {
-    final uri = nfcAlbumUri('album/with space');
+    final uri = nfcAlbumUri('album-1234_abcd.test');
 
-    expect(albumIdFromNfcUri(uri), 'album/with space');
+    expect(albumIdFromNfcUri(uri), 'album-1234_abcd.test');
     expect(
       albumIdFromNfcUri(Uri.parse('groovefolio://discogs-auth/callback')),
       isNull,
     );
     expect(albumIdFromNfcUri(Uri.parse('https://groovefolio.app')), isNull);
+  });
+
+  test('album NFC URIs reject extra or unsafe URI content', () {
+    final invalidUris = [
+      'groovefolio://album/album-1/extra',
+      'groovefolio://album/album-1?source=other-app',
+      'groovefolio://album/album-1#fragment',
+      'groovefolio://user@album/album-1',
+      'groovefolio://album:42/album-1',
+      'groovefolio://album/album%2Fother',
+      'groovefolio://album/album%20one',
+      'groovefolio://album/${List.filled(257, 'a').join()}',
+    ];
+
+    for (final value in invalidUris) {
+      expect(albumIdFromNfcUri(Uri.parse(value)), isNull, reason: value);
+    }
+
+    expect(() => nfcAlbumUri('album/other'), throwsArgumentError);
   });
 
   test('a written tag scans back to the same album', () async {

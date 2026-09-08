@@ -85,6 +85,7 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const Key('developer-settings-heading')), findsNothing);
+    expect(find.byKey(const Key('developer-test-nfc-tap')), findsNothing);
     expect(find.byKey(const Key('developer-reset-local-data')), findsNothing);
   });
 

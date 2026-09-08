@@ -10,6 +10,8 @@ import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
 const _defaultNfcTimeout = Duration(seconds: 20);
 const _nfcUriScheme = 'groovefolio';
 const _nfcAlbumHost = 'album';
+const _maxNfcUriLength = 256;
+final _safeAlbumId = RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$');
 
 enum NfcFailure {
   unavailable,
@@ -47,8 +49,12 @@ class NfcException implements Exception {
 /// Builds the stable URI written to a Groovefolio NFC tag.
 Uri nfcAlbumUri(String albumId) {
   final normalizedAlbumId = albumId.trim();
-  if (normalizedAlbumId.isEmpty) {
-    throw ArgumentError.value(albumId, 'albumId', 'Album ID cannot be empty.');
+  if (!_safeAlbumId.hasMatch(normalizedAlbumId)) {
+    throw ArgumentError.value(
+      albumId,
+      'albumId',
+      'Album ID contains unsupported characters or is too long.',
+    );
   }
 
   return Uri(
@@ -60,14 +66,19 @@ Uri nfcAlbumUri(String albumId) {
 
 /// Extracts an album ID only from Groovefolio album-tag URIs.
 String? albumIdFromNfcUri(Uri uri) {
-  if (uri.scheme != _nfcUriScheme ||
+  if (uri.toString().length > _maxNfcUriLength ||
+      uri.scheme != _nfcUriScheme ||
       uri.host != _nfcAlbumHost ||
+      uri.hasPort ||
+      uri.userInfo.isNotEmpty ||
+      uri.hasQuery ||
+      uri.hasFragment ||
       uri.pathSegments.length != 1) {
     return null;
   }
 
-  final albumId = uri.pathSegments.single.trim();
-  return albumId.isEmpty ? null : albumId;
+  final albumId = uri.pathSegments.single;
+  return _safeAlbumId.hasMatch(albumId) ? albumId : null;
 }
 
 /// Canonicalizes the hexadecimal identifier returned by Android NFC APIs.
@@ -79,9 +90,17 @@ String normalizeNfcTagIdentifier(String identifier) {
   return compact.toUpperCase();
 }
 
+/// Resolves one physical NFC scan to the album associated with that tag.
+///
+/// Keeping the play-logging workflow behind this small boundary makes the
+/// software-only developer tap and unit tests independent of NFC hardware.
+abstract interface class INfcAlbumScanner {
+  Stream<String> startScan({Duration timeout = _defaultNfcTimeout});
+}
+
 /// Coordinates foreground NFC polling, NDEF writing, and local tag-to-album
 /// resolution for the record and Log Play flows.
-class NfcService {
+class NfcService implements INfcAlbumScanner {
   NfcService({
     required INfcPlatformAdapter platform,
     required INfcTagRepository repository,
@@ -184,6 +203,7 @@ class NfcService {
 
   /// Starts one foreground scan and emits the locally registered album ID.
   /// The physical tag identifier is deliberately never exposed to UI callers.
+  @override
   Stream<String> startScan({Duration timeout = _defaultNfcTimeout}) async* {
     _beginOperation();
     try {

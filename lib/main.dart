@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:vinyl_app/db/database_provider.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/routing/router.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
+import 'package:vinyl_app/services/nfc/nfc_intent_play_handler.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/theme/theme_provider.dart';
@@ -16,7 +19,7 @@ Future<void> main() async {
   final container = ProviderContainer();
 
   // Instantiate app-links before the database bootstrap so a cold-start OAuth
-  // callback is retained while Drift opens and runs any migrations.
+  // or NFC callback is retained while Drift opens and runs any migrations.
   container.read(discogsAppLinksProvider);
 
   try {
@@ -42,6 +45,51 @@ Future<void> main() async {
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
+  static final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
+  void _showNfcResult(NfcIntentPlayResult result) {
+    _showNfcMessage(
+      result.suppressed
+          ? '${result.album.title} is already logged.'
+          : 'Play logged: ${result.album.title}',
+    );
+  }
+
+  void _showNfcError(Object error) {
+    final message = error is NfcException
+        ? error.message
+        : 'Groovefolio couldn’t log that NFC play.';
+
+    _showNfcMessage(message);
+  }
+
+  void _showNfcMessage(String message, {bool afterFirstFrame = false}) {
+    final messenger = _scaffoldMessengerKey.currentState;
+    if (messenger == null) {
+      if (!afterFirstFrame) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _showNfcMessage(message, afterFirstFrame: true);
+        });
+      }
+      return;
+    }
+
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+      );
+  }
+
+  Future<void> _handleNfcUri(WidgetRef ref, Uri uri) async {
+    try {
+      final result = await ref.read(nfcIntentPlayHandlerProvider).handle(uri);
+      if (result != null) _showNfcResult(result);
+    } on Object catch (error) {
+      _showNfcError(error);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // The database was explicitly opened during bootstrap before runApp.
@@ -57,7 +105,7 @@ class MyApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeControllerProvider);
 
-    if (ref.watch(discogsDeepLinksEnabledProvider)) {
+    if (ref.watch(appLinksEnabledProvider)) {
       ref.listen(discogsIncomingUriProvider, (previous, next) {
         next.whenData((uri) {
           final config = ref.read(discogsConfigProvider);
@@ -72,11 +120,22 @@ class MyApp extends ConsumerWidget {
               .handleCallback(uri);
         });
       });
+
+      // AppLinks delivers the NFC URI for both cold-start and warm-app NFC
+      // intents. The handler reuses the same play-logging service as foreground
+      // NFC polling, so all play history follows one persistence path.
+      ref.listen(discogsIncomingUriProvider, (previous, next) {
+        next.whenData((uri) {
+          if (albumIdFromNfcUri(uri) == null) return;
+          unawaited(_handleNfcUri(ref, uri));
+        });
+      });
     }
 
     return MaterialApp.router(
       title: 'Groovefolio',
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: _scaffoldMessengerKey,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: themeMode,

@@ -6,6 +6,8 @@
 This change builds on VinylApp-065 and connects the existing foreground NFC
 service and animated prompt to Log Play. Manual record selection remains fully
 available whenever NFC is unavailable, disabled, cancelled, or unsuccessful.
+It also handles Android-delivered album-tag intents and logs a full-album play
+without requiring a manual Save action.
 
 ## Implements
 
@@ -18,6 +20,11 @@ available whenever NFC is unavailable, disabled, cancelled, or unsuccessful.
 - one active foreground poll at a time across rebuilds and repeated input
 - cancellation when a record is selected manually or the screen closes
 - no NFC prompt or poll when Album Details already preselects a record
+- cold-start and warm-app Android NDEF intent handling
+- automatic full-album logging through the normal `PlayLoggingService`
+- five-second monotonic duplicate suppression per album
+- safe handling for invalid URIs and deleted albums
+- debug-only software NFC tap flow that uses the same logging service
 - widget coverage for availability, active scanning, linked and unlinked tags,
   cancellation, duplicate-session prevention, and preselection
 
@@ -25,7 +32,8 @@ available whenever NFC is unavailable, disabled, cancelled, or unsuccessful.
 
 - verify scanning, cancellation, repeat scans, and unlinked tags on the Galaxy
   S22 Ultra with the ordered NTAG215 tags
-- implement VinylApp-085 for background/cold-launch NFC handling
+- decide whether VinylApp-085 needs behavior beyond Android-delivered NDEF
+  launch/resume handling
 
 ## Verify
 
