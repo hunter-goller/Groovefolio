@@ -117,6 +117,10 @@ void main() {
         pollCompleter: pollCompleter,
         elapsed: () => elapsed,
       );
+      await fixture.repository.create(
+        albumId: 'album-1',
+        nfcTagId: normalizeNfcTagIdentifier(fixture.platform.tag.identifier),
+      );
 
       final scan = fixture.service.startScan().single;
       await Future<void>.delayed(Duration.zero);

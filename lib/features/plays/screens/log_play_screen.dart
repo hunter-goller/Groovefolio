@@ -47,6 +47,7 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
   bool _isNfcScanning = false;
   bool _initialNfcScanScheduled = false;
   int _nfcScanGeneration = 0;
+  late final NfcService _nfcService;
 
   @override
   void initState() {
@@ -56,6 +57,7 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
     _selectedTime = TimeOfDay.fromDateTime(now);
     _searchController = TextEditingController();
     _selectedAlbum = widget.initialAlbum;
+    _nfcService = ref.read(nfcServiceProvider);
   }
 
   @override
@@ -69,7 +71,7 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
 
   Future<void> _stopNfcServiceForDispose() async {
     try {
-      await ref.read(nfcServiceProvider).stopScan();
+      await _nfcService.stopScan();
     } on Object catch (error, stackTrace) {
       _logNfcDiagnostic(error, stackTrace);
     }
@@ -148,7 +150,7 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
     setState(() => _isNfcScanning = true);
 
     try {
-      final albumId = await ref.read(nfcServiceProvider).startScan().first;
+      final albumId = await _nfcService.startScan().first;
       if (!mounted || generation != _nfcScanGeneration) return;
 
       final detail = await ref.read(albumDetailProvider(albumId).future);
@@ -199,7 +201,7 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
     }
 
     try {
-      await ref.read(nfcServiceProvider).stopScan();
+      await _nfcService.stopScan();
     } on Object catch (error, stackTrace) {
       _logNfcDiagnostic(error, stackTrace);
     }
