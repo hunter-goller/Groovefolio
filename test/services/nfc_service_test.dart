@@ -239,11 +239,7 @@ class _Fixture {
          pollCompleter: pollCompleter,
        ),
        repository = _FakeNfcTagRepository() {
-    service = NfcService(
-      platform,
-      repository,
-      elapsed: elapsed,
-    );
+    service = NfcService(platform, repository, elapsed: elapsed);
   }
 
   final _FakeNfcPlatform platform;
