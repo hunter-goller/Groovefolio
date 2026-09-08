@@ -11,6 +11,7 @@ void main() {
       ).readAsStringSync();
 
       expect(manifest, contains('android.permission.NFC'));
+      expect(manifest, contains('android.permission.POST_NOTIFICATIONS'));
       expect(manifest, contains('android.hardware.nfc'));
       expect(manifest, contains('android:required="false"'));
       expect(manifest, contains('android.nfc.action.NDEF_DISCOVERED'));

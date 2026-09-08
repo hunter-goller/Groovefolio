@@ -15,6 +15,7 @@ void main() {
     );
 
     expect(result?.album, _FakeAlbumRepository.album);
+    expect(result?.play?.id, 'play-1');
     expect(result?.suppressed, isFalse);
     expect(fixture.albumRepository.findCalls, 1);
     expect(fixture.playLogger.calls, 1);
@@ -44,10 +45,25 @@ void main() {
     expect(fixture.albumRepository.findCalls, 1);
     expect(fixture.playLogger.calls, 0);
   });
+
+  test(
+    'foreground NFC operation suppresses automatic intent logging',
+    () async {
+      final fixture = _Fixture(suppressAutomaticIntent: true);
+
+      final result = await fixture.handler.handle(
+        Uri.parse('groovefolio://album/album-1'),
+      );
+
+      expect(result, isNull);
+      expect(fixture.albumRepository.findCalls, 0);
+      expect(fixture.playLogger.calls, 0);
+    },
+  );
 }
 
 class _Fixture {
-  _Fixture({bool albumExists = true})
+  _Fixture({bool albumExists = true, bool suppressAutomaticIntent = false})
     : albumRepository = _FakeAlbumRepository(albumExists: albumExists),
       playLogger = _FakePlayLogger() {
     handler = NfcIntentPlayHandler(
@@ -58,6 +74,7 @@ class _Fixture {
         elapsed: () => Duration.zero,
       ),
       albumRepository: albumRepository,
+      shouldSuppressAutomaticIntent: () => suppressAutomaticIntent,
     );
   }
 

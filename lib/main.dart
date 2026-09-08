@@ -9,6 +9,7 @@ import 'package:vinyl_app/routing/router.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_intent_play_handler.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
+import 'package:vinyl_app/services/notifications/nfc_play_notification_service.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/theme/theme_provider.dart';
 
@@ -47,12 +48,24 @@ class MyApp extends ConsumerWidget {
 
   static final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
-  void _showNfcResult(NfcIntentPlayResult result) {
-    _showNfcMessage(
-      result.suppressed
-          ? '${result.album.title} is already logged.'
-          : 'Play logged: ${result.album.title}',
-    );
+  Future<void> _showNfcResult(WidgetRef ref, NfcIntentPlayResult result) async {
+    if (result.suppressed) {
+      _showNfcMessage('${result.album.title} is already logged.');
+      return;
+    }
+
+    final play = result.play;
+    if (play == null) {
+      _showNfcMessage('Play logged: ${result.album.title}');
+      return;
+    }
+
+    final notificationShown = await ref
+        .read(nfcPlayNotificationServiceProvider)
+        .showLoggedPlay(album: result.album, play: play);
+    if (!notificationShown) {
+      _showNfcMessage('Play logged: ${result.album.title}');
+    }
   }
 
   void _showNfcError(Object error) {
@@ -84,7 +97,7 @@ class MyApp extends ConsumerWidget {
   Future<void> _handleNfcUri(WidgetRef ref, Uri uri) async {
     try {
       final result = await ref.read(nfcIntentPlayHandlerProvider).handle(uri);
-      if (result != null) _showNfcResult(result);
+      if (result != null) await _showNfcResult(ref, result);
     } on Object catch (error) {
       _showNfcError(error);
     }

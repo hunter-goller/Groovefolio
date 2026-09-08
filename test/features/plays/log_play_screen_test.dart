@@ -39,6 +39,7 @@ void main() {
     expect(fixture.playRepository.plays.single.albumId, 'album-1');
     expect(fixture.playRepository.plays.single.sidePlayed, SidePlayed.sideA);
     expect(find.text('Collection test'), findsOneWidget);
+    expect(find.text('Play logged: Blue Train • Side A'), findsOneWidget);
   });
 
   testWidgets('default picker limits recent records until Browse all', (

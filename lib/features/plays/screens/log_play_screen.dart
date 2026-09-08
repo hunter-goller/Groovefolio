@@ -282,11 +282,16 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
       ref.invalidate(albumSearchProvider(_query));
 
       if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      final confirmation = 'Play logged: ${album.title} • ${_sideLabel(_side)}';
       if (widget.isBottomSheet) {
         Navigator.of(context).pop();
       } else {
         context.go(AppRoutes.collection);
       }
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(confirmation)));
     } catch (error) {
       if (!mounted) return;
       setState(() => _isSaving = false);
@@ -456,6 +461,12 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
     return MaterialLocalizations.of(context).formatMediumDate(_selectedDate);
   }
 }
+
+String _sideLabel(SidePlayed side) => switch (side) {
+  SidePlayed.full => 'Full album',
+  SidePlayed.sideA => 'Side A',
+  SidePlayed.sideB => 'Side B',
+};
 
 class _AlbumResults extends StatelessWidget {
   const _AlbumResults({

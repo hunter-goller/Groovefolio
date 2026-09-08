@@ -5,12 +5,15 @@ import 'package:vinyl_app/services/nfc/nfc_play_logging_service.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 
 class NfcIntentPlayResult {
-  const NfcIntentPlayResult.logged({required this.album}) : suppressed = false;
+  const NfcIntentPlayResult.logged({required this.album, required this.play})
+    : suppressed = false;
 
   const NfcIntentPlayResult.suppressed({required this.album})
-    : suppressed = true;
+    : play = null,
+      suppressed = true;
 
   final Album album;
+  final Play? play;
   final bool suppressed;
 }
 
@@ -24,12 +27,16 @@ class NfcIntentPlayHandler {
   NfcIntentPlayHandler({
     required this._playLogging,
     required this._albumRepository,
-  });
+    required bool Function() shouldSuppressAutomaticIntent,
+  }) : _shouldSuppressAutomaticIntent = shouldSuppressAutomaticIntent;
 
   final NfcPlayLoggingService _playLogging;
   final IAlbumRepository _albumRepository;
+  final bool Function() _shouldSuppressAutomaticIntent;
 
   Future<NfcIntentPlayResult?> handle(Uri uri) async {
+    if (_shouldSuppressAutomaticIntent()) return null;
+
     final albumId = albumIdFromNfcUri(uri);
     if (albumId == null) return null;
 
@@ -46,13 +53,16 @@ class NfcIntentPlayHandler {
     if (result.suppressed) {
       return NfcIntentPlayResult.suppressed(album: album);
     }
-    return NfcIntentPlayResult.logged(album: album);
+    return NfcIntentPlayResult.logged(album: album, play: result.play!);
   }
 }
 
 final nfcIntentPlayHandlerProvider = Provider<NfcIntentPlayHandler>((ref) {
+  final nfcService = ref.watch(nfcServiceProvider);
   return NfcIntentPlayHandler(
     playLogging: ref.watch(nfcPlayLoggingServiceProvider),
     albumRepository: ref.watch(albumRepositoryProvider),
+    shouldSuppressAutomaticIntent: () =>
+        nfcService.shouldSuppressAutomaticIntent,
   );
 });

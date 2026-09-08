@@ -8,6 +8,7 @@ import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
 
 const _defaultNfcTimeout = Duration(seconds: 20);
+const _defaultAutomaticIntentSuppressionWindow = Duration(seconds: 2);
 const _nfcUriScheme = 'groovefolio';
 const _nfcAlbumHost = 'album';
 const _maxNfcUriLength = 256;
@@ -104,17 +105,37 @@ class NfcService implements INfcAlbumScanner {
   NfcService({
     required INfcPlatformAdapter platform,
     required INfcTagRepository repository,
-  }) : this._(platform, repository);
+    Duration Function()? elapsed,
+    this.automaticIntentSuppressionWindow =
+        _defaultAutomaticIntentSuppressionWindow,
+  }) : _platform = platform,
+       _repository = repository,
+       _elapsed = elapsed ?? _monotonicElapsed;
 
-  NfcService._(this._platform, this._repository);
+  static final Stopwatch _monotonicClock = Stopwatch()..start();
+
+  static Duration _monotonicElapsed() => _monotonicClock.elapsed;
 
   final INfcPlatformAdapter _platform;
   final INfcTagRepository _repository;
+  final Duration Function() _elapsed;
+  final Duration automaticIntentSuppressionWindow;
 
   bool _operationActive = false;
   bool _nativeSessionMayBeOpen = false;
   bool _sessionFinished = false;
   bool _stopRequested = false;
+  Duration _suppressAutomaticIntentsUntil = Duration.zero;
+
+  /// Whether an Android-delivered album URI belongs to a foreground NFC
+  /// operation and must not be treated as an automatic play.
+  ///
+  /// Some Android devices can deliver the NDEF intent just after reader mode
+  /// finishes. The short monotonic grace period keeps one physical tap from
+  /// both completing a foreground write/scan and inserting a background play.
+  bool get shouldSuppressAutomaticIntent {
+    return _operationActive || _elapsed() < _suppressAutomaticIntentsUntil;
+  }
 
   /// Returns a non-throwing state suitable for the app-launch capability check.
   Future<NfcAvailabilityState> availability() async {
@@ -241,6 +262,8 @@ class NfcService implements INfcAlbumScanner {
   }
 
   void _endOperation() {
+    _suppressAutomaticIntentsUntil =
+        _elapsed() + automaticIntentSuppressionWindow;
     _operationActive = false;
     _nativeSessionMayBeOpen = false;
     _sessionFinished = false;

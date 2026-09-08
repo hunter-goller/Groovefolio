@@ -108,6 +108,29 @@ void main() {
     expect(fixture.platform.finishCalls, 1);
   });
 
+  test(
+    'foreground operations suppress automatic intents until grace period ends',
+    () async {
+      var elapsed = Duration.zero;
+      final pollCompleter = Completer<NfcPlatformTag>();
+      final fixture = _Fixture(
+        pollCompleter: pollCompleter,
+        elapsed: () => elapsed,
+      );
+
+      final scan = fixture.service.startScan().single;
+      await Future<void>.delayed(Duration.zero);
+      expect(fixture.service.shouldSuppressAutomaticIntent, isTrue);
+
+      pollCompleter.complete(fixture.platform.tag);
+      await scan;
+      expect(fixture.service.shouldSuppressAutomaticIntent, isTrue);
+
+      elapsed += const Duration(seconds: 3);
+      expect(fixture.service.shouldSuppressAutomaticIntent, isFalse);
+    },
+  );
+
   test('album NFC URIs round-trip and reject unrelated links', () {
     final uri = nfcAlbumUri('album-1234_abcd.test');
 
@@ -209,13 +232,18 @@ class _Fixture {
       ndefWritable: true,
     ),
     Completer<NfcPlatformTag>? pollCompleter,
+    Duration Function()? elapsed,
   }) : platform = _FakeNfcPlatform(
          availabilityState: availability,
          tag: tag,
          pollCompleter: pollCompleter,
        ),
        repository = _FakeNfcTagRepository() {
-    service = NfcService(platform: platform, repository: repository);
+    service = NfcService(
+      platform: platform,
+      repository: repository,
+      elapsed: elapsed,
+    );
   }
 
   final _FakeNfcPlatform platform;
