@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_nfc_kit/flutter_nfc_kit.dart';
 import 'package:ndef/ndef.dart' as ndef;
 
@@ -30,8 +31,30 @@ abstract interface class INfcPlatformAdapter {
   Future<void> finish();
 }
 
-class FlutterNfcPlatformAdapter implements INfcPlatformAdapter {
+/// Optional Android boundary that prevents a foreground read/write tap from
+/// also being delivered to the app as an automatic-play NDEF intent.
+abstract interface class INfcForegroundIntentGate {
+  Future<void> setForegroundNfcOperationActive(bool active);
+}
+
+class FlutterNfcPlatformAdapter
+    implements INfcPlatformAdapter, INfcForegroundIntentGate {
   const FlutterNfcPlatformAdapter();
+
+  static const _foregroundIntentChannel = MethodChannel(
+    'com.huntergoller.vinyl_app/nfc_foreground_intents',
+  );
+
+  @override
+  Future<void> setForegroundNfcOperationActive(bool active) {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return Future.value();
+    }
+    return _foregroundIntentChannel.invokeMethod<void>(
+      'setForegroundNfcOperationActive',
+      <String, bool>{'active': active},
+    );
+  }
 
   @override
   Future<NfcAvailabilityState> availability() async {

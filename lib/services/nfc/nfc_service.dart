@@ -121,6 +121,7 @@ class NfcService implements INfcAlbumScanner {
 
   bool _operationActive = false;
   bool _nativeSessionMayBeOpen = false;
+  bool _platformIntentGateMayBeActive = false;
   bool _sessionFinished = false;
   bool _stopRequested = false;
   Duration _suppressAutomaticIntentsUntil = Duration.zero;
@@ -164,6 +165,7 @@ class NfcService implements INfcAlbumScanner {
 
     _beginOperation();
     try {
+      await _beginPlatformIntentGate();
       await _ensureAvailable();
       final tag = await _poll(timeout, fallback: NfcFailure.writeFailed);
       final tagIdentifier = _requireTagIdentifier(tag.identifier);
@@ -215,8 +217,12 @@ class NfcService implements INfcAlbumScanner {
         );
       }
     } finally {
-      await _finishSession();
-      _endOperation();
+      try {
+        await _finishSession();
+      } finally {
+        await _endPlatformIntentGate();
+        _endOperation();
+      }
     }
   }
 
@@ -226,6 +232,7 @@ class NfcService implements INfcAlbumScanner {
   Stream<String> startScan({Duration timeout = _defaultNfcTimeout}) async* {
     _beginOperation();
     try {
+      await _beginPlatformIntentGate();
       await _ensureAvailable();
       final tag = await _poll(timeout, fallback: NfcFailure.readFailed);
       final tagIdentifier = _requireTagIdentifier(tag.identifier);
@@ -236,8 +243,12 @@ class NfcService implements INfcAlbumScanner {
       }
       yield association.albumId;
     } finally {
-      await _finishSession();
-      _endOperation();
+      try {
+        await _finishSession();
+      } finally {
+        await _endPlatformIntentGate();
+        _endOperation();
+      }
     }
   }
 
@@ -255,6 +266,7 @@ class NfcService implements INfcAlbumScanner {
     }
     _operationActive = true;
     _nativeSessionMayBeOpen = false;
+    _platformIntentGateMayBeActive = false;
     _sessionFinished = false;
     _stopRequested = false;
   }
@@ -266,6 +278,34 @@ class NfcService implements INfcAlbumScanner {
     _nativeSessionMayBeOpen = false;
     _sessionFinished = false;
     _stopRequested = false;
+  }
+
+  Future<void> _beginPlatformIntentGate() async {
+    if (_platform case final INfcForegroundIntentGate gate) {
+      _platformIntentGateMayBeActive = true;
+      try {
+        await gate.setForegroundNfcOperationActive(true);
+      } on Object catch (error, stackTrace) {
+        _throwMapped(error, stackTrace, fallback: NfcFailure.unavailable);
+      }
+    }
+  }
+
+  Future<void> _endPlatformIntentGate() async {
+    if (!_platformIntentGateMayBeActive) return;
+    final platform = _platform;
+    if (platform is! INfcForegroundIntentGate) return;
+
+    try {
+      await platform.setForegroundNfcOperationActive(false);
+    } on Object catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('[Groovefolio] NFC intent-gate cleanup failed: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+    } finally {
+      _platformIntentGateMayBeActive = false;
+    }
   }
 
   Future<void> _ensureAvailable() async {

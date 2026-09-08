@@ -41,8 +41,9 @@ validation before release.
 - strict validation of incoming album URIs before local album resolution
 - automatic full-album logging for Android NDEF intents at cold or warm start
 - five-second, monotonic, per-album duplicate suppression
-- foreground write/scan suppression so one tag tap cannot also become an
-  automatic play, including delayed Android NDEF delivery after reader mode
+- a native Android foreground-operation gate, backed by a monotonic five-second
+  cooldown, so a write/scan tap cannot also become an automatic play when
+  Samsung delivers the NDEF intent after reader mode closes
 - failed play inserts can be retried immediately
 - debug-only software NFC tap flow that uses the production logging services
 - Android system notification after a successful automatic tag-tap play,
@@ -70,6 +71,7 @@ results can be associated with the exact physical tag.
 - rewrite the same tag and replace an album's tag with another blank tag
 - attempt to take a tag already linked to another album and confirm rejection
 - confirm the rejected tag does not increment the original album's play count
+- confirm the rejected tag does not emit an automatic-play notification
 - confirm automatic tag taps show a system notification with the correct album
   while manual Save shows only an in-app confirmation
 - scan an unlinked, malformed, non-URI, and unrelated-URI tag

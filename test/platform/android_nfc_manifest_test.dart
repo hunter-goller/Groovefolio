@@ -19,4 +19,15 @@ void main() {
       expect(manifest, contains('android:host="album"'));
     },
   );
+
+  test('Android drops album intents during foreground NFC operations', () {
+    final activity = File(
+      'android/app/src/main/kotlin/com/huntergoller/vinyl_app/MainActivity.kt',
+    ).readAsStringSync();
+
+    expect(activity, contains('override fun onNewIntent(intent: Intent)'));
+    expect(activity, contains('NfcAdapter.ACTION_NDEF_DISCOVERED'));
+    expect(activity, contains('foregroundNfcOperationActive'));
+    expect(activity, contains('FOREGROUND_INTENT_COOLDOWN_MILLIS'));
+  });
 }

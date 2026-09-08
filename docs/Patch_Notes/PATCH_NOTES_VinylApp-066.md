@@ -24,7 +24,8 @@ without requiring a manual Save action.
 - automatic full-album logging through the normal `PlayLoggingService`
 - five-second monotonic duplicate suppression per album
 - safe handling for invalid URIs and deleted albums
-- suppression of automatic intent logging during foreground NFC writes/scans
+- native Android suppression of automatic intents during foreground NFC
+  writes/scans and for five seconds after reader mode closes
 - Android system notifications for successful automatic NFC play logging,
   with album artwork when a safe local image is available
 - in-app confirmation instead of a system notification for manual play saves

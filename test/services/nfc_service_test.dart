@@ -125,10 +125,13 @@ void main() {
       final scan = fixture.service.startScan().single;
       await Future<void>.delayed(Duration.zero);
       expect(fixture.service.shouldSuppressAutomaticIntent, isTrue);
+      expect(fixture.platform.foregroundIntentGateActive, isTrue);
 
       pollCompleter.complete(fixture.platform.tag);
       await scan;
       expect(fixture.service.shouldSuppressAutomaticIntent, isTrue);
+      expect(fixture.platform.foregroundIntentGateActive, isFalse);
+      expect(fixture.platform.foregroundIntentGateStates, [true, false]);
 
       elapsed += const Duration(seconds: 3);
       expect(fixture.service.shouldSuppressAutomaticIntent, isFalse);
@@ -216,6 +219,8 @@ void main() {
     expect(fixture.repository.replaceCalls, 0);
     expect(fixture.platform.writtenUri, isNull);
     expect(fixture.platform.finishCalls, 1);
+    expect(fixture.platform.foregroundIntentGateActive, isFalse);
+    expect(fixture.platform.foregroundIntentGateStates, [true, false]);
   });
 }
 
@@ -251,7 +256,8 @@ class _Fixture {
   late final NfcService service;
 }
 
-class _FakeNfcPlatform implements INfcPlatformAdapter {
+class _FakeNfcPlatform
+    implements INfcPlatformAdapter, INfcForegroundIntentGate {
   _FakeNfcPlatform({
     required this.availabilityState,
     required this.tag,
@@ -265,6 +271,14 @@ class _FakeNfcPlatform implements INfcPlatformAdapter {
   int pollCalls = 0;
   int finishCalls = 0;
   Uri? writtenUri;
+  bool foregroundIntentGateActive = false;
+  final List<bool> foregroundIntentGateStates = [];
+
+  @override
+  Future<void> setForegroundNfcOperationActive(bool active) async {
+    foregroundIntentGateActive = active;
+    foregroundIntentGateStates.add(active);
+  }
 
   @override
   Future<NfcAvailabilityState> availability() async => availabilityState;
