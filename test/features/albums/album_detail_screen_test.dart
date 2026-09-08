@@ -470,7 +470,7 @@ class _FakeGenreRepository implements IGenreRepository {
 
 class _NfcFixture {
   _NfcFixture({required this.repository}) : platform = _FakeNfcPlatform() {
-    service = NfcService(platform: platform, repository: repository);
+    service = NfcService(platform, repository);
   }
 
   final _FakeNfcPlatform platform;

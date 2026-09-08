@@ -67,14 +67,14 @@ class _Fixture {
     : albumRepository = _FakeAlbumRepository(albumExists: albumExists),
       playLogger = _FakePlayLogger() {
     handler = NfcIntentPlayHandler(
-      playLogging: NfcPlayLoggingService(
+      NfcPlayLoggingService(
         nfcService: const _UnusedNfcScanner(),
         playLogger: playLogger,
         now: () => DateTime.utc(2026, 9, 8, 12),
         elapsed: () => Duration.zero,
       ),
-      albumRepository: albumRepository,
-      shouldSuppressAutomaticIntent: () => suppressAutomaticIntent,
+      albumRepository,
+      () => suppressAutomaticIntent,
     );
   }
 

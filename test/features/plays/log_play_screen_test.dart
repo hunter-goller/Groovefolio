@@ -508,7 +508,7 @@ class _NfcFixture {
         ),
       );
     }
-    service = NfcService(platform: platform, repository: repository);
+    service = NfcService(platform, repository);
   }
 
   final _FakeNfcPlatform platform;

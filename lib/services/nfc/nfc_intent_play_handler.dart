@@ -24,11 +24,11 @@ class NfcIntentPlayResult {
 /// the app. This handler turns that URI into the same play-log workflow used
 /// by foreground NFC scanning.
 class NfcIntentPlayHandler {
-  NfcIntentPlayHandler({
-    required this._playLogging,
-    required this._albumRepository,
-    required bool Function() shouldSuppressAutomaticIntent,
-  }) : _shouldSuppressAutomaticIntent = shouldSuppressAutomaticIntent;
+  NfcIntentPlayHandler(
+    this._playLogging,
+    this._albumRepository,
+    this._shouldSuppressAutomaticIntent,
+  );
 
   final NfcPlayLoggingService _playLogging;
   final IAlbumRepository _albumRepository;
@@ -60,9 +60,8 @@ class NfcIntentPlayHandler {
 final nfcIntentPlayHandlerProvider = Provider<NfcIntentPlayHandler>((ref) {
   final nfcService = ref.watch(nfcServiceProvider);
   return NfcIntentPlayHandler(
-    playLogging: ref.watch(nfcPlayLoggingServiceProvider),
-    albumRepository: ref.watch(albumRepositoryProvider),
-    shouldSuppressAutomaticIntent: () =>
-        nfcService.shouldSuppressAutomaticIntent,
+    ref.watch(nfcPlayLoggingServiceProvider),
+    ref.watch(albumRepositoryProvider),
+    () => nfcService.shouldSuppressAutomaticIntent,
   );
 });

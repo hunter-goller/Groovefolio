@@ -102,15 +102,13 @@ abstract interface class INfcAlbumScanner {
 /// Coordinates foreground NFC polling, NDEF writing, and local tag-to-album
 /// resolution for the record and Log Play flows.
 class NfcService implements INfcAlbumScanner {
-  NfcService({
-    required INfcPlatformAdapter platform,
-    required INfcTagRepository repository,
+  NfcService(
+    this._platform,
+    this._repository, {
     Duration Function()? elapsed,
     this.automaticIntentSuppressionWindow =
         _defaultAutomaticIntentSuppressionWindow,
-  }) : _platform = platform,
-       _repository = repository,
-       _elapsed = elapsed ?? _monotonicElapsed;
+  }) : _elapsed = elapsed ?? _monotonicElapsed;
 
   static final Stopwatch _monotonicClock = Stopwatch()..start();
 
@@ -417,8 +415,8 @@ final nfcPlatformAdapterProvider = Provider<INfcPlatformAdapter>((ref) {
 
 final nfcServiceProvider = Provider<NfcService>((ref) {
   return NfcService(
-    platform: ref.watch(nfcPlatformAdapterProvider),
-    repository: ref.watch(nfcTagRepositoryProvider),
+    ref.watch(nfcPlatformAdapterProvider),
+    ref.watch(nfcTagRepositoryProvider),
   );
 });
 

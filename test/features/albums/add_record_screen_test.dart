@@ -957,7 +957,7 @@ class _NfcFixture {
     bool holdPoll = false,
   }) : platform = _QueuedNfcPlatform(tags: tags, holdPoll: holdPoll),
        repository = _FakeNfcTagRepository() {
-    service = NfcService(platform: platform, repository: repository);
+    service = NfcService(platform, repository);
   }
 
   final _QueuedNfcPlatform platform;

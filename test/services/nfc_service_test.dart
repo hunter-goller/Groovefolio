@@ -240,8 +240,8 @@ class _Fixture {
        ),
        repository = _FakeNfcTagRepository() {
     service = NfcService(
-      platform: platform,
-      repository: repository,
+      platform,
+      repository,
       elapsed: elapsed,
     );
   }
