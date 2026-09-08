@@ -23,74 +23,78 @@ void main() {
   });
 
   for (var version = 0; version < SchemaVersions.current; version++) {
-    test('v$version rolls back after every migration statement and retries', () async {
-      final baseline = File('${directory.path}/baseline.sqlite');
-      await _seedHistoricalDatabase(baseline, version);
-      final original = await _snapshot(baseline);
+    test(
+      'v$version rolls back after every migration statement and retries',
+      () async {
+        final baseline = File('${directory.path}/baseline.sqlite');
+        await _seedHistoricalDatabase(baseline, version);
+        final original = await _snapshot(baseline);
 
-      // Discover every write in the real migration runner, including its
-      // version write. Fixtures use only the frozen historical definitions.
-      final probeFile = await baseline.copy('${directory.path}/probe.sqlite');
-      final statements = <String>[];
-      final probe = _ObservedDatabase(
-        NativeDatabase(probeFile),
-        afterWrite: statements.add,
-      );
-      try {
-        await probe.initialize();
-      } finally {
-        await probe.close();
-      }
-      expect(statements, isNotEmpty);
-      final upgraded = await _snapshot(probeFile);
-
-      for (var stopAfter = 1; stopAfter <= statements.length; stopAfter++) {
-        final file = await baseline.copy(
-          '${directory.path}/failure-$stopAfter.sqlite',
-        );
-        var completed = 0;
-        final failing = _ObservedDatabase(
-          NativeDatabase(file),
-          afterWrite: (_) {
-            if (++completed == stopAfter) throw const _InjectedFailure();
-          },
+        // Discover every write in the real migration runner, including its
+        // version write. Fixtures use only the frozen historical definitions.
+        final probeFile = await baseline.copy('${directory.path}/probe.sqlite');
+        final statements = <String>[];
+        final probe = _ObservedDatabase(
+          NativeDatabase(probeFile),
+          afterWrite: statements.add,
         );
         try {
-          await expectLater(
-            failing.initialize(),
-            throwsA(isA<_InjectedFailure>()),
-            reason: 'after statement $stopAfter: ${statements[stopAfter - 1]}',
-          );
-          expect(completed, stopAfter);
+          await probe.initialize();
         } finally {
-          await failing.close();
+          await probe.close();
         }
+        expect(statements, isNotEmpty);
+        final upgraded = await _snapshot(probeFile);
 
-        // Read through a separate connection with migrations disabled. Opening
-        // AppDatabase normally here could hide a partially persisted upgrade.
-        expect(
-          await _snapshot(file),
-          original,
-          reason: 'v$version must be unchanged after statement $stopAfter',
-        );
+        for (var stopAfter = 1; stopAfter <= statements.length; stopAfter++) {
+          final file = await baseline.copy(
+            '${directory.path}/failure-$stopAfter.sqlite',
+          );
+          var completed = 0;
+          final failing = _ObservedDatabase(
+            NativeDatabase(file),
+            afterWrite: (_) {
+              if (++completed == stopAfter) throw const _InjectedFailure();
+            },
+          );
+          try {
+            await expectLater(
+              failing.initialize(),
+              throwsA(isA<_InjectedFailure>()),
+              reason:
+                  'after statement $stopAfter: ${statements[stopAfter - 1]}',
+            );
+            expect(completed, stopAfter);
+          } finally {
+            await failing.close();
+          }
 
-        final retry = AppDatabase(NativeDatabase(file));
-        try {
-          await retry.initialize();
-          final foreignKeys = await retry
-              .customSelect('PRAGMA foreign_keys')
-              .getSingle();
-          expect(foreignKeys.read<int>('foreign_keys'), 1);
+          // Read through a separate connection with migrations disabled. Opening
+          // AppDatabase normally here could hide a partially persisted upgrade.
           expect(
-            await retry.customSelect('PRAGMA foreign_key_check').get(),
-            isEmpty,
+            await _snapshot(file),
+            original,
+            reason: 'v$version must be unchanged after statement $stopAfter',
           );
-        } finally {
-          await retry.close();
+
+          final retry = AppDatabase(NativeDatabase(file));
+          try {
+            await retry.initialize();
+            final foreignKeys = await retry
+                .customSelect('PRAGMA foreign_keys')
+                .getSingle();
+            expect(foreignKeys.read<int>('foreign_keys'), 1);
+            expect(
+              await retry.customSelect('PRAGMA foreign_key_check').get(),
+              isEmpty,
+            );
+          } finally {
+            await retry.close();
+          }
+          expect(await _snapshot(file), upgraded);
         }
-        expect(await _snapshot(file), upgraded);
-      }
-    });
+      },
+    );
   }
 
   for (final version in [0, SchemaVersions.v5]) {
