@@ -46,37 +46,49 @@ class AppDatabase extends _$AppDatabase {
     return MigrationStrategy(
       // Build every frozen schema version in order so a fresh install follows
       // the same physical schema path as an upgraded database.
-      onCreate: (migrator) async {
-        await migrateToV1(migrator);
-        await migrateToV2(migrator);
-        await migrateToV3(migrator);
-        await migrateToV4(migrator);
-        await migrateToV5(migrator);
-        await migrateToV6(migrator);
-      },
-      onUpgrade: (migrator, from, to) async {
-        if (from < SchemaVersions.v2 && to >= SchemaVersions.v2) {
-          await migrateToV2(migrator);
-        }
-        if (from < SchemaVersions.v3 && to >= SchemaVersions.v3) {
-          await migrateToV3(migrator);
-        }
-        if (from < SchemaVersions.v4 && to >= SchemaVersions.v4) {
-          await migrateToV4(migrator);
-        }
-        if (from < SchemaVersions.v5 && to >= SchemaVersions.v5) {
-          await migrateToV5(migrator);
-        }
-        if (from < SchemaVersions.v6 && to >= SchemaVersions.v6) {
-          await migrateToV6(migrator);
-        }
-      },
+      onCreate: (migrator) => _migrateAtomically(migrator, 0, schemaVersion),
+      onUpgrade: _migrateAtomically,
       beforeOpen: (details) async {
-        // SQLite foreign-key enforcement is connection-local and disabled by
-        // default. Enable it so all declared relationships are enforced.
+        // This must run outside the migration transaction: SQLite ignores
+        // changes to foreign_keys while a transaction is active.
         await customStatement('PRAGMA foreign_keys = ON');
       },
     );
+  }
+
+  Future<void> _migrateAtomically(Migrator migrator, int from, int to) async {
+    if (from > to) {
+      throw StateError(
+        'Database schema $from is newer than supported schema $to.',
+      );
+    }
+
+    await transaction(() async {
+      if (from < SchemaVersions.v1 && to >= SchemaVersions.v1) {
+        await migrateToV1(migrator);
+      }
+      if (from < SchemaVersions.v2 && to >= SchemaVersions.v2) {
+        await migrateToV2(migrator);
+      }
+      if (from < SchemaVersions.v3 && to >= SchemaVersions.v3) {
+        await migrateToV3(migrator);
+      }
+      if (from < SchemaVersions.v4 && to >= SchemaVersions.v4) {
+        await migrateToV4(migrator);
+      }
+      if (from < SchemaVersions.v5 && to >= SchemaVersions.v5) {
+        await migrateToV5(migrator);
+      }
+      if (from < SchemaVersions.v6 && to >= SchemaVersions.v6) {
+        await migrateToV6(migrator);
+      }
+      // NativeDatabase normally writes user_version after all migration and
+      // beforeOpen callbacks return. Commit it with the schema instead, so
+      // interruption after this transaction cannot cause a completed upgrade
+      // to run again. Drift's later write of the same version is harmless.
+      // `to` comes from Drift's integer schema version, not external input.
+      await customStatement('PRAGMA user_version = $to');
+    });
   }
 
   /// Opens the underlying database and waits for creation/migrations plus

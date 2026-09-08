@@ -63,9 +63,30 @@ Artists 1 ─── * Albums 1 ─── * Plays
 
 Fresh installs deliberately execute v1 → v2 → v3 → v4 → v5 → v6 so the resulting physical schema follows the same path as an upgraded database.
 
+The migration runner commits all required schema/data changes and SQLite's
+`user_version` in one transaction. A failed migration rolls back to the prior
+schema, version, and data so a new connection can retry it. Recording the version
+inside that transaction also protects against interruption after migration commit
+but before Drift finishes opening the database. A database from a newer app
+version is rejected without downgrading its version or modifying its data.
+
+This changes migration orchestration only: the schema remains v6, and frozen
+migration files and snapshots are unchanged. It prevents partial upgrades going
+forward; it does not automatically repair a database already damaged by an older
+interrupted migration or reset user data when opening fails.
+
+`test/db/migration_recovery_test.dart` uses file-backed SQLite databases to inject
+failure after every migration write from fresh install and versions v1–v5,
+compare the preserved schema/version/data through a connection with migrations
+disabled, and retry on a new connection. It also covers failure after migration
+commit, refusal to downgrade a newer database, and background-isolate opening.
+
 ## Foreign keys
 
 `AppDatabase` enables `PRAGMA foreign_keys = ON` in `beforeOpen` because SQLite foreign-key enforcement is connection-local.
+
+This runs outside the migration transaction because SQLite ignores changes to
+`foreign_keys` while a transaction is active.
 
 ## Schema verification
 
