@@ -107,6 +107,9 @@ void main() {
         await tester.tap(find.text('Undo'));
         await tester.pumpAndSettle();
         expect((await repository.findAll()).map((p) => p.id), [older.id]);
+        // Database completion and native-notification cleanup may schedule
+        // feedback after the first animation settlement.
+        await tester.pumpAndSettle();
         expect(find.text('Play removed.'), findsOneWidget);
         // An immediate callback is still suppressed after Undo.
         uris.add(Uri.parse('groovefolio://album/album-1'));
