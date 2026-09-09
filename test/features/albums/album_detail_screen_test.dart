@@ -241,6 +241,56 @@ void main() {
     );
   });
 
+  testWidgets(
+    'linked-tag error and retry keep the dialog protected until Skip',
+    (tester) async {
+      final repository = _FakeNfcTagRepository();
+      await repository.create(
+        albumId: 'other-album',
+        nfcTagId: '04A7392B916180',
+      );
+      var elapsed = Duration.zero;
+      final platform = _FakeNfcPlatform();
+      final service = NfcService(platform, repository, elapsed: () => elapsed);
+
+      await tester.pumpWidget(
+        _testApp(
+          playRepository: _FakePlayRepository(const []),
+          nfcAvailability: NfcAvailabilityState.available,
+          nfcTagRepository: repository,
+          nfcService: service,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await _openRecordActions(tester);
+      await tester.tap(find.text('Link NFC tag'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('nfc-write-error')), findsOneWidget);
+      elapsed = const Duration(minutes: 1);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(service.shouldSuppressAutomaticIntent, isTrue);
+      expect(platform.gateActive, isTrue);
+      expect(find.byKey(const Key('nfc-write-dialog')), findsOneWidget);
+      expect(platform.writtenUris, isEmpty);
+
+      await tester.tap(find.byKey(const Key('nfc-write-retry')));
+      await tester.pumpAndSettle();
+      elapsed = const Duration(minutes: 2);
+      expect(service.shouldSuppressAutomaticIntent, isTrue);
+      expect(platform.gateActive, isTrue);
+      expect(find.byKey(const Key('nfc-write-error')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('nfc-write-skip')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('nfc-write-dialog')), findsNothing);
+      expect(platform.gateActive, isFalse);
+      elapsed += const Duration(seconds: 3);
+      expect(service.shouldSuppressAutomaticIntent, isFalse);
+      expect(repository.tags.single.albumId, 'other-album');
+    },
+  );
+
   testWidgets('rewrites or replaces the NFC tag for an existing record', (
     tester,
   ) async {
@@ -478,9 +528,16 @@ class _NfcFixture {
   late final NfcService service;
 }
 
-class _FakeNfcPlatform implements INfcPlatformAdapter {
+class _FakeNfcPlatform
+    implements INfcPlatformAdapter, INfcForegroundIntentGate {
   final List<Uri> writtenUris = [];
   int finishCalls = 0;
+  bool gateActive = false;
+
+  @override
+  Future<void> setForegroundNfcOperationActive(bool active) async {
+    gateActive = active;
+  }
 
   @override
   Future<NfcAvailabilityState> availability() async {

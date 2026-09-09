@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/repositories/album_repository.dart';
@@ -7,6 +9,32 @@ import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
 void main() {
+  test(
+    'opening a write interaction during album resolution prevents insertion',
+    () async {
+      final resolution = Completer<Album?>();
+      final repository = _FakeAlbumRepository(
+        albumExists: true,
+        resolution: resolution,
+      );
+      final playLogger = _FakePlayLogger();
+      var protected = false;
+      final handler = NfcIntentPlayHandler(
+        NfcPlayLoggingService(
+          nfcService: const _UnusedNfcScanner(),
+          playLogger: playLogger,
+        ),
+        repository,
+        () => protected,
+      );
+      final pending = handler.handle(Uri.parse('groovefolio://album/album-1'));
+      expect(repository.findCalls, 1);
+      protected = true;
+      resolution.complete(_FakeAlbumRepository.album);
+      expect(await pending, isNull);
+      expect(playLogger.calls, 0);
+    },
+  );
   test('valid album intent resolves locally and logs a full play', () async {
     final fixture = _Fixture();
 
@@ -84,7 +112,7 @@ class _Fixture {
 }
 
 class _FakeAlbumRepository implements IAlbumRepository {
-  _FakeAlbumRepository({required this.albumExists});
+  _FakeAlbumRepository({required this.albumExists, this.resolution});
 
   static const album = Album(
     id: 'album-1',
@@ -95,11 +123,13 @@ class _FakeAlbumRepository implements IAlbumRepository {
   );
 
   final bool albumExists;
+  final Completer<Album?>? resolution;
   int findCalls = 0;
 
   @override
   Future<Album?> findById(String id) async {
     findCalls += 1;
+    if (resolution != null) return resolution!.future;
     return albumExists && id == album.id ? album : null;
   }
 

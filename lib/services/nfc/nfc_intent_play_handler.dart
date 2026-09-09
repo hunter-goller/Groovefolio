@@ -41,6 +41,8 @@ class NfcIntentPlayHandler {
     if (albumId == null) return null;
 
     final album = await _albumRepository.findById(albumId);
+    // A linking dialog may have opened while album resolution was awaiting.
+    if (_shouldSuppressAutomaticIntent()) return null;
     if (album == null) {
       throw StateError('The NFC tag points to an album that no longer exists.');
     }

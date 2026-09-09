@@ -124,6 +124,7 @@ class NfcService implements INfcAlbumScanner {
   bool _platformIntentGateMayBeActive = false;
   bool _sessionFinished = false;
   bool _stopRequested = false;
+  int _foregroundInteractions = 0;
   Duration _suppressAutomaticIntentsUntil = Duration.zero;
 
   /// Whether an Android-delivered album URI belongs to a foreground NFC
@@ -133,7 +134,24 @@ class NfcService implements INfcAlbumScanner {
   /// finishes. The short monotonic grace period keeps one physical tap from
   /// both completing a foreground write/scan and inserting a background play.
   bool get shouldSuppressAutomaticIntent {
-    return _operationActive || _elapsed() < _suppressAutomaticIntentsUntil;
+    return _foregroundInteractions > 0 ||
+        _operationActive ||
+        _elapsed() < _suppressAutomaticIntentsUntil;
+  }
+
+  /// Holds protection for the whole UI interaction, including error/retry
+  /// states after a native polling session has already finished.
+  Future<T> withForegroundInteraction<T>(Future<T> Function() action) async {
+    _foregroundInteractions += 1;
+    try {
+      await _beginPlatformIntentGate();
+      return await action();
+    } finally {
+      _foregroundInteractions -= 1;
+      _suppressAutomaticIntentsUntil =
+          _elapsed() + automaticIntentSuppressionWindow;
+      if (!_operationActive) await _endPlatformIntentGate();
+    }
   }
 
   /// Returns a non-throwing state suitable for the app-launch capability check.
@@ -266,7 +284,6 @@ class NfcService implements INfcAlbumScanner {
     }
     _operationActive = true;
     _nativeSessionMayBeOpen = false;
-    _platformIntentGateMayBeActive = false;
     _sessionFinished = false;
     _stopRequested = false;
   }
@@ -292,6 +309,7 @@ class NfcService implements INfcAlbumScanner {
   }
 
   Future<void> _endPlatformIntentGate() async {
+    if (_foregroundInteractions > 0) return;
     if (!_platformIntentGateMayBeActive) return;
     final platform = _platform;
     if (platform is! INfcForegroundIntentGate) return;

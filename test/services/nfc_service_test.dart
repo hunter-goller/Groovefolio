@@ -8,6 +8,57 @@ import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 
 void main() {
+  test(
+    'rejected write remains protected until the error interaction closes',
+    () async {
+      var elapsed = Duration.zero;
+      final fixture = _Fixture(elapsed: () => elapsed);
+      await fixture.repository.create(
+        albumId: 'jelly-roll',
+        nfcTagId: '04A7392B916180',
+      );
+
+      await fixture.service.withForegroundInteraction(() async {
+        for (var attempt = 0; attempt < 2; attempt++) {
+          await expectLater(
+            fixture.service.writeTag('taylor-swift'),
+            throwsA(_nfcFailure(NfcFailure.alreadyRegistered)),
+          );
+          elapsed += const Duration(minutes: 1);
+          expect(fixture.service.shouldSuppressAutomaticIntent, isTrue);
+          expect(fixture.platform.foregroundIntentGateActive, isTrue);
+          expect(
+            fixture.platform.foregroundIntentGateStates,
+            isNot(contains(false)),
+          );
+        }
+        expect(fixture.platform.writtenUri, isNull);
+        expect(fixture.repository.createdTags.single.albumId, 'jelly-roll');
+      });
+
+      expect(fixture.platform.foregroundIntentGateActive, isFalse);
+      expect(fixture.service.shouldSuppressAutomaticIntent, isTrue);
+      elapsed += const Duration(seconds: 3);
+      expect(fixture.service.shouldSuppressAutomaticIntent, isFalse);
+    },
+  );
+
+  test(
+    'interaction failure and nested interactions release protection safely',
+    () async {
+      final fixture = _Fixture();
+      await expectLater(
+        fixture.service.withForegroundInteraction(() async {
+          await fixture.service.withForegroundInteraction(() async {});
+          expect(fixture.platform.foregroundIntentGateActive, isTrue);
+          throw StateError('route removed');
+        }),
+        throwsStateError,
+      );
+      expect(fixture.platform.foregroundIntentGateActive, isFalse);
+    },
+  );
+
   test('availability reports disabled without throwing', () async {
     final fixture = _Fixture(availability: NfcAvailabilityState.disabled);
 

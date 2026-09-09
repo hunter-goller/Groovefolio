@@ -6,12 +6,14 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.nfc.NfcAdapter
 import android.os.Build
+import android.os.Bundle
 import android.os.SystemClock
+import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -26,7 +28,6 @@ class MainActivity : FlutterActivity() {
             "com.huntergoller.vinyl_app/nfc_foreground_intents"
         private const val SET_FOREGROUND_NFC_OPERATION_ACTIVE =
             "setForegroundNfcOperationActive"
-        private const val FOREGROUND_INTENT_COOLDOWN_MILLIS = 5_000L
         private const val NOTIFICATION_CHANNEL_ID = "nfc_play_logging"
         private const val NOTIFICATION_CHANNEL_NAME = "NFC play logging"
         private const val NOTIFICATION_PERMISSION_REQUEST = 4102
@@ -34,15 +35,26 @@ class MainActivity : FlutterActivity() {
         private const val MAX_ARTWORK_BYTES = 8L * 1024L * 1024L
         private const val MAX_ARTWORK_DIMENSION = 1024
 
-        @Volatile
-        private var foregroundNfcOperationActive = false
-
-        @Volatile
-        private var suppressAlbumNfcIntentsUntil = 0L
+        private val foregroundIntentGate = NfcIntentGate(SystemClock::elapsedRealtime)
     }
 
+    private val nfcGateOwner = Any()
     private var pendingNotification: NfcPlayNotification? = null
     private var pendingNotificationResult: MethodChannel.Result? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        val suppressed = shouldSuppressAlbumNfcIntent(intent)
+        traceNfcEntry("onCreate", suppressed)
+        if (suppressed) {
+            // AppLinks inspects activity.intent when Flutter attaches. Remove
+            // the complete NFC payload BEFORE super creates/attaches the engine.
+            intent = Intent(this, MainActivity::class.java).setAction(Intent.ACTION_MAIN)
+        }
+        super.onCreate(savedInstanceState)
+        // singleTask normally routes to the existing activity; if Android did
+        // create a second one, return to the original dialog without logging.
+        if (suppressed) finish()
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -74,33 +86,33 @@ class MainActivity : FlutterActivity() {
                     return@setMethodCallHandler
                 }
 
-                foregroundNfcOperationActive = active
-                suppressAlbumNfcIntentsUntil = if (active) {
-                    Long.MAX_VALUE
-                } else {
-                    SystemClock.elapsedRealtime() + FOREGROUND_INTENT_COOLDOWN_MILLIS
-                }
+                foregroundIntentGate.setActive(nfcGateOwner, active)
                 result.success(null)
             }
     }
 
     override fun onNewIntent(intent: Intent) {
-        if (shouldSuppressAlbumNfcIntent(intent)) return
+        val suppressed = shouldSuppressAlbumNfcIntent(intent)
+        traceNfcEntry("onNewIntent", suppressed)
+        if (suppressed) return
         super.onNewIntent(intent)
     }
 
     private fun shouldSuppressAlbumNfcIntent(intent: Intent): Boolean {
-        if (intent.action != NfcAdapter.ACTION_NDEF_DISCOVERED) return false
+        val uri = intent.data
+        return foregroundIntentGate.shouldSuppress(intent.action, uri?.scheme, uri?.host)
+    }
 
-        val uri = intent.data ?: return false
-        if (!uri.scheme.equals("groovefolio", ignoreCase = true) ||
-            !uri.host.equals("album", ignoreCase = true)
-        ) {
-            return false
+    override fun onDestroy() {
+        foregroundIntentGate.setActive(nfcGateOwner, false)
+        super.onDestroy()
+    }
+
+    private fun traceNfcEntry(entry: String, suppressed: Boolean) {
+        if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            // No album IDs, URIs, credentials, or NDEF contents in diagnostics.
+            Log.d("GroovefolioNfc", "$entry task=$taskId suppressed=$suppressed")
         }
-
-        return foregroundNfcOperationActive ||
-            SystemClock.elapsedRealtime() < suppressAlbumNfcIntentsUntil
     }
 
     private fun parseNotification(call: MethodCall): NfcPlayNotification? {

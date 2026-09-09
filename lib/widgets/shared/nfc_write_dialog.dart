@@ -9,13 +9,33 @@ Future<NfcWriteOutcome> showNfcWriteDialog(
   required String albumId,
   bool replaceExisting = false,
 }) async {
-  return await showDialog<NfcWriteOutcome>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) =>
-            NfcWriteDialog(albumId: albumId, replaceExisting: replaceExisting),
-      ) ??
-      NfcWriteOutcome.skipped;
+  final service = ProviderScope.containerOf(
+    context,
+    listen: false,
+  ).read(nfcServiceProvider);
+  try {
+    return await service.withForegroundInteraction(() async {
+      if (!context.mounted) return NfcWriteOutcome.skipped;
+      return await showDialog<NfcWriteOutcome>(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => NfcWriteDialog(
+              albumId: albumId,
+              replaceExisting: replaceExisting,
+            ),
+          ) ??
+          NfcWriteOutcome.skipped;
+    });
+  } on NfcException {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Couldn’t start NFC. Your record is saved.'),
+        ),
+      );
+    }
+    return NfcWriteOutcome.skipped;
+  }
 }
 
 /// Blocking, retryable prompt used after an album has already been saved.
@@ -43,7 +63,9 @@ class _NfcWriteDialogState extends ConsumerState<NfcWriteDialog> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _write());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _write();
+    });
   }
 
   Future<void> _write() async {

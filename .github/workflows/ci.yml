@@ -54,6 +54,10 @@ jobs:
       - name: Debug build verification
         run: flutter build apk --debug
 
+      - name: Android NFC intent policy tests
+        working-directory: android
+        run: ./gradlew :app:testDebugUnitTest --tests '*NfcIntentGateTest'
+
       - name: Release build verification (not published)
         run: flutter build apk --release
         # Intentionally no actions/upload-artifact step. The APK only proves

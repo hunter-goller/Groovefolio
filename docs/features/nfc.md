@@ -41,9 +41,12 @@ validation before release.
 - strict validation of incoming album URIs before local album resolution
 - automatic full-album logging for Android NDEF intents at cold or warm start
 - five-second, monotonic, per-album duplicate suppression
-- a native Android foreground-operation gate, backed by a monotonic five-second
-  cooldown, so a write/scan tap cannot also become an automatic play when
-  Samsung delivers the NDEF intent after reader mode closes
+- a native Android gate shared by cold and warm activity entry points;
+  cold-launch payloads are suppressed before Flutter/AppLinks attaches
+- single-task Android launch behavior with the app's default task affinity to
+  reuse the current Flutter navigation/dialog state for NFC and OAuth launches
+- protection throughout the write dialog, including error and retry states,
+  plus a monotonic five-second native cooldown after the interaction ends
 - failed play inserts can be retried immediately
 - debug-only software NFC tap flow that uses the production logging services
 - Android system notification after a successful automatic tag-tap play,
@@ -72,6 +75,12 @@ results can be associated with the exact physical tag.
 - attempt to take a tag already linked to another album and confirm rejection
 - confirm the rejected tag does not increment the original album's play count
 - confirm the rejected tag does not emit an automatic-play notification
+- leave the conflict dialog open for over five seconds and retry the linked
+  tag: the dialog must stay open, with no play insertion or notification
+- dismiss the dialog, remove the tag, wait five seconds, and confirm a fresh
+  ordinary tap still logs exactly one play
+- confirm OAuth browser returns, notification taps, and Android Back still
+  return to the existing app task without another play or duplicate screen
 - confirm automatic tag taps show a system notification with the correct album
   while manual Save shows only an in-app confirmation
 - scan an unlinked, malformed, non-URI, and unrelated-URI tag
@@ -79,3 +88,13 @@ results can be associated with the exact physical tag.
 - cancel and retry foreground reads and writes, including timeout cases
 
 The NFC payload/association design should continue to keep the local database as the source of truth.
+
+## Lifecycle regression coverage
+
+Dart tests cover the error/retry dialog lifetime, safe release, and a linking
+interaction starting while an automatic play awaits album lookup. Native JVM
+tests exercise the shared intent policy, ownership across activity instances,
+cooldown, missing NFC data, and OAuth/launcher exclusions. CI also checks both
+APK variants. These checks do not simulate Samsung's NFC dispatcher; physical
+verification is still required. Debug builds emit only lifecycle entry, task ID,
+and suppression decisions under the `GroovefolioNfc` log tag (no URI or album data).
