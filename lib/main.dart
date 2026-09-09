@@ -85,7 +85,8 @@ class MyApp extends ConsumerWidget {
             if (!ref.context.mounted) return;
             _refreshPlayData(ref, result.album.id);
             if (removed) {
-              await cancelNfcPlayNotification(play.id);
+              // Native cleanup is best-effort and must not delay Undo feedback.
+              unawaited(cancelNfcPlayNotification(play.id));
             }
             _showNfcMessage(
               removed ? 'Play removed.' : 'Undo is no longer available.',
