@@ -8,8 +8,11 @@ import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
 
 const _defaultNfcTimeout = Duration(seconds: 20);
+const _defaultAutomaticIntentSuppressionWindow = Duration(seconds: 2);
 const _nfcUriScheme = 'groovefolio';
 const _nfcAlbumHost = 'album';
+const _maxNfcUriLength = 256;
+final _safeAlbumId = RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$');
 
 enum NfcFailure {
   unavailable,
@@ -47,8 +50,12 @@ class NfcException implements Exception {
 /// Builds the stable URI written to a Groovefolio NFC tag.
 Uri nfcAlbumUri(String albumId) {
   final normalizedAlbumId = albumId.trim();
-  if (normalizedAlbumId.isEmpty) {
-    throw ArgumentError.value(albumId, 'albumId', 'Album ID cannot be empty.');
+  if (!_safeAlbumId.hasMatch(normalizedAlbumId)) {
+    throw ArgumentError.value(
+      albumId,
+      'albumId',
+      'Album ID contains unsupported characters or is too long.',
+    );
   }
 
   return Uri(
@@ -60,14 +67,19 @@ Uri nfcAlbumUri(String albumId) {
 
 /// Extracts an album ID only from Groovefolio album-tag URIs.
 String? albumIdFromNfcUri(Uri uri) {
-  if (uri.scheme != _nfcUriScheme ||
+  if (uri.toString().length > _maxNfcUriLength ||
+      uri.scheme != _nfcUriScheme ||
       uri.host != _nfcAlbumHost ||
+      uri.hasPort ||
+      uri.userInfo.isNotEmpty ||
+      uri.hasQuery ||
+      uri.hasFragment ||
       uri.pathSegments.length != 1) {
     return null;
   }
 
-  final albumId = uri.pathSegments.single.trim();
-  return albumId.isEmpty ? null : albumId;
+  final albumId = uri.pathSegments.single;
+  return _safeAlbumId.hasMatch(albumId) ? albumId : null;
 }
 
 /// Canonicalizes the hexadecimal identifier returned by Android NFC APIs.
@@ -79,24 +91,68 @@ String normalizeNfcTagIdentifier(String identifier) {
   return compact.toUpperCase();
 }
 
-/// Coordinates foreground NFC polling, NDEF writing, and local tag-to-album
-/// resolution. NFC UI remains hidden until VinylApp-065/066 wire these methods
-/// into the record and Log Play flows.
-class NfcService {
-  NfcService({
-    required INfcPlatformAdapter platform,
-    required INfcTagRepository repository,
-  }) : this._(platform, repository);
+/// Resolves one physical NFC scan to the album associated with that tag.
+///
+/// Keeping the play-logging workflow behind this small boundary makes the
+/// software-only developer tap and unit tests independent of NFC hardware.
+abstract interface class INfcAlbumScanner {
+  Stream<String> startScan({Duration timeout = _defaultNfcTimeout});
+}
 
-  NfcService._(this._platform, this._repository);
+/// Coordinates foreground NFC polling, NDEF writing, and local tag-to-album
+/// resolution for the record and Log Play flows.
+class NfcService implements INfcAlbumScanner {
+  NfcService(
+    this._platform,
+    this._repository, {
+    Duration Function()? elapsed,
+    this.automaticIntentSuppressionWindow =
+        _defaultAutomaticIntentSuppressionWindow,
+  }) : _elapsed = elapsed ?? _monotonicElapsed;
+
+  static final Stopwatch _monotonicClock = Stopwatch()..start();
+
+  static Duration _monotonicElapsed() => _monotonicClock.elapsed;
 
   final INfcPlatformAdapter _platform;
   final INfcTagRepository _repository;
+  final Duration Function() _elapsed;
+  final Duration automaticIntentSuppressionWindow;
 
   bool _operationActive = false;
   bool _nativeSessionMayBeOpen = false;
+  bool _platformIntentGateMayBeActive = false;
   bool _sessionFinished = false;
   bool _stopRequested = false;
+  int _foregroundInteractions = 0;
+  Duration _suppressAutomaticIntentsUntil = Duration.zero;
+
+  /// Whether an Android-delivered album URI belongs to a foreground NFC
+  /// operation and must not be treated as an automatic play.
+  ///
+  /// Some Android devices can deliver the NDEF intent just after reader mode
+  /// finishes. The short monotonic grace period keeps one physical tap from
+  /// both completing a foreground write/scan and inserting a background play.
+  bool get shouldSuppressAutomaticIntent {
+    return _foregroundInteractions > 0 ||
+        _operationActive ||
+        _elapsed() < _suppressAutomaticIntentsUntil;
+  }
+
+  /// Holds protection for the whole UI interaction, including error/retry
+  /// states after a native polling session has already finished.
+  Future<T> withForegroundInteraction<T>(Future<T> Function() action) async {
+    _foregroundInteractions += 1;
+    try {
+      await _beginPlatformIntentGate();
+      return await action();
+    } finally {
+      _foregroundInteractions -= 1;
+      _suppressAutomaticIntentsUntil =
+          _elapsed() + automaticIntentSuppressionWindow;
+      if (!_operationActive) await _endPlatformIntentGate();
+    }
+  }
 
   /// Returns a non-throwing state suitable for the app-launch capability check.
   Future<NfcAvailabilityState> availability() async {
@@ -108,9 +164,13 @@ class NfcService {
   }
 
   /// Writes an album URI to one NFC tag and saves the physical tag mapping.
+  ///
+  /// [replaceExisting] allows an album's current association to move to the
+  /// presented tag. A tag linked to a different album is never reassigned.
   Future<NfcTag> writeTag(
     String albumId, {
     Duration timeout = _defaultNfcTimeout,
+    bool replaceExisting = false,
   }) async {
     final normalizedAlbumId = albumId.trim();
     if (normalizedAlbumId.isEmpty) {
@@ -123,6 +183,7 @@ class NfcService {
 
     _beginOperation();
     try {
+      await _beginPlatformIntentGate();
       await _ensureAvailable();
       final tag = await _poll(timeout, fallback: NfcFailure.writeFailed);
       final tagIdentifier = _requireTagIdentifier(tag.identifier);
@@ -136,10 +197,13 @@ class NfcService {
 
       final existingForTag = await _findByTagId(tagIdentifier);
       final existingForAlbum = await _findByAlbum(normalizedAlbumId);
-      if ((existingForTag != null &&
-              existingForTag.albumId != normalizedAlbumId) ||
-          (existingForAlbum != null &&
-              existingForAlbum.nfcTagId != tagIdentifier)) {
+      if (existingForTag != null &&
+          existingForTag.albumId != normalizedAlbumId) {
+        throw NfcException.forFailure(NfcFailure.alreadyRegistered);
+      }
+      if (!replaceExisting &&
+          existingForAlbum != null &&
+          existingForAlbum.nfcTagId != tagIdentifier) {
         throw NfcException.forFailure(NfcFailure.alreadyRegistered);
       }
 
@@ -149,11 +213,17 @@ class NfcService {
         _throwMapped(error, stackTrace, fallback: NfcFailure.writeFailed);
       }
 
-      if (existingForTag != null) {
+      if (existingForTag != null && !replaceExisting) {
         return existingForTag;
       }
 
       try {
+        if (replaceExisting && existingForAlbum != null) {
+          return await _repository.replaceForAlbum(
+            albumId: normalizedAlbumId,
+            nfcTagId: tagIdentifier,
+          );
+        }
         return await _repository.create(
           albumId: normalizedAlbumId,
           nfcTagId: tagIdentifier,
@@ -165,16 +235,22 @@ class NfcService {
         );
       }
     } finally {
-      await _finishSession();
-      _endOperation();
+      try {
+        await _finishSession();
+      } finally {
+        await _endPlatformIntentGate();
+        _endOperation();
+      }
     }
   }
 
   /// Starts one foreground scan and emits the locally registered album ID.
   /// The physical tag identifier is deliberately never exposed to UI callers.
+  @override
   Stream<String> startScan({Duration timeout = _defaultNfcTimeout}) async* {
     _beginOperation();
     try {
+      await _beginPlatformIntentGate();
       await _ensureAvailable();
       final tag = await _poll(timeout, fallback: NfcFailure.readFailed);
       final tagIdentifier = _requireTagIdentifier(tag.identifier);
@@ -185,8 +261,12 @@ class NfcService {
       }
       yield association.albumId;
     } finally {
-      await _finishSession();
-      _endOperation();
+      try {
+        await _finishSession();
+      } finally {
+        await _endPlatformIntentGate();
+        _endOperation();
+      }
     }
   }
 
@@ -209,10 +289,42 @@ class NfcService {
   }
 
   void _endOperation() {
+    _suppressAutomaticIntentsUntil =
+        _elapsed() + automaticIntentSuppressionWindow;
     _operationActive = false;
     _nativeSessionMayBeOpen = false;
     _sessionFinished = false;
     _stopRequested = false;
+  }
+
+  Future<void> _beginPlatformIntentGate() async {
+    if (_platform case final INfcForegroundIntentGate gate) {
+      _platformIntentGateMayBeActive = true;
+      try {
+        await gate.setForegroundNfcOperationActive(true);
+      } on Object catch (error, stackTrace) {
+        _throwMapped(error, stackTrace, fallback: NfcFailure.unavailable);
+      }
+    }
+  }
+
+  Future<void> _endPlatformIntentGate() async {
+    if (_foregroundInteractions > 0) return;
+    if (!_platformIntentGateMayBeActive) return;
+    final platform = _platform;
+    if (platform is! INfcForegroundIntentGate) return;
+    final gate = platform as INfcForegroundIntentGate;
+
+    try {
+      await gate.setForegroundNfcOperationActive(false);
+    } on Object catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('[Groovefolio] NFC intent-gate cleanup failed: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+    } finally {
+      _platformIntentGateMayBeActive = false;
+    }
   }
 
   Future<void> _ensureAvailable() async {
@@ -362,11 +474,20 @@ final nfcPlatformAdapterProvider = Provider<INfcPlatformAdapter>((ref) {
 
 final nfcServiceProvider = Provider<NfcService>((ref) {
   return NfcService(
-    platform: ref.watch(nfcPlatformAdapterProvider),
-    repository: ref.watch(nfcTagRepositoryProvider),
+    ref.watch(nfcPlatformAdapterProvider),
+    ref.watch(nfcTagRepositoryProvider),
   );
 });
 
 final nfcAvailabilityProvider = FutureProvider<NfcAvailabilityState>((ref) {
   return ref.watch(nfcServiceProvider).availability();
+});
+
+/// The local NFC-tag association for one album, used to choose link versus
+/// rewrite/replace actions without exposing the physical tag ID to the UI.
+final albumNfcTagProvider = FutureProvider.autoDispose.family<NfcTag?, String>((
+  ref,
+  albumId,
+) {
+  return ref.watch(nfcTagRepositoryProvider).findByAlbum(albumId);
 });

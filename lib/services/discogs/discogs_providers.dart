@@ -46,13 +46,29 @@ final discogsAppLinksProvider = Provider<AppLinks>((ref) => AppLinks());
 /// The AppLinks singleton is created during main() bootstrap, before database
 /// initialization, so the OAuth callback is retained for both cold-start and
 /// warm-app launches.
-final discogsIncomingUriProvider = StreamProvider<Uri>((ref) {
+final incomingAppLinkStreamProvider = Provider<Stream<Uri>>((ref) {
   return ref.watch(discogsAppLinksProvider).uriLinkStream;
 });
 
-/// Lets widget tests opt out of platform deep-link registration without
-/// changing production behavior.
-final discogsDeepLinksEnabledProvider = Provider<bool>((ref) => true);
+/// Intent deliveries are events, even when consecutive URIs are equal.
+/// Riverpod's default equality filtering would otherwise discard later taps of
+/// the same NFC tag indefinitely. The NFC logging service owns the cooldown.
+class IncomingUriEvents extends StreamNotifier<Uri> {
+  @override
+  Stream<Uri> build() => ref.watch(incomingAppLinkStreamProvider);
+
+  @override
+  bool updateShouldNotify(AsyncValue<Uri> previous, AsyncValue<Uri> next) =>
+      true;
+}
+
+final discogsIncomingUriProvider =
+    StreamNotifierProvider<IncomingUriEvents, Uri>(IncomingUriEvents.new);
+
+/// Lets widget tests opt out of platform app-link registration without
+/// changing production behavior. The shared stream carries both Discogs OAuth
+/// callbacks and NFC album intents.
+final appLinksEnabledProvider = Provider<bool>((ref) => true);
 
 enum DiscogsAuthorizationStatus {
   idle,

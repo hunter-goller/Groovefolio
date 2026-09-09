@@ -8,6 +8,57 @@ import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 
 void main() {
+  test(
+    'rejected write remains protected until the error interaction closes',
+    () async {
+      var elapsed = Duration.zero;
+      final fixture = _Fixture(elapsed: () => elapsed);
+      await fixture.repository.create(
+        albumId: 'jelly-roll',
+        nfcTagId: '04A7392B916180',
+      );
+
+      await fixture.service.withForegroundInteraction(() async {
+        for (var attempt = 0; attempt < 2; attempt++) {
+          await expectLater(
+            fixture.service.writeTag('taylor-swift'),
+            throwsA(_nfcFailure(NfcFailure.alreadyRegistered)),
+          );
+          elapsed += const Duration(minutes: 1);
+          expect(fixture.service.shouldSuppressAutomaticIntent, isTrue);
+          expect(fixture.platform.foregroundIntentGateActive, isTrue);
+          expect(
+            fixture.platform.foregroundIntentGateStates,
+            isNot(contains(false)),
+          );
+        }
+        expect(fixture.platform.writtenUri, isNull);
+        expect(fixture.repository.createdTags.single.albumId, 'jelly-roll');
+      });
+
+      expect(fixture.platform.foregroundIntentGateActive, isFalse);
+      expect(fixture.service.shouldSuppressAutomaticIntent, isTrue);
+      elapsed += const Duration(seconds: 3);
+      expect(fixture.service.shouldSuppressAutomaticIntent, isFalse);
+    },
+  );
+
+  test(
+    'interaction failure and nested interactions release protection safely',
+    () async {
+      final fixture = _Fixture();
+      await expectLater(
+        fixture.service.withForegroundInteraction(() async {
+          await fixture.service.withForegroundInteraction(() async {});
+          expect(fixture.platform.foregroundIntentGateActive, isTrue);
+          throw StateError('route removed');
+        }),
+        throwsStateError,
+      );
+      expect(fixture.platform.foregroundIntentGateActive, isFalse);
+    },
+  );
+
   test('availability reports disabled without throwing', () async {
     final fixture = _Fixture(availability: NfcAvailabilityState.disabled);
 
@@ -108,15 +159,119 @@ void main() {
     expect(fixture.platform.finishCalls, 1);
   });
 
-  test('album NFC URIs round-trip and reject unrelated links', () {
-    final uri = nfcAlbumUri('album/with space');
+  test(
+    'foreground operations suppress automatic intents until grace period ends',
+    () async {
+      var elapsed = Duration.zero;
+      final pollCompleter = Completer<NfcPlatformTag>();
+      final fixture = _Fixture(
+        pollCompleter: pollCompleter,
+        elapsed: () => elapsed,
+      );
+      await fixture.repository.create(
+        albumId: 'album-1',
+        nfcTagId: normalizeNfcTagIdentifier(fixture.platform.tag.identifier),
+      );
 
-    expect(albumIdFromNfcUri(uri), 'album/with space');
+      final scan = fixture.service.startScan().single;
+      await Future<void>.delayed(Duration.zero);
+      expect(fixture.service.shouldSuppressAutomaticIntent, isTrue);
+      expect(fixture.platform.foregroundIntentGateActive, isTrue);
+
+      pollCompleter.complete(fixture.platform.tag);
+      await scan;
+      expect(fixture.service.shouldSuppressAutomaticIntent, isTrue);
+      expect(fixture.platform.foregroundIntentGateActive, isFalse);
+      expect(fixture.platform.foregroundIntentGateStates, [true, false]);
+
+      elapsed += const Duration(seconds: 3);
+      expect(fixture.service.shouldSuppressAutomaticIntent, isFalse);
+    },
+  );
+
+  test('album NFC URIs round-trip and reject unrelated links', () {
+    final uri = nfcAlbumUri('album-1234_abcd.test');
+
+    expect(albumIdFromNfcUri(uri), 'album-1234_abcd.test');
     expect(
       albumIdFromNfcUri(Uri.parse('groovefolio://discogs-auth/callback')),
       isNull,
     );
     expect(albumIdFromNfcUri(Uri.parse('https://groovefolio.app')), isNull);
+  });
+
+  test('album NFC URIs reject extra or unsafe URI content', () {
+    final invalidUris = [
+      'groovefolio://album/album-1/extra',
+      'groovefolio://album/album-1?source=other-app',
+      'groovefolio://album/album-1#fragment',
+      'groovefolio://user@album/album-1',
+      'groovefolio://album:42/album-1',
+      'groovefolio://album/album%2Fother',
+      'groovefolio://album/album%20one',
+      'groovefolio://album/${List.filled(257, 'a').join()}',
+    ];
+
+    for (final value in invalidUris) {
+      expect(albumIdFromNfcUri(Uri.parse(value)), isNull, reason: value);
+    }
+
+    expect(() => nfcAlbumUri('album/other'), throwsArgumentError);
+  });
+
+  test('a written tag scans back to the same album', () async {
+    final fixture = _Fixture();
+
+    await fixture.service.writeTag('album-1');
+    final albumId = await fixture.service.startScan().single;
+
+    expect(albumId, 'album-1');
+    expect(fixture.repository.createdTags, hasLength(1));
+    expect(fixture.platform.finishCalls, 2);
+  });
+
+  test(
+    'replace mode moves an album association to the presented tag',
+    () async {
+      final fixture = _Fixture();
+      await fixture.repository.create(albumId: 'album-1', nfcTagId: '01020304');
+
+      final replacement = await fixture.service.writeTag(
+        'album-1',
+        replaceExisting: true,
+      );
+
+      expect(replacement.albumId, 'album-1');
+      expect(replacement.nfcTagId, '04A7392B916180');
+      expect(fixture.repository.replaceCalls, 1);
+      expect(fixture.repository.createdTags, hasLength(1));
+      expect(await fixture.repository.findByTagId('01020304'), isNull);
+      expect(fixture.platform.finishCalls, 1);
+    },
+  );
+
+  test('replace mode cannot take a tag linked to another album', () async {
+    final fixture = _Fixture();
+    final original = await fixture.repository.create(
+      albumId: 'album-1',
+      nfcTagId: '01020304',
+    );
+    await fixture.repository.create(
+      albumId: 'album-2',
+      nfcTagId: '04A7392B916180',
+    );
+
+    await expectLater(
+      fixture.service.writeTag('album-1', replaceExisting: true),
+      throwsA(_nfcFailure(NfcFailure.alreadyRegistered)),
+    );
+
+    expect(await fixture.repository.findByAlbum('album-1'), original);
+    expect(fixture.repository.replaceCalls, 0);
+    expect(fixture.platform.writtenUri, isNull);
+    expect(fixture.platform.finishCalls, 1);
+    expect(fixture.platform.foregroundIntentGateActive, isFalse);
+    expect(fixture.platform.foregroundIntentGateStates, [true, false]);
   });
 }
 
@@ -137,13 +292,14 @@ class _Fixture {
       ndefWritable: true,
     ),
     Completer<NfcPlatformTag>? pollCompleter,
+    Duration Function()? elapsed,
   }) : platform = _FakeNfcPlatform(
          availabilityState: availability,
          tag: tag,
          pollCompleter: pollCompleter,
        ),
        repository = _FakeNfcTagRepository() {
-    service = NfcService(platform: platform, repository: repository);
+    service = NfcService(platform, repository, elapsed: elapsed);
   }
 
   final _FakeNfcPlatform platform;
@@ -151,7 +307,8 @@ class _Fixture {
   late final NfcService service;
 }
 
-class _FakeNfcPlatform implements INfcPlatformAdapter {
+class _FakeNfcPlatform
+    implements INfcPlatformAdapter, INfcForegroundIntentGate {
   _FakeNfcPlatform({
     required this.availabilityState,
     required this.tag,
@@ -165,6 +322,14 @@ class _FakeNfcPlatform implements INfcPlatformAdapter {
   int pollCalls = 0;
   int finishCalls = 0;
   Uri? writtenUri;
+  bool foregroundIntentGateActive = false;
+  final List<bool> foregroundIntentGateStates = [];
+
+  @override
+  Future<void> setForegroundNfcOperationActive(bool active) async {
+    foregroundIntentGateActive = active;
+    foregroundIntentGateStates.add(active);
+  }
 
   @override
   Future<NfcAvailabilityState> availability() async => availabilityState;
@@ -193,6 +358,7 @@ class _FakeNfcPlatform implements INfcPlatformAdapter {
 
 class _FakeNfcTagRepository implements INfcTagRepository {
   final List<NfcTag> createdTags = [];
+  int replaceCalls = 0;
 
   @override
   Future<NfcTag> create({
@@ -208,6 +374,17 @@ class _FakeNfcTagRepository implements INfcTagRepository {
     );
     createdTags.add(tag);
     return tag;
+  }
+
+  @override
+  Future<NfcTag> replaceForAlbum({
+    required String albumId,
+    required String nfcTagId,
+    DateTime? writtenAt,
+  }) async {
+    replaceCalls += 1;
+    createdTags.removeWhere((tag) => tag.albumId == albumId);
+    return create(albumId: albumId, nfcTagId: nfcTagId, writtenAt: writtenAt);
   }
 
   @override

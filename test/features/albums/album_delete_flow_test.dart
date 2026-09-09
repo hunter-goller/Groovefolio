@@ -292,5 +292,12 @@ class _Nfc implements INfcTagRepository {
   }) => throw UnimplementedError();
 
   @override
+  Future<NfcTag> replaceForAlbum({
+    required String albumId,
+    required String nfcTagId,
+    DateTime? writtenAt,
+  }) => throw UnimplementedError();
+
+  @override
   Future<NfcTag?> findByTagId(String nfcTagId) async => null;
 }

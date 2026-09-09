@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 /// Visual NFC prompt used by the Log Play flow.
 ///
-/// The animation is intentionally UI-only for VinylApp-020. Hardware tag
-/// detection is wired later by VinylApp-066 and can drive [isScanning].
+/// [isScanning] follows the active foreground NFC session so the animation and
+/// accessible status stay aligned with the real hardware operation.
 class NFCPrompt extends StatefulWidget {
   const NFCPrompt({
     required this.isScanning,
