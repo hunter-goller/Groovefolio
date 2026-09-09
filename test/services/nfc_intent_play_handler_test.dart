@@ -1,14 +1,49 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/repositories/album_repository.dart';
+import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_intent_play_handler.dart';
 import 'package:vinyl_app/services/nfc/nfc_play_logging_service.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
 void main() {
+  test(
+    'same tag is delivered again after cooldown without restarting',
+    () async {
+      final uris = StreamController<Uri>();
+      final container = ProviderContainer(
+        overrides: [
+          incomingAppLinkStreamProvider.overrideWithValue(uris.stream),
+        ],
+      );
+      addTearDown(() async {
+        container.dispose();
+        await uris.close();
+      });
+      final fixture = _Fixture();
+      final pending = <Future<NfcIntentPlayResult?>>[];
+      container.listen(discogsIncomingUriProvider, (previous, next) {
+        next.whenData((uri) => pending.add(fixture.handler.handle(uri)));
+      });
+      await container.pump();
+      final uri = Uri.parse('groovefolio://album/album-1');
+      for (final seconds in [0, 1, 6]) {
+        fixture.elapsed = Duration(seconds: seconds);
+        uris.add(uri);
+        await Future<void>.delayed(Duration.zero);
+        await container.pump();
+        await Future.wait(pending);
+      }
+      expect(pending, hasLength(3));
+      final results = await Future.wait(pending);
+      expect(results.map((result) => result?.suppressed), [false, true, false]);
+      expect(fixture.playLogger.calls, 2);
+    },
+  );
   test(
     'opening a write interaction during album resolution prevents insertion',
     () async {
@@ -99,7 +134,7 @@ class _Fixture {
         nfcService: const _UnusedNfcScanner(),
         playLogger: playLogger,
         now: () => DateTime.utc(2026, 9, 8, 12),
-        elapsed: () => Duration.zero,
+        elapsed: () => elapsed,
       ),
       albumRepository,
       () => suppressAutomaticIntent,
@@ -109,6 +144,7 @@ class _Fixture {
   final _FakeAlbumRepository albumRepository;
   final _FakePlayLogger playLogger;
   late final NfcIntentPlayHandler handler;
+  Duration elapsed = Duration.zero;
 }
 
 class _FakeAlbumRepository implements IAlbumRepository {

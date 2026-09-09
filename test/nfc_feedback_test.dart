@@ -83,7 +83,7 @@ void main() {
           ProviderScope(
             overrides: [
               databaseProvider.overrideWithValue(db),
-              discogsIncomingUriProvider.overrideWith((ref) => uris.stream),
+              incomingAppLinkStreamProvider.overrideWithValue(uris.stream),
               onboardingRequiredProvider.overrideWithValue(
                 const AsyncData(false),
               ),
