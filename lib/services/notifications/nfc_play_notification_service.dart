@@ -3,6 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/types/side_played.dart';
+import 'package:vinyl_app/services/nfc/nfc_service.dart';
+
+/// Notification navigation is deliberately distinct from a tag's log URI.
+/// Reuse the strict parser, but never pass this URI to the play handler.
+String? albumIdFromNotificationUri(Uri uri) {
+  if (uri.scheme != 'groovefolio-notification') return null;
+  return albumIdFromNfcUri(uri.replace(scheme: 'groovefolio'));
+}
 
 typedef NotificationMethodInvoker =
     Future<bool?> Function(String method, Map<String, Object?> arguments);
@@ -49,6 +57,7 @@ class AndroidNfcPlayNotificationService implements INfcPlayNotificationService {
     try {
       return await _invoke('showNfcPlayLogged', {
             'playId': play.id,
+            'albumId': album.id,
             'albumTitle': album.title.trim(),
             'sideLabel': _sideLabel(play.sidePlayed),
             if (artworkPath != null && artworkPath.isNotEmpty)
@@ -62,6 +71,18 @@ class AndroidNfcPlayNotificationService implements INfcPlayNotificationService {
       }
       return false;
     }
+  }
+}
+
+/// Removes a success notification after its exact play has been undone.
+Future<void> cancelNfcPlayNotification(String playId) async {
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+  try {
+    await const MethodChannel(
+      'com.huntergoller.vinyl_app/nfc_notifications',
+    ).invokeMethod<bool>('cancelNfcPlayLogged', {'playId': playId});
+  } on Object {
+    // Notification cleanup must not turn a successful database Undo into an error.
   }
 }
 

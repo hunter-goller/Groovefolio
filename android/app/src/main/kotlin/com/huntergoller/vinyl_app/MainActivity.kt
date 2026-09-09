@@ -13,6 +13,7 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.net.Uri
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -60,6 +61,14 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, METHOD_CHANNEL)
             .setMethodCallHandler { call, result ->
+                if (call.method == "cancelNfcPlayLogged") {
+                    val playId = safeArgument(call, "playId", 128)
+                    if (playId != null) {
+                        getSystemService(NotificationManager::class.java).cancel(playId, 0)
+                    }
+                    result.success(playId != null)
+                    return@setMethodCallHandler
+                }
                 if (call.method != SHOW_NFC_PLAY_LOGGED) {
                     result.notImplemented()
                     return@setMethodCallHandler
@@ -117,10 +126,11 @@ class MainActivity : FlutterActivity() {
 
     private fun parseNotification(call: MethodCall): NfcPlayNotification? {
         val playId = safeArgument(call, "playId", 128) ?: return null
+        val albumId = safeArgument(call, "albumId", 128) ?: return null
         val albumTitle = safeArgument(call, "albumTitle", 200) ?: return null
         val sideLabel = safeArgument(call, "sideLabel", 40) ?: return null
         val artworkPath = call.argument<String>("artworkPath")?.trim()?.take(4096)
-        return NfcPlayNotification(playId, albumTitle, sideLabel, artworkPath)
+        return NfcPlayNotification(playId, albumId, albumTitle, sideLabel, artworkPath)
     }
 
     private fun safeArgument(call: MethodCall, key: String, maxLength: Int): String? {
@@ -187,8 +197,14 @@ class MainActivity : FlutterActivity() {
 
             createNotificationChannel(manager)
             val notificationId = notification.playId.hashCode() and Int.MAX_VALUE
-            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
-                ?: Intent(this, MainActivity::class.java)
+            // An explicit immutable navigation intent, never a tag/log URI.
+            val launchIntent = Intent(this, MainActivity::class.java)
+                .setAction(Intent.ACTION_VIEW)
+                .setData(Uri.Builder()
+                    .scheme("groovefolio-notification")
+                    .authority("album")
+                    .appendPath(notification.albumId)
+                    .build())
             launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             val contentIntent = PendingIntent.getActivity(
                 this,
@@ -236,7 +252,8 @@ class MainActivity : FlutterActivity() {
                     )
             }
 
-            manager.notify(notificationId, builder.build())
+            // String tags avoid hash collisions between unrelated play IDs.
+            manager.notify(notification.playId, 0, builder.build())
             true
         } catch (_: RuntimeException) {
             false
@@ -296,6 +313,7 @@ class MainActivity : FlutterActivity() {
 
     private data class NfcPlayNotification(
         val playId: String,
+        val albumId: String,
         val albumTitle: String,
         val sideLabel: String,
         val artworkPath: String?,

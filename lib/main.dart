@@ -1,9 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/db/database_provider.dart';
+import 'package:vinyl_app/providers/album_providers.dart';
+import 'package:vinyl_app/providers/repository_providers.dart';
+import 'package:vinyl_app/features/stats/screens/stats_screen.dart';
+import 'package:vinyl_app/services/recommendation_service.dart';
+import 'package:vinyl_app/services/nfc/nfc_play_undo.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/routing/router.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
@@ -60,11 +66,65 @@ class MyApp extends ConsumerWidget {
       return;
     }
 
-    final notificationShown = await ref
+    final repository = ref.read(playRepositoryProvider);
+    _refreshPlayData(ref, result.album.id);
+    // Haptic failure is feedback failure, not a failed database insert.
+    unawaited(HapticFeedback.lightImpact().catchError((Object _) {}));
+    await ref
         .read(nfcPlayNotificationServiceProvider)
         .showLoggedPlay(album: result.album, play: play);
-    if (!notificationShown) {
-      _showNfcMessage('Play logged: ${result.album.title}');
+    if (!ref.context.mounted) return;
+    final undo = NfcPlayUndo(deletePlay: () => repository.deleteById(play.id));
+    _showNfcMessage(
+      'Play logged: ${result.album.title}',
+      action: SnackBarAction(
+        label: 'Undo',
+        onPressed: () async {
+          try {
+            final removed = await undo.undo();
+            if (!ref.context.mounted) return;
+            _refreshPlayData(ref, result.album.id);
+            if (removed) {
+              await cancelNfcPlayNotification(play.id);
+            }
+            _showNfcMessage(
+              removed ? 'Play removed.' : 'Undo is no longer available.',
+            );
+          } on Object {
+            _showNfcMessage(
+              'Couldn’t undo that play. It remains in your history.',
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  void _refreshPlayData(WidgetRef ref, String albumId) {
+    ref.invalidate(albumsProvider);
+    ref.invalidate(recentlyPlayedProvider);
+    ref.invalidate(playCountProvider(albumId));
+    ref.invalidate(albumDetailProvider(albumId));
+    ref.invalidate(albumSearchProvider);
+    ref.invalidate(statsDashboardProvider);
+    ref.invalidate(discoverRecommendationsProvider);
+  }
+
+  Future<void> _openNotificationAlbum(WidgetRef ref, String albumId) async {
+    try {
+      final repository = ref.read(albumRepositoryProvider);
+      final router = ref.read(routerProvider);
+      final album = await repository.findById(albumId);
+      if (!ref.context.mounted) return;
+      if (album == null) {
+        _showNfcMessage('That record is no longer in your collection.');
+        return;
+      }
+      // Preserve a Collection back destination without invoking NFC logging.
+      router.go(AppRoutes.collection);
+      unawaited(router.push<void>(AppRoutes.albumDetailPath(album.id)));
+    } on Object {
+      _showNfcMessage('Couldn’t open that record. Please try again.');
     }
   }
 
@@ -76,12 +136,16 @@ class MyApp extends ConsumerWidget {
     _showNfcMessage(message);
   }
 
-  void _showNfcMessage(String message, {bool afterFirstFrame = false}) {
+  void _showNfcMessage(
+    String message, {
+    bool afterFirstFrame = false,
+    SnackBarAction? action,
+  }) {
     final messenger = _scaffoldMessengerKey.currentState;
     if (messenger == null) {
       if (!afterFirstFrame) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _showNfcMessage(message, afterFirstFrame: true);
+          _showNfcMessage(message, afterFirstFrame: true, action: action);
         });
       }
       return;
@@ -90,7 +154,14 @@ class MyApp extends ConsumerWidget {
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          action: action,
+          duration: action == null
+              ? const Duration(seconds: 4)
+              : const Duration(seconds: 10),
+        ),
       );
   }
 
@@ -139,6 +210,11 @@ class MyApp extends ConsumerWidget {
       // NFC polling, so all play history follows one persistence path.
       ref.listen(discogsIncomingUriProvider, (previous, next) {
         next.whenData((uri) {
+          final notificationAlbumId = albumIdFromNotificationUri(uri);
+          if (notificationAlbumId != null) {
+            unawaited(_openNotificationAlbum(ref, notificationAlbumId));
+            return;
+          }
           if (albumIdFromNfcUri(uri) == null) return;
           unawaited(_handleNfcUri(ref, uri));
         });
