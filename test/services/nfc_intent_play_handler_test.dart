@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/repositories/album_repository.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
