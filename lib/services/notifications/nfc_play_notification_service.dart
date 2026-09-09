@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/db/app_database.dart';
-import 'package:vinyl_app/types/side_played.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
+import 'package:vinyl_app/types/side_played.dart';
 
 /// Notification navigation is deliberately distinct from a tag's log URI.
 /// Reuse the strict parser, but never pass this URI to the play handler.

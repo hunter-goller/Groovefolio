@@ -2,10 +2,10 @@
 /// Never accepts a play ID from a tag, URI, or notification intent.
 class NfcPlayUndo {
   NfcPlayUndo({
-    required Future<int> Function() deletePlay,
+    required this._deletePlay,
     Duration Function()? elapsed,
     this.window = const Duration(seconds: 10),
-  }) : _deletePlay = deletePlay {
+  }) {
     final clock = Stopwatch()..start();
     _elapsed = elapsed ?? (() => clock.elapsed);
     _started = _elapsed();
