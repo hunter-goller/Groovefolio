@@ -9,7 +9,15 @@ import 'package:vinyl_app/types/side_played.dart';
 /// Reuse the strict parser, but never pass this URI to the play handler.
 String? albumIdFromNotificationUri(Uri uri) {
   if (uri.scheme != 'groovefolio-notification') return null;
-  return albumIdFromNfcUri(uri.replace(scheme: 'groovefolio'));
+  if (uri.toString().length > 512 || uri.pathSegments.length != 2) return null;
+  // The second segment distinguishes notifications for successive plays of
+  // the same album. It is never used to look up or delete a play.
+  if (!RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(uri.pathSegments[1])) {
+    return null;
+  }
+  return albumIdFromNfcUri(
+    uri.replace(scheme: 'groovefolio', pathSegments: [uri.pathSegments.first]),
+  );
 }
 
 typedef NotificationMethodInvoker =

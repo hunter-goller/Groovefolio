@@ -51,17 +51,18 @@ void main() {
   test('notification links are navigation-only and strictly validated', () {
     expect(
       albumIdFromNotificationUri(
-        Uri.parse('groovefolio-notification://album/album-1'),
+        Uri.parse('groovefolio-notification://album/album-1/play-1'),
       ),
       'album-1',
     );
     for (final value in [
       'groovefolio://album/album-1',
-      'groovefolio-notification://album/album-1/extra',
-      'groovefolio-notification://album/album-1?undo=play-1',
-      'groovefolio-notification://album/album-1#fragment',
-      'groovefolio-notification://user@album/album-1',
-      'groovefolio-notification://album/a%2Fb',
+      'groovefolio-notification://album/album-1/play-1/extra',
+      'groovefolio-notification://album/album-1/play-1?undo=play-1',
+      'groovefolio-notification://album/album-1/play-1#fragment',
+      'groovefolio-notification://user@album/album-1/play-1',
+      'groovefolio-notification://album/a%2Fb/play-1',
+      'groovefolio-notification://album/album-1/a%2Fb',
     ]) {
       expect(
         albumIdFromNotificationUri(Uri.parse(value)),

@@ -118,12 +118,14 @@ void main() {
         expect(haptics, 1);
         expect(await repository.findAll(), hasLength(1));
         // Notification navigation is not another NFC log event.
-        uris.add(Uri.parse('groovefolio-notification://album/album-1'));
+        uris.add(Uri.parse('groovefolio-notification://album/album-1/play-1'));
         await tester.pumpAndSettle();
         expect(find.text('Album Details'), findsOneWidget);
         expect(await repository.findAll(), hasLength(1));
         expect(notifications.plays, hasLength(1));
-        uris.add(Uri.parse('groovefolio-notification://album/missing-album'));
+        uris.add(
+          Uri.parse('groovefolio-notification://album/missing-album/play-2'),
+        );
         await tester.pumpAndSettle();
         expect(
           find.text('That record is no longer in your collection.'),

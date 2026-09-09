@@ -204,6 +204,7 @@ class MainActivity : FlutterActivity() {
                     .scheme("groovefolio-notification")
                     .authority("album")
                     .appendPath(notification.albumId)
+                    .appendPath(notification.playId)
                     .build())
             launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             val contentIntent = PendingIntent.getActivity(
