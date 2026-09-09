@@ -48,11 +48,16 @@ validation before release.
 - protection throughout the write dialog, including error and retry states,
   plus a monotonic five-second native cooldown after the interaction ends
 - failed play inserts can be retried immediately
-- debug-only software NFC tap flow that uses the production logging services
+- automated service fakes for hardware-independent regression tests (the
+  developer Settings fake-tap screen was removed in VinylApp-127)
 - Android system notification after a successful automatic tag-tap play,
   including the album title, what was logged, and bounded local artwork
 - in-app confirmation for manual play logging and a safe in-app fallback when
   system notifications are unavailable or denied
+- ten-second in-app Undo for the exact NFC-created play, including when
+  notifications are denied; unavailable after process death
+- successful automatic logs receive light haptic feedback; duplicates are silent
+- notification taps navigate to the album without logging again
 
 ## Still needed
 - physical-device validation with the Galaxy S22 Ultra and NTAG215 tags

@@ -94,7 +94,7 @@ String normalizeNfcTagIdentifier(String identifier) {
 /// Resolves one physical NFC scan to the album associated with that tag.
 ///
 /// Keeping the play-logging workflow behind this small boundary makes the
-/// software-only developer tap and unit tests independent of NFC hardware.
+/// automated service tests independent of NFC hardware.
 abstract interface class INfcAlbumScanner {
   Stream<String> startScan({Duration timeout = _defaultNfcTimeout});
 }

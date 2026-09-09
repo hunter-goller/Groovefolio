@@ -56,7 +56,7 @@ class MyApp extends ConsumerWidget {
 
   Future<void> _showNfcResult(WidgetRef ref, NfcIntentPlayResult result) async {
     if (result.suppressed) {
-      _showNfcMessage('${result.album.title} is already logged.');
+      // Keep the first play's Undo visible while the tag remains nearby.
       return;
     }
 
