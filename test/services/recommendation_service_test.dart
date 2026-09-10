@@ -50,11 +50,7 @@ void main() {
         albums: [jazzAnchor, rockAnchor, jazzPick, rockPick],
         plays: [
           for (var index = 0; index < 5; index += 1)
-            _play(
-              'jazz-$index',
-              jazzAnchor.id,
-              '2026-08-${index + 1}T12:00:00.000Z',
-            ),
+            _play('jazz-$index', jazzAnchor.id, _augustDate(index + 1)),
           _play('rock-1', rockAnchor.id, '2026-08-06T12:00:00.000Z'),
         ],
         genresByAlbum: {
@@ -458,6 +454,11 @@ Play _play(String id, String albumId, String playedAt) {
     sidePlayed: SidePlayed.full,
     createdAt: playedAt,
   );
+}
+
+String _augustDate(int day) {
+  final paddedDay = day.toString().padLeft(2, '0');
+  return '2026-08-${paddedDay}T12:00:00.000Z';
 }
 
 class _FakeAlbumRepository implements IAlbumRepository {
