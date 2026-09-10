@@ -1,11 +1,11 @@
 # VinylApp-128: Background NFC logging and one confirmation
 
-Stacked on PR #77 (`VinylApp-127`).
+Targets `main` after PR #77 (`VinylApp-127`) merged.
 
 - Classify every accepted album-tag delivery before Android resumes the app:
   foreground when Groovefolio was already visible, external otherwise.
-- External deliveries immediately return Groovefolio's task behind the current
-  app, then reuse the existing Flutter/Drift NFC logging path.
+- External deliveries use a transparent NFC entry point without raising the
+  Collection task, then reuse the existing Flutter/Drift NFC logging path.
 - External success shows one Android notification. If notifications are denied
   or disabled, show one short system toast without retrying the insert.
 - Foreground success shows the ten-second in-app Undo bar and light haptic only;
@@ -18,10 +18,11 @@ Stacked on PR #77 (`VinylApp-127`).
 
 ## Android limitation
 
-NDEF dispatch is Activity-based. This implementation backgrounds the task
-before Flutter paints and repeats that cleanup after processing, but it is not
-a separate headless Flutter engine or native database writer. Physical Samsung
-validation must confirm that no Collection flash is perceptible.
+NDEF dispatch is Activity-based. A transparent router forwards warm taps directly
+to the existing host; a transparent, non-exported Flutter host processes cold
+taps. The single retained engine preserves the cooldown and database owner.
+Physical Samsung validation must confirm that no launch flash is perceptible.
+See [transparent entry design and retest](../nfc-transparent-entry.md).
 
 ## Physical checks
 
