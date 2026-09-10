@@ -35,6 +35,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Settings'), findsOneWidget);
+    expect(find.byKey(const Key('developer-test-nfc-tap')), findsNothing);
     expect(find.text('Connected as hunter'), findsOneWidget);
     expect(find.text('Disconnect'), findsOneWidget);
     expect(find.text('Data provided by Discogs.'), findsOneWidget);
