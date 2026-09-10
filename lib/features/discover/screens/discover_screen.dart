@@ -123,6 +123,14 @@ class _DiscoverBody extends StatelessWidget {
           ),
           SizedBox(height: tokens.space24),
         ],
+        if (data.underplayed.isNotEmpty) ...[
+          _RecommendationSection(
+            title: 'Give these a spin',
+            subtitle: 'Records with two or fewer logged plays, including your unplayed shelf.',
+            recommendations: data.underplayed,
+          ),
+          SizedBox(height: tokens.space24),
+        ],
         if (profile != null && !data.hasRecommendations)
           const _NoRecommendationsCard(),
       ],
@@ -173,7 +181,7 @@ class _TasteProfileCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '${profile.totalPlays} logged plays across '
+                        'All time · ${profile.totalPlays} logged plays across '
                         '${profile.playedAlbums} ${profile.playedAlbums == 1 ? 'album' : 'albums'}',
                         style: context.theme.textTheme.bodySmall?.copyWith(
                           color: tokens.textMuted,
@@ -215,10 +223,12 @@ class _TasteProfileCard extends StatelessWidget {
                     color: tokens.textMuted,
                   ),
                   SizedBox(width: tokens.space8),
-                  Text(
-                    'Most-played era: ${favoriteDecade}s',
-                    style: context.theme.textTheme.bodyMedium?.copyWith(
-                      color: tokens.textMuted,
+                  Flexible(
+                    child: Text(
+                      'Most-played era: ${favoriteDecade}s',
+                      style: context.theme.textTheme.bodyMedium?.copyWith(
+                        color: tokens.textMuted,
+                      ),
                     ),
                   ),
                 ],
@@ -317,6 +327,11 @@ class _RecommendationCard extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: tokens.space8),
+                    Text(
+                      'Why this record?',
+                      style: context.theme.textTheme.labelMedium,
+                    ),
+                    SizedBox(height: tokens.space4),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -484,8 +499,8 @@ class _NoRecommendationsCard extends StatelessWidget {
             ),
             SizedBox(height: tokens.space4),
             Text(
-              'Keep logging plays and adding genre or year metadata. '
-              'Recommendations will refresh as your listening changes.',
+              'Your eligible shelf picks are caught up. Recently played records '
+              'get a break; pull down to refresh as your listening changes.',
               textAlign: TextAlign.center,
               style: context.theme.textTheme.bodyMedium?.copyWith(
                 color: tokens.textMuted,

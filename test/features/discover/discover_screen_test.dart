@@ -72,6 +72,9 @@ void main() {
     expect(find.text('Blue Train'), findsOneWidget);
     expect(find.textContaining('Last played 5 months ago'), findsOneWidget);
 
+    await tester.ensureVisible(
+      find.byKey(const Key('discover-recommendation-album-blue-train')),
+    );
     await tester.tap(
       find.byKey(const Key('discover-recommendation-album-blue-train')),
     );
@@ -92,6 +95,17 @@ void main() {
       rediscover: [],
       genrePicks: [],
       eraPicks: [],
+      underplayed: [
+        AlbumRecommendation(
+          album: album,
+          artistName: 'John Coltrane',
+          genres: [],
+          reason: 'No plays logged yet — give this record a first spin',
+          kind: RecommendationKind.underplayed,
+          playCount: 0,
+          score: 2,
+        ),
+      ],
     );
 
     final router = _router();
@@ -118,6 +132,8 @@ void main() {
     expect(find.textContaining('Log a few plays'), findsOneWidget);
     expect(find.byKey(const Key('discover-log-play')), findsOneWidget);
     expect(find.textContaining('placeholder'), findsNothing);
+    expect(find.text('Give these a spin'), findsOneWidget);
+    expect(find.text('Why this record?'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('discover-log-play')));
     await tester.pumpAndSettle();

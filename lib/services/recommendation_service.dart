@@ -4,7 +4,7 @@ import 'package:vinyl_app/providers/repository_providers.dart';
 
 part 'recommendation_service.g.dart';
 
-enum RecommendationKind { rediscover, genre, era }
+enum RecommendationKind { rediscover, genre, era, underplayed }
 
 class TasteGenre {
   const TasteGenre({
@@ -61,6 +61,7 @@ class DiscoverRecommendations {
     required this.rediscover,
     required this.genrePicks,
     required this.eraPicks,
+    this.underplayed = const [],
   });
 
   final int collectionSize;
@@ -68,9 +69,13 @@ class DiscoverRecommendations {
   final List<AlbumRecommendation> rediscover;
   final List<AlbumRecommendation> genrePicks;
   final List<AlbumRecommendation> eraPicks;
+  final List<AlbumRecommendation> underplayed;
 
   bool get hasRecommendations =>
-      rediscover.isNotEmpty || genrePicks.isNotEmpty || eraPicks.isNotEmpty;
+      rediscover.isNotEmpty ||
+      genrePicks.isNotEmpty ||
+      eraPicks.isNotEmpty ||
+      underplayed.isNotEmpty;
 }
 
 abstract interface class IRecommendationService {
@@ -199,12 +204,46 @@ class RecommendationService implements IRecommendationService {
       limit: sectionLimit,
     );
 
+    final occupied = {...usedIds, ...eraPicks.map((item) => item.album.id)};
+    final underplayed = <AlbumRecommendation>[];
+    for (final album in albums) {
+      final count = playCounts[album.id] ?? 0;
+      final last = lastPlayedAt[album.id];
+      if (occupied.contains(album.id) ||
+          count > 2 ||
+          _isRecent(last, now, recentSuppression)) {
+        continue;
+      }
+      // Unknown play dates must not bypass the recent-play guard.
+      if (count > 0 && last == null) continue;
+      underplayed.add(
+        AlbumRecommendation(
+          album: album,
+          artistName: artistsById[album.artistId] ?? 'Unknown artist',
+          genres: _genreNames(genresByAlbum[album.id]),
+          reason: count == 0
+              ? 'No plays logged yet — give this record a first spin'
+              : '$count ${count == 1 ? 'play' : 'plays'} logged • ${_formatLastPlayed(now.difference(last!))}',
+          kind: RecommendationKind.underplayed,
+          playCount: count,
+          score: 2 - count,
+          lastPlayedAt: last,
+        ),
+      );
+    }
+    underplayed.sort((left, right) {
+      final byCount = left.playCount.compareTo(right.playCount);
+      if (byCount != 0) return byCount;
+      return _compareAlbums(left.album, right.album);
+    });
+
     return DiscoverRecommendations(
       collectionSize: albums.length,
       tasteProfile: tasteProfile,
       rediscover: List.unmodifiable(rediscover),
       genrePicks: List.unmodifiable(genrePicks),
       eraPicks: List.unmodifiable(eraPicks),
+      underplayed: List.unmodifiable(underplayed.take(sectionLimit)),
     );
   }
 

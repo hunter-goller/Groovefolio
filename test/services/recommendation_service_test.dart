@@ -144,8 +144,66 @@ void main() {
       expect(result.rediscover, isEmpty);
       expect(result.genrePicks, isEmpty);
       expect(result.eraPicks, isEmpty);
-      expect(result.hasRecommendations, isFalse);
+      expect(result.underplayed.single.album.id, 'album-1');
+      expect(result.underplayed.single.reason, contains('No plays logged'));
+      expect(result.hasRecommendations, isTrue);
     });
+
+    test(
+      'underplayed picks respect recency, counts, ties and section limit',
+      () async {
+        final service = _service(
+          albums: [
+            _album('z', 'Zulu'),
+            _album('b', 'Alpha'),
+            _album('a', 'Alpha'),
+            _album('old', 'Old'),
+            _album('recent', 'Recent'),
+            _album('frequent', 'Frequent'),
+          ],
+          plays: [
+            _play('old-1', 'old', '2026-07-01T12:00:00.000Z'),
+            _play('recent-1', 'recent', '2026-08-24T12:00:00.000Z'),
+            for (var i = 0; i < 3; i++)
+              _play('frequent-$i', 'frequent', '2026-07-01T12:00:00.000Z'),
+          ],
+        );
+        final result = await service.getRecommendations();
+        expect(result.underplayed.map((item) => item.album.id), [
+          'a',
+          'b',
+          'z',
+          'old',
+        ]);
+        final limited = await service.getRecommendations(sectionLimit: 2);
+        expect(limited.underplayed.map((item) => item.album.id), ['a', 'b']);
+      },
+    );
+
+    test(
+      'underplayed never repeats an existing genre or rediscover pick',
+      () async {
+        final service = _service(
+          albums: [
+            _album('anchor', 'Anchor'),
+            _album('pick', 'Pick'),
+            _album('old', 'Old'),
+          ],
+          plays: [
+            _play('a', 'anchor', '2026-08-24T12:00:00.000Z'),
+            _play('o', 'old', '2026-01-01T12:00:00.000Z'),
+          ],
+          genresByAlbum: {
+            'anchor': [jazz],
+            'pick': [jazz],
+          },
+        );
+        final result = await service.getRecommendations();
+        expect(result.genrePicks.single.album.id, 'pick');
+        expect(result.rediscover.single.album.id, 'old');
+        expect(result.underplayed, isEmpty);
+      },
+    );
 
     test('empty collection returns a stable empty result', () async {
       final service = _service(albums: const [], plays: const []);
