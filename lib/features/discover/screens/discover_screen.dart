@@ -444,8 +444,9 @@ class _RecommendationCard extends StatelessWidget {
           const Divider(height: 1),
           TextButton.icon(
             key: Key('discover-why-${recommendation.album.id}'),
-            onPressed: () =>
-                _showRecommendationDetails(context, recommendation),
+            onPressed: () async {
+              await _showRecommendationDetails(context, recommendation);
+            },
             style: TextButton.styleFrom(
               alignment: Alignment.centerLeft,
               padding: EdgeInsets.symmetric(
