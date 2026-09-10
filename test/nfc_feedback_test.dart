@@ -151,7 +151,10 @@ void main() {
     expect(fixture.notifications.plays, isEmpty);
     expect(fixture.haptics(), 0);
     expect(deliveries.completed, hasLength(2));
-    expect(deliveries.messages, ['Groovefolio couldn’t log that NFC play.']);
+    expect(deliveries.messages, [
+      'This NFC tag is linked to a record that is no longer in your '
+          'collection. Add the record again and relink the tag.',
+    ]);
   });
 }
 
