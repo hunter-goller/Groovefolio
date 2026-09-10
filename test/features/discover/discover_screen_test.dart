@@ -89,9 +89,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Your taste profile'), findsOneWidget);
-    expect(find.text('Rediscover your shelf'), findsOneWidget);
-    expect(find.text('Blue Train'), findsOneWidget);
-    expect(find.textContaining('Last played Mar 1, 2026'), findsOneWidget);
     expect(find.text('Jazz · 8 plays'), findsOneWidget);
     expect(
       find.text('Recent listening · 5 plays in the last 90 days'),
@@ -101,6 +98,11 @@ void main() {
     expect(find.text('Favorite artist signals'), findsOneWidget);
     expect(find.text('John Coltrane · 7 total · 3 recent'), findsOneWidget);
     expect(find.text('Most-played era: 1950s · 7 plays'), findsOneWidget);
+
+    await tester.scrollUntilVisible(find.text('Rediscover your shelf'), 300);
+    expect(find.text('Rediscover your shelf'), findsOneWidget);
+    expect(find.text('Blue Train'), findsOneWidget);
+    expect(find.textContaining('Last played Mar 1, 2026'), findsOneWidget);
 
     await tester.ensureVisible(
       find.byKey(const Key('discover-why-album-blue-train')),
