@@ -5,6 +5,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
@@ -21,8 +22,9 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
+import java.lang.ref.WeakReference
 
-class MainActivity : FlutterActivity() {
+open class MainActivity : FlutterActivity() {
     companion object {
         private const val METHOD_CHANNEL = "com.huntergoller.vinyl_app/nfc_notifications"
         private const val SHOW_NFC_PLAY_LOGGED = "showNfcPlayLogged"
@@ -42,16 +44,33 @@ class MainActivity : FlutterActivity() {
         private const val MAX_ARTWORK_DIMENSION = 1024
 
         private val foregroundIntentGate = NfcIntentGate(SystemClock::elapsedRealtime)
+        private val nfcDeliveryTracker = NfcDeliveryTracker()
+        private var retainedEngine: FlutterEngine? = null
+        private var currentHost = WeakReference<MainActivity>(null)
+
+        /** Deliver without startActivity: never raises the Collection task. */
+        internal fun deliverToExistingHost(intent: Intent): Boolean {
+            val host = currentHost.get() ?: return false
+            if (host.isFinishing || host.isDestroyed) return false
+            host.onNewIntent(intent)
+            return true
+        }
     }
 
     private val nfcGateOwner = Any()
-    private val nfcDeliveryTracker = NfcDeliveryTracker()
     private var isActivityVisible = false
     private var pendingPermissionResult: MethodChannel.Result? = null
+    protected open val isNfcOnlyHost = false
+
+    override fun provideFlutterEngine(context: Context): FlutterEngine? = retainedEngine
+
+    // Keep the database, URI subscription and cooldown in one engine when the
+    // transparent host finishes or the user later opens the real app.
+    override fun shouldDestroyEngineWithHost(): Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val suppressed = shouldSuppressAlbumNfcIntent(intent)
-        val delivery = if (suppressed) null else recordAlbumNfcDelivery(intent)
+        if (!suppressed) recordAlbumNfcDelivery(intent)
         traceNfcEntry("onCreate", suppressed)
         if (suppressed) {
             // AppLinks inspects activity.intent when Flutter attaches. Remove
@@ -59,17 +78,17 @@ class MainActivity : FlutterActivity() {
             intent = Intent(this, MainActivity::class.java).setAction(Intent.ACTION_MAIN)
         }
         super.onCreate(savedInstanceState)
+        currentHost = WeakReference(this)
         // singleTask normally routes to the existing activity; if Android did
         // create a second one, return to the original dialog without logging.
         if (suppressed) {
             finish()
-        } else if (delivery?.external == true) {
-            returnTaskToBackground()
         }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        retainedEngine = flutterEngine
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, METHOD_CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -121,7 +140,8 @@ class MainActivity : FlutterActivity() {
                         )
                     }
                     "completeExternalNfcDelivery" -> {
-                        returnTaskToBackground()
+                        val id = call.argument<Number>("id")?.toLong()
+                        if (nfcDeliveryTracker.complete(id) && isNfcOnlyHost) finish()
                         result.success(null)
                     }
                     "showExternalNfcMessage" -> {
@@ -140,16 +160,15 @@ class MainActivity : FlutterActivity() {
 
     override fun onNewIntent(intent: Intent) {
         val suppressed = shouldSuppressAlbumNfcIntent(intent)
-        val delivery = if (suppressed) null else recordAlbumNfcDelivery(intent)
+        if (!suppressed) recordAlbumNfcDelivery(intent)
         traceNfcEntry("onNewIntent", suppressed)
         if (suppressed) return
         super.onNewIntent(intent)
-        if (delivery?.external == true) returnTaskToBackground()
     }
 
     override fun onStart() {
         super.onStart()
-        isActivityVisible = true
+        isActivityVisible = !isNfcOnlyHost
     }
 
     override fun onStop() {
@@ -166,20 +185,22 @@ class MainActivity : FlutterActivity() {
         )
     }
 
-    private fun returnTaskToBackground() {
-        window.decorView.post {
-            if (!isFinishing && !isDestroyed) moveTaskToBack(true)
-        }
-    }
-
     private fun shouldSuppressAlbumNfcIntent(intent: Intent): Boolean {
         val uri = intent.data
         return foregroundIntentGate.shouldSuppress(intent.action, uri?.scheme, uri?.host)
     }
 
     override fun onDestroy() {
+        if (currentHost.get() === this) currentHost.clear()
         foregroundIntentGate.setActive(nfcGateOwner, false)
         super.onDestroy()
+    }
+
+    override fun detachFromFlutterEngine() {
+        super.detachFromFlutterEngine()
+        // A notification/launcher opening MainActivity takes over the same
+        // engine. The old transparent host must not remain in another task.
+        if (isNfcOnlyHost) finish()
     }
 
     private fun traceNfcEntry(entry: String, suppressed: Boolean) {
