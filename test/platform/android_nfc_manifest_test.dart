@@ -17,8 +17,31 @@ void main() {
       expect(manifest, contains('android.nfc.action.NDEF_DISCOVERED'));
       expect(manifest, contains('android:scheme="groovefolio"'));
       expect(manifest, contains('android:host="album"'));
-      expect(manifest, contains('android:launchMode="singleTask"'));
-      expect(manifest, isNot(contains('android:taskAffinity=""')));
+      final activities = RegExp(
+        r'<activity\b[^>]*>[\s\S]*?</activity>',
+      ).allMatches(manifest).map((match) => match.group(0)!).toList();
+      String activity(String name) => activities.singleWhere(
+        (element) => element.contains('android:name=".$name"'),
+      );
+
+      final main = activity('MainActivity');
+      expect(main, contains('android:launchMode="singleTask"'));
+      expect(main, isNot(contains('android:taskAffinity=')));
+      expect(main, contains('android.intent.category.LAUNCHER'));
+      expect(main, isNot(contains('android.nfc.action.NDEF_DISCOVERED')));
+
+      final entry = activity('NfcEntryActivity');
+      expect(entry, contains('android:exported="true"'));
+      expect(entry, contains('android:taskAffinity=""'));
+      expect(entry, contains('android:theme="@style/NfcTransparentTheme"'));
+      expect(entry, contains('android.nfc.action.NDEF_DISCOVERED'));
+      expect(entry, contains('android:host="album"'));
+
+      final processor = activity('NfcProcessingActivity');
+      expect(processor, contains('android:exported="false"'));
+      expect(processor, contains('android:excludeFromRecents="true"'));
+      expect(processor, contains('android:theme="@style/NfcTransparentTheme"'));
+      expect(processor, isNot(contains('<intent-filter>')));
     },
   );
 

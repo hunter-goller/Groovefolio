@@ -56,7 +56,7 @@ jobs:
 
       - name: Android NFC intent policy tests
         working-directory: android
-        run: ./gradlew :app:testDebugUnitTest --tests '*NfcIntentGateTest'
+        run: ./gradlew :app:testDebugUnitTest --tests '*Nfc*Test'
 
       - name: Release build verification (not published)
         run: flutter build apk --release
