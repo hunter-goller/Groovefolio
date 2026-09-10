@@ -101,10 +101,11 @@ Schema v5 adds album tracks. Exact Discogs release details parse ordered positio
 - production Discover/recommendations
 - physical NFC validation (Android permission, platform adapter, typed
   write/scan service, Add Record writing, existing-record link/replace,
-  foreground Log Play selection, and NDEF launch/resume auto-logging are
-  implemented in VinylApp-045/064/065/066)
-- any background NFC behavior beyond Android-delivered NDEF launch/resume;
-  remaining VinylApp-085 scope will be decided after physical validation
+  lifecycle-aware NDEF launch/resume auto-logging, and one-confirmation routing are
+  implemented in VinylApp-045/064/065/066/128)
+- truly headless background NFC handling; Android currently delivers the NDEF
+  intent through MainActivity, which VinylApp-128 returns behind the current app
+  on a best-effort basis while Flutter persists the play
 - barcode scanning
 - final icon/splash/release polish
 

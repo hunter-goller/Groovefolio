@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vinyl_app/db/app_database.dart';
@@ -5,6 +6,8 @@ import 'package:vinyl_app/services/notifications/nfc_play_notification_service.d
 import 'package:vinyl_app/types/side_played.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   const album = Album(
     id: 'album-1',
     title: 'Blue Train',
@@ -119,4 +122,28 @@ void main() {
 
     expect(await service.showLoggedPlay(album: album, play: play), isFalse);
   });
+
+  test(
+    'notification permission is requested only through its explicit flow',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      const channel = MethodChannel(
+        'com.huntergoller.vinyl_app/nfc_notifications',
+      );
+      String? method;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            method = call.method;
+            return true;
+          });
+      addTearDown(() {
+        debugDefaultTargetPlatformOverride = null;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null);
+      });
+
+      expect(await requestNfcPlayNotificationPermission(), isTrue);
+      expect(method, 'requestNfcNotificationPermission');
+    },
+  );
 }

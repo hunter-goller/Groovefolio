@@ -1,10 +1,10 @@
 # NFC
 
-Groovefolio keeps NFC optional and local-first. The Android foundation,
-availability-gated write and management flows, and foreground Log Play scan
-flow are in place. Android NDEF intents can also launch or resume the app and
-automatically log a full-album play. All hardware paths still require physical
-validation before release.
+Groovefolio keeps NFC optional and local-first. The Android foundation and
+availability-gated write and management flows are in place. Android NDEF
+intents automatically log a full-album play whether the app is visible or not.
+Manual Log Play is reserved for choosing a side or custom date/time. All
+hardware paths still require physical validation before release.
 
 ## Implemented
 - schema v2 `NfcTags`
@@ -13,7 +13,6 @@ validation before release.
 - lookup by NFC tag ID and album ID
 - delete association
 - album deletion cleans up linked NFC association
-- UI placeholders/prompts for future NFC behavior
 - optional Android NFC permission and `NDEF_DISCOVERED` intent filter
 - `FlutterNfcPlatformAdapter` boundary around `flutter_nfc_kit`
 - typed `NfcService` for availability, foreground write, scan, cancellation,
@@ -30,14 +29,8 @@ validation before release.
   persistence fails
 - identical Album Details behavior for manually added and Discogs-imported
   records
-- availability-gated animated NFC prompt in Log Play
-- automatic foreground polling while the Log Play picker is open
-- registered tag lookup that selects the linked record without logging it
-  prematurely
-- exact unlinked-tag guidance plus cancel and retry controls
-- a single active scan across widget rebuilds, with cleanup on manual selection
-  and screen disposal
-- no scan when Album Details already supplied a preselected record
+- no competing NFC scanner in Log Play: tag taps always mean automatic
+  full-album logging, while manual logging owns side/date/time selection
 - strict validation of incoming album URIs before local album resolution
 - automatic full-album logging for Android NDEF intents at cold or warm start
 - five-second, monotonic, per-album duplicate suppression
@@ -50,19 +43,25 @@ validation before release.
 - failed play inserts can be retried immediately
 - automated service fakes for hardware-independent regression tests (the
   developer Settings fake-tap screen was removed in VinylApp-127)
-- Android system notification after a successful automatic tag-tap play,
-  including the album title, what was logged, and bounded local artwork
-- in-app confirmation for manual play logging and a safe in-app fallback when
-  system notifications are unavailable or denied
-- ten-second in-app Undo for the exact NFC-created play, including when
-  notifications are denied; unavailable after process death
-- successful automatic logs receive light haptic feedback; duplicates are silent
+- external/background tag taps return Groovefolio's task behind the current app
+  and show one Android notification with album title, scope, and bounded local
+  artwork; a short system toast is the fallback when notifications are disabled
+- foreground tag taps show one ten-second in-app Undo confirmation and a light
+  haptic, without also creating an Android notification
+- manual play logging shows only its existing in-app confirmation
+- native delivery metadata is queued per intent so repeated identical tag URIs
+  retain their correct foreground/external classification
+- notification permission prompts are never launched by an external tag tap
+- after a successful tag link/write, permission is requested while Groovefolio
+  is already visible so future external taps can post their notification
+- duplicates and failed events never receive success feedback or app haptics
 - notification taps navigate to the album without logging again
 
 ## Still needed
 - physical-device validation with the Galaxy S22 Ultra and NTAG215 tags
-- decide whether VinylApp-085 has any remaining scope beyond the implemented
-  Android NDEF launch/resume flow
+- verify best-effort external task backgrounding on the Galaxy S22 Ultra;
+  Android still delivers NDEF records through an Activity rather than a truly
+  headless callback
 
 ## NTAG215 hardware checklist
 
@@ -71,9 +70,10 @@ results can be associated with the exact physical tag.
 
 - link a blank tag while adding a new record
 - link a blank tag to an existing manual or Discogs-imported record
-- scan a linked tag from Log Play and confirm the correct record is selected
 - tap a linked tag while the app is closed and confirm exactly one full play
-- tap while the app is foregrounded and backgrounded
+- tap while foregrounded and confirm only the Undo bar appears
+- tap while backgrounded/closed and confirm the previous app remains visible
+  while exactly one system notification appears
 - keep the phone on one tag for repeated callbacks and confirm one play
 - tap two different albums rapidly and confirm one play for each
 - rewrite the same tag and replace an album's tag with another blank tag
@@ -86,11 +86,12 @@ results can be associated with the exact physical tag.
   ordinary tap still logs exactly one play
 - confirm OAuth browser returns, notification taps, and Android Back still
   return to the existing app task without another play or duplicate screen
-- confirm automatic tag taps show a system notification with the correct album
-  while manual Save shows only an in-app confirmation
+- disable notification permission and confirm an external tap still logs once,
+  displays one fallback message, and does not foreground Collection
+- confirm manual Save shows only an in-app confirmation
 - scan an unlinked, malformed, non-URI, and unrelated-URI tag
 - delete a linked album, scan its old tag, and confirm a safe error with no play
-- cancel and retry foreground reads and writes, including timeout cases
+- cancel and retry foreground writes, including timeout cases
 
 The NFC payload/association design should continue to keep the local database as the source of truth.
 
