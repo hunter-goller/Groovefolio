@@ -1,14 +1,27 @@
 # Discover
 
-The Discover route exists, but the current screen is a placeholder.
+Discover is an offline, personalized view of the records already in the local
+collection. Its recommendation service evaluates logged play history and keeps
+ranking logic out of the widgets.
 
-Planned direction:
-- rediscover records that have not been played recently
-- recommendations based on genres, artists, listening history, recency, and future track/Discogs metadata
-- explain why each album is recommended
-- surface collection insights rather than generic streaming recommendations
+The screen contains:
 
-Production recommendation logic should be a service/provider layer, not hard-coded widget logic.
+- a taste profile with all-time genres, recent genres, favorite-artist
+  signals, and the most-played release era
+- **Rediscover your shelf** for records whose last valid play is at least 90
+  days old
+- **From your taste** for records matching recent/all-time genres and artists
+- **From your favorite era** for additional picks from the leading decade
+- **Give these a spin** for eligible records with zero to two logged plays
+
+Recently played records are suppressed for 30 days, every record appears at
+most once, and all tie breaking is deterministic. A card opens Album Details.
+Its separate **Why this record?** action opens a bottom sheet with the complete
+local evidence used for that suggestion and states that no external
+recommendation server was involved.
+
+External suggestions for records the user does not own remain separate work in
+VinylApp-117.
 # VinylApp-129: shelf discovery polish
 
 The **Give these a spin** section supplies owned-album suggestions even with no

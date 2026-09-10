@@ -6,6 +6,13 @@ part 'recommendation_service.g.dart';
 
 enum RecommendationKind { rediscover, genre, era, underplayed }
 
+class RecommendationEvidence {
+  const RecommendationEvidence({required this.title, required this.detail});
+
+  final String title;
+  final String detail;
+}
+
 class TasteGenre {
   const TasteGenre({
     required this.genre,
@@ -18,6 +25,20 @@ class TasteGenre {
   final double share;
 }
 
+class TasteArtist {
+  const TasteArtist({
+    required this.artistId,
+    required this.name,
+    required this.playCount,
+    required this.recentPlayCount,
+  });
+
+  final String artistId;
+  final String name;
+  final int playCount;
+  final int recentPlayCount;
+}
+
 class TasteProfile {
   const TasteProfile({
     required this.totalPlays,
@@ -25,6 +46,10 @@ class TasteProfile {
     required this.topGenres,
     required this.favoriteDecade,
     this.favoriteDecadePlayCount = 0,
+    this.recentPlayCount = 0,
+    this.recentWindowDays = 90,
+    this.recentTopGenres = const [],
+    this.topArtists = const [],
   });
 
   final int totalPlays;
@@ -32,6 +57,10 @@ class TasteProfile {
   final List<TasteGenre> topGenres;
   final int? favoriteDecade;
   final int favoriteDecadePlayCount;
+  final int recentPlayCount;
+  final int recentWindowDays;
+  final List<TasteGenre> recentTopGenres;
+  final List<TasteArtist> topArtists;
 }
 
 class AlbumRecommendation {
@@ -44,6 +73,7 @@ class AlbumRecommendation {
     required this.playCount,
     required this.score,
     this.lastPlayedAt,
+    this.evidence = const [],
   });
 
   final Album album;
@@ -54,6 +84,7 @@ class AlbumRecommendation {
   final int playCount;
   final int score;
   final DateTime? lastPlayedAt;
+  final List<RecommendationEvidence> evidence;
 }
 
 class DiscoverRecommendations {
@@ -84,6 +115,7 @@ abstract interface class IRecommendationService {
   Future<DiscoverRecommendations> getRecommendations({
     Duration rediscoverThreshold = const Duration(days: 90),
     Duration recentSuppression = const Duration(days: 30),
+    Duration recentTasteWindow = const Duration(days: 90),
     int sectionLimit = 6,
   });
 }
@@ -107,6 +139,7 @@ class RecommendationService implements IRecommendationService {
   Future<DiscoverRecommendations> getRecommendations({
     Duration rediscoverThreshold = const Duration(days: 90),
     Duration recentSuppression = const Duration(days: 30),
+    Duration recentTasteWindow = const Duration(days: 90),
     int sectionLimit = 6,
   }) async {
     if (sectionLimit <= 0) {
@@ -114,6 +147,13 @@ class RecommendationService implements IRecommendationService {
         sectionLimit,
         'sectionLimit',
         'Section limit must be greater than zero.',
+      );
+    }
+    if (recentTasteWindow <= Duration.zero) {
+      throw ArgumentError.value(
+        recentTasteWindow,
+        'recentTasteWindow',
+        'Recent taste window must be greater than zero.',
       );
     }
 
@@ -139,7 +179,9 @@ class RecommendationService implements IRecommendationService {
     final artistsById = {for (final artist in artists) artist.id: artist.name};
     final genresByAlbum = await _loadGenres(albums);
 
+    final now = _now().toUtc();
     final playCounts = <String, int>{};
+    final recentPlayCounts = <String, int>{};
     final lastPlayedAt = <String, DateTime>{};
     final validPlays = <Play>[];
 
@@ -150,6 +192,14 @@ class RecommendationService implements IRecommendationService {
 
       final parsed = DateTime.tryParse(play.playedAt)?.toUtc();
       if (parsed == null) continue;
+      final elapsed = now.difference(parsed);
+      if (!elapsed.isNegative && elapsed.compareTo(recentTasteWindow) < 0) {
+        recentPlayCounts.update(
+          play.albumId,
+          (count) => count + 1,
+          ifAbsent: () => 1,
+        );
+      }
       final previous = lastPlayedAt[play.albumId];
       if (previous == null || parsed.isAfter(previous)) {
         lastPlayedAt[play.albumId] = parsed;
@@ -159,10 +209,12 @@ class RecommendationService implements IRecommendationService {
     final tasteProfile = _buildTasteProfile(
       validPlays,
       albums,
+      artistsById,
       genresByAlbum,
       playCounts,
+      now,
+      recentTasteWindow,
     );
-    final now = _now().toUtc();
 
     final rediscover = _buildRediscover(
       albums: albums,
@@ -176,11 +228,12 @@ class RecommendationService implements IRecommendationService {
     );
     final rediscoverIds = rediscover.map((item) => item.album.id).toSet();
 
-    final genrePicks = _buildGenrePicks(
+    final genrePicks = _buildTastePicks(
       albums: albums,
       artistsById: artistsById,
       genresByAlbum: genresByAlbum,
       playCounts: playCounts,
+      recentPlayCounts: recentPlayCounts,
       lastPlayedAt: lastPlayedAt,
       tasteProfile: tasteProfile,
       now: now,
@@ -231,6 +284,7 @@ class RecommendationService implements IRecommendationService {
           playCount: count,
           score: 2 - count,
           lastPlayedAt: last,
+          evidence: _rotationEvidence(album, count, last, now),
         ),
       );
     }
@@ -270,18 +324,40 @@ class RecommendationService implements IRecommendationService {
   TasteProfile? _buildTasteProfile(
     List<Play> plays,
     List<Album> albums,
+    Map<String, String> artistsById,
     Map<String, List<Genre>> genresByAlbum,
     Map<String, int> playCounts,
+    DateTime now,
+    Duration recentTasteWindow,
   ) {
     if (plays.isEmpty) return null;
 
     final albumsById = {for (final album in albums) album.id: album};
     final genreCounts = <String, _GenreCount>{};
+    final recentGenreCounts = <String, _GenreCount>{};
+    final artistCounts = <String, _ArtistCount>{};
     final decadeCounts = <int, int>{};
+    var recentPlayCount = 0;
 
     for (final play in plays) {
       final album = albumsById[play.albumId];
       if (album == null) continue;
+      final playedAt = DateTime.tryParse(play.playedAt)?.toUtc();
+      final elapsed = playedAt == null ? null : now.difference(playedAt);
+      final isRecent =
+          elapsed != null &&
+          !elapsed.isNegative &&
+          elapsed.compareTo(recentTasteWindow) < 0;
+      if (isRecent) recentPlayCount += 1;
+
+      final previousArtist = artistCounts[album.artistId];
+      artistCounts[album.artistId] = _ArtistCount(
+        artistId: album.artistId,
+        name: artistsById[album.artistId] ?? 'Unknown artist',
+        playCount: (previousArtist?.playCount ?? 0) + 1,
+        recentPlayCount:
+            (previousArtist?.recentPlayCount ?? 0) + (isRecent ? 1 : 0),
+      );
 
       for (final genre in genresByAlbum[album.id] ?? const <Genre>[]) {
         final previous = genreCounts[genre.id];
@@ -289,6 +365,13 @@ class RecommendationService implements IRecommendationService {
           genre: genre,
           playCount: (previous?.playCount ?? 0) + 1,
         );
+        if (isRecent) {
+          final recentPrevious = recentGenreCounts[genre.id];
+          recentGenreCounts[genre.id] = _GenreCount(
+            genre: genre,
+            playCount: (recentPrevious?.playCount ?? 0) + 1,
+          );
+        }
       }
 
       final releaseYear = album.releaseYear;
@@ -298,28 +381,34 @@ class RecommendationService implements IRecommendationService {
       }
     }
 
-    final totalGenreAttributions = genreCounts.values.fold<int>(
-      0,
-      (total, item) => total + item.playCount,
-    );
-    final topGenres =
+    final topGenres = _rankTasteGenres(genreCounts);
+    final recentTopGenres = _rankTasteGenres(recentGenreCounts);
+    final topArtists =
         [
-          for (final item in genreCounts.values)
-            TasteGenre(
-              genre: item.genre,
+          for (final item in artistCounts.values)
+            TasteArtist(
+              artistId: item.artistId,
+              name: item.name,
               playCount: item.playCount,
-              share: totalGenreAttributions == 0
-                  ? 0
-                  : item.playCount / totalGenreAttributions,
+              recentPlayCount: item.recentPlayCount,
             ),
         ]..sort((left, right) {
-          final byCount = right.playCount.compareTo(left.playCount);
-          if (byCount != 0) return byCount;
-          final byName = left.genre.name.toLowerCase().compareTo(
-            right.genre.name.toLowerCase(),
+          final leftStrength = left.playCount * 8 + left.recentPlayCount * 18;
+          final rightStrength =
+              right.playCount * 8 + right.recentPlayCount * 18;
+          final byStrength = rightStrength.compareTo(leftStrength);
+          if (byStrength != 0) return byStrength;
+          final byRecent = right.recentPlayCount.compareTo(
+            left.recentPlayCount,
+          );
+          if (byRecent != 0) return byRecent;
+          final byPlays = right.playCount.compareTo(left.playCount);
+          if (byPlays != 0) return byPlays;
+          final byName = left.name.toLowerCase().compareTo(
+            right.name.toLowerCase(),
           );
           if (byName != 0) return byName;
-          return left.genre.id.compareTo(right.genre.id);
+          return left.artistId.compareTo(right.artistId);
         });
 
     final decades = decadeCounts.entries.toList()
@@ -335,7 +424,36 @@ class RecommendationService implements IRecommendationService {
       topGenres: List.unmodifiable(topGenres.take(5)),
       favoriteDecade: decades.isEmpty ? null : decades.first.key,
       favoriteDecadePlayCount: decades.isEmpty ? 0 : decades.first.value,
+      recentPlayCount: recentPlayCount,
+      recentWindowDays: recentTasteWindow.inDays,
+      recentTopGenres: List.unmodifiable(recentTopGenres.take(5)),
+      topArtists: List.unmodifiable(topArtists.take(5)),
     );
+  }
+
+  List<TasteGenre> _rankTasteGenres(Map<String, _GenreCount> counts) {
+    final totalAttributions = counts.values.fold<int>(
+      0,
+      (total, item) => total + item.playCount,
+    );
+    return [
+      for (final item in counts.values)
+        TasteGenre(
+          genre: item.genre,
+          playCount: item.playCount,
+          share: totalAttributions == 0
+              ? 0
+              : item.playCount / totalAttributions,
+        ),
+    ]..sort((left, right) {
+      final byCount = right.playCount.compareTo(left.playCount);
+      if (byCount != 0) return byCount;
+      final byName = left.genre.name.toLowerCase().compareTo(
+        right.genre.name.toLowerCase(),
+      );
+      if (byName != 0) return byName;
+      return left.genre.id.compareTo(right.genre.id);
+    });
   }
 
   List<AlbumRecommendation> _buildRediscover({
@@ -369,6 +487,16 @@ class RecommendationService implements IRecommendationService {
           playCount: count,
           score: elapsed.inDays,
           lastPlayedAt: lastPlayed,
+          evidence: [
+            RecommendationEvidence(
+              title: 'Play history',
+              detail: _playCountLabel(count),
+            ),
+            RecommendationEvidence(
+              title: 'Time away',
+              detail: _formatLastPlayed(lastPlayed, now),
+            ),
+          ],
         ),
       );
     }
@@ -386,11 +514,12 @@ class RecommendationService implements IRecommendationService {
     return candidates.take(limit).toList(growable: false);
   }
 
-  List<AlbumRecommendation> _buildGenrePicks({
+  List<AlbumRecommendation> _buildTastePicks({
     required List<Album> albums,
     required Map<String, String> artistsById,
     required Map<String, List<Genre>> genresByAlbum,
     required Map<String, int> playCounts,
+    required Map<String, int> recentPlayCounts,
     required Map<String, DateTime> lastPlayedAt,
     required TasteProfile? tasteProfile,
     required DateTime now,
@@ -398,12 +527,16 @@ class RecommendationService implements IRecommendationService {
     required Set<String> excludedAlbumIds,
     required int limit,
   }) {
-    if (tasteProfile == null || tasteProfile.topGenres.isEmpty) {
-      return const [];
-    }
+    if (tasteProfile == null) return const [];
 
-    final tasteByGenreId = {
+    final allTimeGenres = {
       for (final taste in tasteProfile.topGenres) taste.genre.id: taste,
+    };
+    final recentGenres = {
+      for (final taste in tasteProfile.recentTopGenres) taste.genre.id: taste,
+    };
+    final artists = {
+      for (final taste in tasteProfile.topArtists) taste.artistId: taste,
     };
     final candidates = <AlbumRecommendation>[];
 
@@ -411,41 +544,143 @@ class RecommendationService implements IRecommendationService {
       if (excludedAlbumIds.contains(album.id)) continue;
       if (_isRecent(lastPlayedAt[album.id], now, recentSuppression)) continue;
 
+      final count = playCounts[album.id] ?? 0;
+      final recentCount = recentPlayCounts[album.id] ?? 0;
       final albumGenres = genresByAlbum[album.id] ?? const <Genre>[];
-      final matches = <TasteGenre>[];
+      final matches = <_GenreAffinity>[];
       for (final genre in albumGenres) {
-        final taste = tasteByGenreId[genre.id];
-        if (taste != null) matches.add(taste);
+        final allTime = allTimeGenres[genre.id];
+        final recent = recentGenres[genre.id];
+        final remainingAllTime = (allTime?.playCount ?? 0) - count;
+        final remainingRecent = (recent?.playCount ?? 0) - recentCount;
+        final supportingAllTime = remainingAllTime > 0 ? remainingAllTime : 0;
+        final supportingRecent = remainingRecent > 0 ? remainingRecent : 0;
+        if (supportingAllTime > 0 || supportingRecent > 0) {
+          matches.add(
+            _GenreAffinity(
+              genre: genre,
+              allTimePlays: supportingAllTime,
+              recentPlays: supportingRecent,
+            ),
+          );
+        }
       }
-      if (matches.isEmpty) continue;
-
       matches.sort((left, right) {
-        final byCount = right.playCount.compareTo(left.playCount);
-        if (byCount != 0) return byCount;
+        final byRecent = right.recentPlays.compareTo(left.recentPlays);
+        if (byRecent != 0) return byRecent;
+        final byAllTime = right.allTimePlays.compareTo(left.allTimePlays);
+        if (byAllTime != 0) return byAllTime;
         return left.genre.name.toLowerCase().compareTo(
           right.genre.name.toLowerCase(),
         );
       });
-      final score = matches.fold<int>(
-        0,
-        (total, match) => total + match.playCount,
+
+      final artistName = artistsById[album.artistId] ?? 'Unknown artist';
+      final artistProfile = artistName == 'Unknown artist'
+          ? null
+          : artists[album.artistId];
+      final remainingArtistPlays = (artistProfile?.playCount ?? 0) - count;
+      final remainingRecentArtistPlays =
+          (artistProfile?.recentPlayCount ?? 0) - recentCount;
+      final artistAllTime = remainingArtistPlays > 0 ? remainingArtistPlays : 0;
+      final artistRecent = remainingRecentArtistPlays > 0
+          ? remainingRecentArtistPlays
+          : 0;
+      final hasArtistAffinity = artistAllTime > 0 || artistRecent > 0;
+      if (matches.isEmpty && !hasArtistAffinity) continue;
+
+      var score = 0;
+      for (final match in matches) {
+        score += match.allTimePlays * 10 + match.recentPlays * 20;
+      }
+      if (hasArtistAffinity) {
+        score += artistAllTime * 8 + artistRecent * 18;
+      }
+
+      final releaseYear = album.releaseYear;
+      final favoriteDecade = tasteProfile.favoriteDecade;
+      final matchesFavoriteEra =
+          releaseYear != null &&
+          favoriteDecade != null &&
+          (releaseYear ~/ 10) * 10 == favoriteDecade;
+      final remainingEraPlays = matchesFavoriteEra
+          ? tasteProfile.favoriteDecadePlayCount - count
+          : 0;
+      final supportingEraPlays = remainingEraPlays > 0 ? remainingEraPlays : 0;
+      if (supportingEraPlays > 0) {
+        score += supportingEraPlays * 4;
+      }
+
+      score += (count < 3 ? 3 - count : 0) * 3;
+      final strongest = matches.isEmpty ? null : matches.first;
+      final evidence = <RecommendationEvidence>[];
+
+      for (final match in matches.take(3)) {
+        final recentDetail = match.recentPlays == 0
+            ? ''
+            : ', including ${match.recentPlays} in the last '
+                  '${tasteProfile.recentWindowDays} days';
+        evidence.add(
+          RecommendationEvidence(
+            title: match.recentPlays > 0
+                ? 'Recent ${match.genre.name} match'
+                : '${match.genre.name} match',
+            detail:
+                '${match.genre.name} appears in '
+                '${match.allTimePlays} logged plays$recentDetail.',
+          ),
+        );
+      }
+      if (hasArtistAffinity) {
+        final recentDetail = artistRecent == 0
+            ? ''
+            : ' $artistRecent were in the last '
+                  '${tasteProfile.recentWindowDays} days.';
+        evidence.add(
+          RecommendationEvidence(
+            title: 'Artist affinity',
+            detail:
+                'Other $artistName records appear in $artistAllTime of '
+                'your logged plays.$recentDetail',
+          ),
+        );
+      }
+      if (supportingEraPlays > 0) {
+        evidence.add(
+          RecommendationEvidence(
+            title: 'Era match',
+            detail:
+                '$supportingEraPlays other logged '
+                '${supportingEraPlays == 1 ? 'play comes' : 'plays come'} '
+                'from ${favoriteDecade}s records.',
+          ),
+        );
+      }
+      evidence.add(
+        RecommendationEvidence(
+          title: 'This record',
+          detail: _candidateHistory(count, lastPlayedAt[album.id], now),
+        ),
       );
-      final strongest = matches.first;
-      final count = playCounts[album.id] ?? 0;
+
+      final lead = switch ((strongest?.recentPlays ?? 0, artistRecent)) {
+        (> 0, _) => 'Recent ${strongest!.genre.name} match',
+        (_, > 0) => 'Recent $artistName listening',
+        _ when hasArtistAffinity => 'You often play $artistName',
+        _ => 'Matches your ${strongest!.genre.name} history',
+      };
 
       candidates.add(
         AlbumRecommendation(
           album: album,
-          artistName: artistsById[album.artistId] ?? 'Unknown artist',
+          artistName: artistName,
           genres: _genreNames(albumGenres),
-          reason:
-              '${strongest.genre.name} appears in '
-              '${strongest.playCount} of your logged plays • '
-              '${_candidateHistory(count, lastPlayedAt[album.id], now)}',
+          reason: '$lead • ${_shortPlayHistory(count)}',
           kind: RecommendationKind.genre,
           playCount: count,
           score: score,
           lastPlayedAt: lastPlayedAt[album.id],
+          evidence: List.unmodifiable(evidence),
         ),
       );
     }
@@ -486,6 +721,9 @@ class RecommendationService implements IRecommendationService {
       if (releaseYear == null || (releaseYear ~/ 10) * 10 != favoriteDecade) {
         continue;
       }
+      final count = playCounts[album.id] ?? 0;
+      final supportingEraPlays = favoriteDecadePlayCount - count;
+      if (supportingEraPlays <= 0) continue;
 
       candidates.add(
         AlbumRecommendation(
@@ -493,14 +731,27 @@ class RecommendationService implements IRecommendationService {
           artistName: artistsById[album.artistId] ?? 'Unknown artist',
           genres: _genreNames(genresByAlbum[album.id]),
           reason:
-              '$favoriteDecadePlayCount of your logged '
-              '${favoriteDecadePlayCount == 1 ? 'play comes' : 'plays come'} '
+              '$supportingEraPlays of your other logged '
+              '${supportingEraPlays == 1 ? 'play comes' : 'plays come'} '
               'from ${favoriteDecade}s records • '
-              '${_candidateHistory(playCounts[album.id] ?? 0, lastPlayedAt[album.id], now)}',
+              '${_candidateHistory(count, lastPlayedAt[album.id], now)}',
           kind: RecommendationKind.era,
-          playCount: playCounts[album.id] ?? 0,
-          score: 1,
+          playCount: count,
+          score: supportingEraPlays,
           lastPlayedAt: lastPlayedAt[album.id],
+          evidence: [
+            RecommendationEvidence(
+              title: 'Era match',
+              detail:
+                  '$supportingEraPlays other logged '
+                  '${supportingEraPlays == 1 ? 'play comes' : 'plays come'} '
+                  'from ${favoriteDecade}s records.',
+            ),
+            RecommendationEvidence(
+              title: 'This record',
+              detail: _candidateHistory(count, lastPlayedAt[album.id], now),
+            ),
+          ],
         ),
       );
     }
@@ -553,6 +804,11 @@ class RecommendationService implements IRecommendationService {
   String _playCountLabel(int count) =>
       '$count ${count == 1 ? 'play' : 'plays'} logged';
 
+  String _shortPlayHistory(int count) {
+    if (count == 0) return 'No plays logged';
+    return _playCountLabel(count);
+  }
+
   String _candidateHistory(int count, DateTime? lastPlayed, DateTime now) {
     if (count == 0) return 'No plays logged for this record';
     if (lastPlayed == null) return _playCountLabel(count);
@@ -566,6 +822,31 @@ class RecommendationService implements IRecommendationService {
       return 'No plays logged yet — give this record a first spin';
     }
     return 'Added ${_formatCalendarDate(addedAt)} • No plays logged yet';
+  }
+
+  List<RecommendationEvidence> _rotationEvidence(
+    Album album,
+    int count,
+    DateTime? lastPlayed,
+    DateTime now,
+  ) {
+    final evidence = <RecommendationEvidence>[];
+    final addedAt = DateTime.tryParse(album.createdAt)?.toUtc();
+    if (addedAt != null) {
+      evidence.add(
+        RecommendationEvidence(
+          title: 'Added to your collection',
+          detail: _formatCalendarDate(addedAt),
+        ),
+      );
+    }
+    evidence.add(
+      RecommendationEvidence(
+        title: 'Play history',
+        detail: _candidateHistory(count, lastPlayed, now),
+      ),
+    );
+    return List.unmodifiable(evidence);
   }
 
   String _formatCalendarDate(DateTime date) {
@@ -614,4 +895,30 @@ class _GenreCount {
 
   final Genre genre;
   final int playCount;
+}
+
+class _ArtistCount {
+  const _ArtistCount({
+    required this.artistId,
+    required this.name,
+    required this.playCount,
+    required this.recentPlayCount,
+  });
+
+  final String artistId;
+  final String name;
+  final int playCount;
+  final int recentPlayCount;
+}
+
+class _GenreAffinity {
+  const _GenreAffinity({
+    required this.genre,
+    required this.allTimePlays,
+    required this.recentPlays,
+  });
+
+  final Genre genre;
+  final int allTimePlays;
+  final int recentPlays;
 }

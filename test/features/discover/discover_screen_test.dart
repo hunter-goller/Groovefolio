@@ -33,6 +33,16 @@ void main() {
         topGenres: [TasteGenre(genre: jazz, playCount: 8, share: 0.67)],
         favoriteDecade: 1950,
         favoriteDecadePlayCount: 7,
+        recentPlayCount: 5,
+        recentTopGenres: [TasteGenre(genre: jazz, playCount: 4, share: 0.8)],
+        topArtists: [
+          TasteArtist(
+            artistId: 'artist-coltrane',
+            name: 'John Coltrane',
+            playCount: 7,
+            recentPlayCount: 3,
+          ),
+        ],
       ),
       rediscover: [
         AlbumRecommendation(
@@ -43,6 +53,16 @@ void main() {
           kind: RecommendationKind.rediscover,
           playCount: 4,
           score: 150,
+          evidence: [
+            RecommendationEvidence(
+              title: 'Play history',
+              detail: '4 plays logged',
+            ),
+            RecommendationEvidence(
+              title: 'Time away',
+              detail: 'Last played Mar 1, 2026 (6 months ago)',
+            ),
+          ],
         ),
       ],
       genrePicks: [],
@@ -73,14 +93,35 @@ void main() {
     expect(find.text('Blue Train'), findsOneWidget);
     expect(find.textContaining('Last played Mar 1, 2026'), findsOneWidget);
     expect(find.text('Jazz · 8 plays'), findsOneWidget);
+    expect(
+      find.text('Recent listening · 5 plays in the last 90 days'),
+      findsOneWidget,
+    );
+    expect(find.text('Jazz · 4 plays'), findsOneWidget);
+    expect(find.text('Favorite artist signals'), findsOneWidget);
+    expect(find.text('John Coltrane · 7 total · 3 recent'), findsOneWidget);
     expect(find.text('Most-played era: 1950s · 7 plays'), findsOneWidget);
 
     await tester.ensureVisible(
-      find.byKey(const Key('discover-recommendation-album-blue-train')),
+      find.byKey(const Key('discover-why-album-blue-train')),
     );
-    await tester.tap(
-      find.byKey(const Key('discover-recommendation-album-blue-train')),
+    await tester.tap(find.byKey(const Key('discover-why-album-blue-train')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Why Blue Train?'), findsOneWidget);
+    expect(find.text('Signals used'), findsOneWidget);
+    expect(find.text('Play history'), findsOneWidget);
+    expect(find.text('4 plays logged'), findsOneWidget);
+    expect(find.text('Time away'), findsOneWidget);
+    expect(
+      find.textContaining('No external recommendation server'),
+      findsOneWidget,
     );
+
+    await tester.ensureVisible(
+      find.byKey(const Key('discover-why-open-record')),
+    );
+    await tester.tap(find.byKey(const Key('discover-why-open-record')));
     await tester.pumpAndSettle();
 
     expect(find.text('Album detail: album-blue-train'), findsOneWidget);
@@ -187,6 +228,7 @@ class _FakeRecommendationService implements IRecommendationService {
   Future<DiscoverRecommendations> getRecommendations({
     Duration rediscoverThreshold = const Duration(days: 90),
     Duration recentSuppression = const Duration(days: 30),
+    Duration recentTasteWindow = const Duration(days: 90),
     int sectionLimit = 6,
   }) async {
     return data;
