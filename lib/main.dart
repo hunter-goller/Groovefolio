@@ -152,13 +152,17 @@ class MyApp extends ConsumerWidget {
     Object error,
     NfcDeliveryContext delivery,
   ) async {
+    final isDeletedAlbum =
+        error is StateError &&
+        error.message ==
+            'The NFC tag points to an album that no longer exists.';
     final message = error is NfcException
         ? error.message
-        : error is StateError &&
-              error.message ==
-                  'The NFC tag points to an album that no longer exists.'
-        ? 'This NFC tag is linked to a record that is no longer in your '
-              'collection. Add the record again and relink the tag.'
+        : isDeletedAlbum
+        ? delivery.isExternal
+              ? 'Record no longer in collection. Add it again and relink this tag.'
+              : 'This NFC tag is linked to a record that is no longer in your '
+                    'collection. Add the record again and relink the tag.'
         : 'Groovefolio couldn’t log that NFC play.';
 
     if (delivery.isExternal) {

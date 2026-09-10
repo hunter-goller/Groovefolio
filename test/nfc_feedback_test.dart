@@ -152,9 +152,33 @@ void main() {
     expect(fixture.haptics(), 0);
     expect(deliveries.completed, hasLength(2));
     expect(deliveries.messages, [
-      'This NFC tag is linked to a record that is no longer in your '
-          'collection. Add the record again and relink the tag.',
+      'Record no longer in collection. Add it again and relink this tag.',
     ]);
+  });
+
+  testWidgets('foreground missing album shows detailed relinking guidance', (
+    tester,
+  ) async {
+    final deliveries = _Deliveries([
+      const NfcDeliveryContext(id: 22, mode: NfcDeliveryMode.foreground),
+    ]);
+    final fixture = await _pumpNfcApp(
+      tester,
+      deliveries: deliveries,
+      notificationsAllowed: true,
+    );
+
+    fixture.uris.add(Uri.parse('groovefolio://album/missing-album'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'This NFC tag is linked to a record that is no longer in your '
+        'collection. Add the record again and relink the tag.',
+      ),
+      findsOneWidget,
+    );
+    expect(deliveries.messages, isEmpty);
   });
 }
 
