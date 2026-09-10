@@ -20,10 +20,12 @@ void main() {
     expect(delivery.mode, NfcDeliveryMode.external);
     await service.completeExternal(delivery);
 
-    expect(calls, [
-      ('consumeNfcDelivery', null),
-      ('completeExternalNfcDelivery', <String, Object?>{'id': 12}),
+    expect(calls.map((call) => call.$1), [
+      'consumeNfcDelivery',
+      'completeExternalNfcDelivery',
     ]);
+    expect(calls.first.$2, isNull);
+    expect(calls.last.$2, <String, Object?>{'id': 12});
   });
 
   test('missing or malformed native metadata defaults to foreground', () async {
