@@ -126,7 +126,9 @@ class _DiscoverBody extends StatelessWidget {
         if (data.underplayed.isNotEmpty) ...[
           _RecommendationSection(
             title: 'Give these a spin',
-            subtitle: 'Records with two or fewer logged plays, including your unplayed shelf.',
+            subtitle:
+                'Records with two or fewer logged plays, '
+                'including your unplayed shelf.',
             recommendations: data.underplayed,
           ),
           SizedBox(height: tokens.space24),
@@ -147,6 +149,9 @@ class _TasteProfileCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final favoriteDecade = profile.favoriteDecade;
+    final playedAlbumLabel = profile.playedAlbums == 1 ? 'album' : 'albums';
+    final favoriteEraPlays = profile.favoriteDecadePlayCount;
+    final favoriteEraPlayLabel = favoriteEraPlays == 1 ? 'play' : 'plays';
 
     return Card(
       key: const Key('discover-taste-profile'),
@@ -182,7 +187,7 @@ class _TasteProfileCard extends StatelessWidget {
                       ),
                       Text(
                         'All time · ${profile.totalPlays} logged plays across '
-                        '${profile.playedAlbums} ${profile.playedAlbums == 1 ? 'album' : 'albums'}',
+                        '${profile.playedAlbums} $playedAlbumLabel',
                         style: context.theme.textTheme.bodySmall?.copyWith(
                           color: tokens.textMuted,
                         ),
@@ -229,8 +234,7 @@ class _TasteProfileCard extends StatelessWidget {
                   Flexible(
                     child: Text(
                       'Most-played era: ${favoriteDecade}s · '
-                      '${profile.favoriteDecadePlayCount} '
-                      '${profile.favoriteDecadePlayCount == 1 ? 'play' : 'plays'}',
+                      '$favoriteEraPlays $favoriteEraPlayLabel',
                       style: context.theme.textTheme.bodyMedium?.copyWith(
                         color: tokens.textMuted,
                       ),
@@ -504,8 +508,9 @@ class _NoRecommendationsCard extends StatelessWidget {
             ),
             SizedBox(height: tokens.space4),
             Text(
-              'Your eligible shelf picks are caught up. Recently played records '
-              'get a break; pull down to refresh as your listening changes.',
+              'Your eligible shelf picks are caught up. '
+              'Recently played records get a break; pull down to refresh as '
+              'your listening changes.',
               textAlign: TextAlign.center,
               style: context.theme.textTheme.bodyMedium?.copyWith(
                 color: tokens.textMuted,
