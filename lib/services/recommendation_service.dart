@@ -24,12 +24,14 @@ class TasteProfile {
     required this.playedAlbums,
     required this.topGenres,
     required this.favoriteDecade,
+    this.favoriteDecadePlayCount = 0,
   });
 
   final int totalPlays;
   final int playedAlbums;
   final List<TasteGenre> topGenres;
   final int? favoriteDecade;
+  final int favoriteDecadePlayCount;
 }
 
 class AlbumRecommendation {
@@ -222,8 +224,9 @@ class RecommendationService implements IRecommendationService {
           artistName: artistsById[album.artistId] ?? 'Unknown artist',
           genres: _genreNames(genresByAlbum[album.id]),
           reason: count == 0
-              ? 'No plays logged yet — give this record a first spin'
-              : '$count ${count == 1 ? 'play' : 'plays'} logged • ${_formatLastPlayed(now.difference(last!))}',
+              ? _unplayedReason(album.createdAt)
+              : '${_playCountLabel(count)} • '
+                    '${_formatLastPlayed(last!, now)}',
           kind: RecommendationKind.underplayed,
           playCount: count,
           score: 2 - count,
@@ -331,6 +334,7 @@ class RecommendationService implements IRecommendationService {
       playedAlbums: playCounts.length,
       topGenres: List.unmodifiable(topGenres.take(5)),
       favoriteDecade: decades.isEmpty ? null : decades.first.key,
+      favoriteDecadePlayCount: decades.isEmpty ? 0 : decades.first.value,
     );
   }
 
@@ -358,9 +362,9 @@ class RecommendationService implements IRecommendationService {
           album: album,
           artistName: artistsById[album.artistId] ?? 'Unknown artist',
           genres: _genreNames(genresByAlbum[album.id]),
-          reason: count > 1
-              ? '$count plays • ${_formatLastPlayed(elapsed)}'
-              : _formatLastPlayed(elapsed),
+          reason:
+              '${_playCountLabel(count)} • '
+              '${_formatLastPlayed(lastPlayed, now)}',
           kind: RecommendationKind.rediscover,
           playCount: count,
           score: elapsed.inDays,
@@ -434,7 +438,10 @@ class RecommendationService implements IRecommendationService {
           album: album,
           artistName: artistsById[album.artistId] ?? 'Unknown artist',
           genres: _genreNames(albumGenres),
-          reason: 'Because ${strongest.genre.name} is one of your top genres',
+          reason:
+              '${strongest.genre.name} appears in '
+              '${strongest.playCount} of your logged plays • '
+              '${_candidateHistory(count, lastPlayedAt[album.id], now)}',
           kind: RecommendationKind.genre,
           playCount: count,
           score: score,
@@ -467,6 +474,7 @@ class RecommendationService implements IRecommendationService {
     required int limit,
   }) {
     final favoriteDecade = tasteProfile?.favoriteDecade;
+    final favoriteDecadePlayCount = tasteProfile?.favoriteDecadePlayCount ?? 0;
     if (favoriteDecade == null) return const [];
 
     final candidates = <AlbumRecommendation>[];
@@ -484,7 +492,11 @@ class RecommendationService implements IRecommendationService {
           album: album,
           artistName: artistsById[album.artistId] ?? 'Unknown artist',
           genres: _genreNames(genresByAlbum[album.id]),
-          reason: 'From the ${favoriteDecade}s — your most-played decade',
+          reason:
+              '$favoriteDecadePlayCount of your logged '
+              '${favoriteDecadePlayCount == 1 ? 'play comes' : 'plays come'} '
+              'from ${favoriteDecade}s records • '
+              '${_candidateHistory(playCounts[album.id] ?? 0, lastPlayedAt[album.id], now)}',
           kind: RecommendationKind.era,
           playCount: playCounts[album.id] ?? 0,
           score: 1,
@@ -525,15 +537,53 @@ class RecommendationService implements IRecommendationService {
     return List.unmodifiable(names);
   }
 
-  String _formatLastPlayed(Duration elapsed) {
+  String _formatLastPlayed(DateTime lastPlayed, DateTime now) {
+    final elapsed = now.difference(lastPlayed);
     final days = elapsed.inDays;
-    if (days < 60) return 'Last played $days days ago';
-    if (days < 365) {
-      final months = days ~/ 30;
-      return 'Last played $months ${months == 1 ? 'month' : 'months'} ago';
+    final relative = switch (days) {
+      0 => 'today',
+      1 => 'yesterday',
+      < 60 => '$days days ago',
+      < 365 => '${days ~/ 30} ${days ~/ 30 == 1 ? 'month' : 'months'} ago',
+      _ => '${days ~/ 365} ${days ~/ 365 == 1 ? 'year' : 'years'} ago',
+    };
+    return 'Last played ${_formatCalendarDate(lastPlayed)} ($relative)';
+  }
+
+  String _playCountLabel(int count) =>
+      '$count ${count == 1 ? 'play' : 'plays'} logged';
+
+  String _candidateHistory(int count, DateTime? lastPlayed, DateTime now) {
+    if (count == 0) return 'No plays logged for this record';
+    if (lastPlayed == null) return _playCountLabel(count);
+    return '${_playCountLabel(count)} • '
+        '${_formatLastPlayed(lastPlayed, now)}';
+  }
+
+  String _unplayedReason(String createdAt) {
+    final addedAt = DateTime.tryParse(createdAt)?.toUtc();
+    if (addedAt == null) {
+      return 'No plays logged yet — give this record a first spin';
     }
-    final years = days ~/ 365;
-    return 'Last played $years ${years == 1 ? 'year' : 'years'} ago';
+    return 'Added ${_formatCalendarDate(addedAt)} • No plays logged yet';
+  }
+
+  String _formatCalendarDate(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 }
 

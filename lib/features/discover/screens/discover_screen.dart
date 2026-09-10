@@ -207,7 +207,10 @@ class _TasteProfileCard extends StatelessWidget {
                 children: [
                   for (final genre in profile.topGenres.take(4))
                     Chip(
-                      label: Text('${genre.genre.name} · ${genre.playCount}'),
+                      label: Text(
+                        '${genre.genre.name} · ${genre.playCount} '
+                        '${genre.playCount == 1 ? 'play' : 'plays'}',
+                      ),
                       visualDensity: VisualDensity.compact,
                     ),
                 ],
@@ -225,7 +228,9 @@ class _TasteProfileCard extends StatelessWidget {
                   SizedBox(width: tokens.space8),
                   Flexible(
                     child: Text(
-                      'Most-played era: ${favoriteDecade}s',
+                      'Most-played era: ${favoriteDecade}s · '
+                      '${profile.favoriteDecadePlayCount} '
+                      '${profile.favoriteDecadePlayCount == 1 ? 'play' : 'plays'}',
                       style: context.theme.textTheme.bodyMedium?.copyWith(
                         color: tokens.textMuted,
                       ),

@@ -32,13 +32,14 @@ void main() {
         playedAlbums: 3,
         topGenres: [TasteGenre(genre: jazz, playCount: 8, share: 0.67)],
         favoriteDecade: 1950,
+        favoriteDecadePlayCount: 7,
       ),
       rediscover: [
         AlbumRecommendation(
           album: album,
           artistName: 'John Coltrane',
           genres: ['Jazz'],
-          reason: '4 plays • Last played 5 months ago',
+          reason: '4 plays logged • Last played Mar 1, 2026 (6 months ago)',
           kind: RecommendationKind.rediscover,
           playCount: 4,
           score: 150,
@@ -70,7 +71,9 @@ void main() {
     expect(find.text('Your taste profile'), findsOneWidget);
     expect(find.text('Rediscover your shelf'), findsOneWidget);
     expect(find.text('Blue Train'), findsOneWidget);
-    expect(find.textContaining('Last played 5 months ago'), findsOneWidget);
+    expect(find.textContaining('Last played Mar 1, 2026'), findsOneWidget);
+    expect(find.text('Jazz · 8 plays'), findsOneWidget);
+    expect(find.text('Most-played era: 1950s · 7 plays'), findsOneWidget);
 
     await tester.ensureVisible(
       find.byKey(const Key('discover-recommendation-album-blue-train')),

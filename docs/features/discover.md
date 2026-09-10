@@ -21,6 +21,13 @@ records with logged plays but no parseable last-play date are excluded. Sort by
 play count ascending, then title and album ID, with the existing section limit.
 Zero plays means no plays **logged**, not proof the record was never listened to.
 
-Cards label their explanation **Why this record?**. The taste summary explicitly
-uses all-time history. Everything remains offline, and card taps only navigate
-to Album Details. External discovery stays in VinylApp-117.
+Cards label their explanation **Why this record?** and expose the local signals
+that selected it. Rediscovery includes total logged plays and time since the last
+play. Genre and era picks include the number of plays supporting that preference
+plus the candidate's own play history. An unplayed pick includes its added date
+when `createdAt` is valid. The wording always says “logged” because Groovefolio
+cannot know about listening that was never entered.
+
+The taste summary explicitly uses all-time history. Everything remains offline,
+and card taps only navigate to Album Details. External discovery stays in
+VinylApp-117.

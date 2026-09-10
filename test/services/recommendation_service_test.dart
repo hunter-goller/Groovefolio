@@ -34,8 +34,10 @@ void main() {
         final result = await service.getRecommendations();
 
         expect(result.rediscover.map((item) => item.album.id), [oldAlbum.id]);
-        expect(result.rediscover.single.reason, contains('Last played'));
-        expect(result.rediscover.single.reason, contains('2 plays'));
+        expect(
+          result.rediscover.single.reason,
+          '2 plays logged • Last played Mar 2, 2026 (5 months ago)',
+        );
       },
     );
 
@@ -69,7 +71,11 @@ void main() {
       expect(result.tasteProfile!.topGenres.first.genre.name, 'Jazz');
       expect(result.tasteProfile!.topGenres.first.playCount, 5);
       expect(result.genrePicks.first.album.id, jazzPick.id);
-      expect(result.genrePicks.first.reason, contains('Jazz'));
+      expect(
+        result.genrePicks.first.reason,
+        'Jazz appears in 5 of your logged plays • '
+        'No plays logged for this record',
+      );
     });
 
     test(
@@ -126,8 +132,13 @@ void main() {
       final result = await service.getRecommendations();
 
       expect(result.tasteProfile!.favoriteDecade, 1950);
+      expect(result.tasteProfile!.favoriteDecadePlayCount, 3);
       expect(result.eraPicks.single.album.id, eraPick.id);
-      expect(result.eraPicks.single.reason, contains('1950s'));
+      expect(
+        result.eraPicks.single.reason,
+        '3 of your logged plays come from 1950s records • '
+        'No plays logged for this record',
+      );
     });
 
     test('no plays returns a low-data result without invented taste', () async {
@@ -145,7 +156,10 @@ void main() {
       expect(result.genrePicks, isEmpty);
       expect(result.eraPicks, isEmpty);
       expect(result.underplayed.single.album.id, 'album-1');
-      expect(result.underplayed.single.reason, contains('No plays logged'));
+      expect(
+        result.underplayed.single.reason,
+        'Added Jan 1, 2026 • No plays logged yet',
+      );
       expect(result.hasRecommendations, isTrue);
     });
 
