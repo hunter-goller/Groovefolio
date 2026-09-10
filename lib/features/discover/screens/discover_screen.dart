@@ -475,7 +475,7 @@ Future<void> _showRecommendationDetails(
     builder: (_) => _RecommendationDetailsSheet(recommendation: recommendation),
   );
   if (openRecord == true && context.mounted) {
-    context.push(AppRoutes.albumDetailPath(recommendation.album.id));
+    await context.push(AppRoutes.albumDetailPath(recommendation.album.id));
   }
 }
 
