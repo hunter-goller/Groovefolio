@@ -32,16 +32,37 @@ void main() {
         playedAlbums: 3,
         topGenres: [TasteGenre(genre: jazz, playCount: 8, share: 0.67)],
         favoriteDecade: 1950,
+        favoriteDecadePlayCount: 7,
+        recentPlayCount: 5,
+        recentTopGenres: [TasteGenre(genre: jazz, playCount: 4, share: 0.8)],
+        topArtists: [
+          TasteArtist(
+            artistId: 'artist-coltrane',
+            name: 'John Coltrane',
+            playCount: 7,
+            recentPlayCount: 3,
+          ),
+        ],
       ),
       rediscover: [
         AlbumRecommendation(
           album: album,
           artistName: 'John Coltrane',
           genres: ['Jazz'],
-          reason: '4 plays • Last played 5 months ago',
+          reason: '4 plays logged • Last played Mar 1, 2026 (6 months ago)',
           kind: RecommendationKind.rediscover,
           playCount: 4,
           score: 150,
+          evidence: [
+            RecommendationEvidence(
+              title: 'Play history',
+              detail: '4 plays logged',
+            ),
+            RecommendationEvidence(
+              title: 'Time away',
+              detail: 'Last played Mar 1, 2026 (6 months ago)',
+            ),
+          ],
         ),
       ],
       genrePicks: [],
@@ -68,13 +89,41 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Your taste profile'), findsOneWidget);
+    expect(find.text('Jazz · 8 plays'), findsOneWidget);
+    expect(
+      find.text('Recent listening · 5 plays in the last 90 days'),
+      findsOneWidget,
+    );
+    expect(find.text('Jazz · 4 plays'), findsOneWidget);
+    expect(find.text('Favorite artist signals'), findsOneWidget);
+    expect(find.text('John Coltrane · 7 total · 3 recent'), findsOneWidget);
+    expect(find.text('Most-played era: 1950s · 7 plays'), findsOneWidget);
+
+    await tester.scrollUntilVisible(find.text('Rediscover your shelf'), 300);
     expect(find.text('Rediscover your shelf'), findsOneWidget);
     expect(find.text('Blue Train'), findsOneWidget);
-    expect(find.textContaining('Last played 5 months ago'), findsOneWidget);
+    expect(find.textContaining('Last played Mar 1, 2026'), findsOneWidget);
 
-    await tester.tap(
-      find.byKey(const Key('discover-recommendation-album-blue-train')),
+    await tester.ensureVisible(
+      find.byKey(const Key('discover-why-album-blue-train')),
     );
+    await tester.tap(find.byKey(const Key('discover-why-album-blue-train')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Why Blue Train?'), findsOneWidget);
+    expect(find.text('Signals used'), findsOneWidget);
+    expect(find.text('Play history'), findsOneWidget);
+    expect(find.text('4 plays logged'), findsOneWidget);
+    expect(find.text('Time away'), findsOneWidget);
+    expect(
+      find.textContaining('No external recommendation server'),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const Key('discover-why-open-record')),
+    );
+    await tester.tap(find.byKey(const Key('discover-why-open-record')));
     await tester.pumpAndSettle();
 
     expect(find.text('Album detail: album-blue-train'), findsOneWidget);
@@ -92,6 +141,17 @@ void main() {
       rediscover: [],
       genrePicks: [],
       eraPicks: [],
+      underplayed: [
+        AlbumRecommendation(
+          album: album,
+          artistName: 'John Coltrane',
+          genres: [],
+          reason: 'No plays logged yet — give this record a first spin',
+          kind: RecommendationKind.underplayed,
+          playCount: 0,
+          score: 2,
+        ),
+      ],
     );
 
     final router = _router();
@@ -118,6 +178,8 @@ void main() {
     expect(find.textContaining('Log a few plays'), findsOneWidget);
     expect(find.byKey(const Key('discover-log-play')), findsOneWidget);
     expect(find.textContaining('placeholder'), findsNothing);
+    expect(find.text('Give these a spin'), findsOneWidget);
+    expect(find.text('Why this record?'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('discover-log-play')));
     await tester.pumpAndSettle();
@@ -168,6 +230,7 @@ class _FakeRecommendationService implements IRecommendationService {
   Future<DiscoverRecommendations> getRecommendations({
     Duration rediscoverThreshold = const Duration(days: 90),
     Duration recentSuppression = const Duration(days: 30),
+    Duration recentTasteWindow = const Duration(days: 90),
     int sectionLimit = 6,
   }) async {
     return data;

@@ -34,8 +34,10 @@ void main() {
         final result = await service.getRecommendations();
 
         expect(result.rediscover.map((item) => item.album.id), [oldAlbum.id]);
-        expect(result.rediscover.single.reason, contains('Last played'));
-        expect(result.rediscover.single.reason, contains('2 plays'));
+        expect(
+          result.rediscover.single.reason,
+          '2 plays logged • Last played Mar 2, 2026 (5 months ago)',
+        );
       },
     );
 
@@ -48,11 +50,7 @@ void main() {
         albums: [jazzAnchor, rockAnchor, jazzPick, rockPick],
         plays: [
           for (var index = 0; index < 5; index += 1)
-            _play(
-              'jazz-$index',
-              jazzAnchor.id,
-              '2026-08-${index + 1}T12:00:00.000Z',
-            ),
+            _play('jazz-$index', jazzAnchor.id, _augustDate(index + 1)),
           _play('rock-1', rockAnchor.id, '2026-08-06T12:00:00.000Z'),
         ],
         genresByAlbum: {
@@ -68,8 +66,198 @@ void main() {
       expect(result.tasteProfile, isNotNull);
       expect(result.tasteProfile!.topGenres.first.genre.name, 'Jazz');
       expect(result.tasteProfile!.topGenres.first.playCount, 5);
+      expect(result.tasteProfile!.recentTopGenres.first.genre.name, 'Jazz');
+      expect(result.tasteProfile!.recentPlayCount, 6);
       expect(result.genrePicks.first.album.id, jazzPick.id);
-      expect(result.genrePicks.first.reason, contains('Jazz'));
+      expect(
+        result.genrePicks.first.reason,
+        'Recent Jazz match • No plays logged',
+      );
+      expect(
+        result.genrePicks.first.evidence.map((item) => item.title),
+        containsAll(['Recent Jazz match', 'This record']),
+      );
+    });
+
+    test(
+      'recent genre taste outweighs the same number of older plays',
+      () async {
+        final recentJazz = _album(
+          'recent-jazz',
+          'Recent Jazz',
+          artistId: 'artist-recent-jazz',
+        );
+        final oldRock = _album(
+          'old-rock',
+          'Old Rock',
+          artistId: 'artist-old-rock',
+        );
+        final jazzPick = _album(
+          'jazz-pick',
+          'Jazz Pick',
+          artistId: 'artist-jazz-pick',
+        );
+        final rockPick = _album(
+          'rock-pick',
+          'Rock Pick',
+          artistId: 'artist-rock-pick',
+        );
+        final service = _service(
+          albums: [recentJazz, oldRock, jazzPick, rockPick],
+          plays: [
+            _play('jazz-1', recentJazz.id, '2026-08-20T12:00:00.000Z'),
+            _play('rock-1', oldRock.id, '2026-01-01T12:00:00.000Z'),
+          ],
+          genresByAlbum: {
+            recentJazz.id: [jazz],
+            oldRock.id: [rock],
+            jazzPick.id: [jazz],
+            rockPick.id: [rock],
+          },
+        );
+
+        final result = await service.getRecommendations();
+
+        expect(result.tasteProfile!.recentTopGenres.single.genre.name, 'Jazz');
+        expect(result.genrePicks.map((item) => item.album.id), [
+          jazzPick.id,
+          rockPick.id,
+        ]);
+        expect(result.genrePicks.first.reason, startsWith('Recent Jazz match'));
+      },
+    );
+
+    test('favorite artist can recommend another owned album', () async {
+      final anchor = _album(
+        'artist-anchor',
+        'Artist Anchor',
+        artistId: 'favorite-artist',
+      );
+      final artistPick = _album(
+        'artist-pick',
+        'Artist Pick',
+        artistId: 'favorite-artist',
+      );
+      final unrelated = _album(
+        'unrelated',
+        'Unrelated',
+        artistId: 'other-artist',
+      );
+      final service = _service(
+        albums: [anchor, artistPick, unrelated],
+        plays: [
+          _play('artist-1', anchor.id, '2026-08-20T12:00:00.000Z'),
+          _play('artist-2', anchor.id, '2026-08-21T12:00:00.000Z'),
+        ],
+      );
+
+      final result = await service.getRecommendations();
+
+      expect(
+        result.tasteProfile!.topArtists.single.artistId,
+        'favorite-artist',
+      );
+      expect(result.tasteProfile!.topArtists.single.recentPlayCount, 2);
+      expect(result.genrePicks.single.album.id, artistPick.id);
+      expect(result.genrePicks.single.reason, startsWith('Recent Artist'));
+      expect(
+        result.genrePicks.single.evidence
+            .singleWhere((item) => item.title == 'Artist affinity')
+            .detail,
+        contains('2 of your logged plays'),
+      );
+    });
+
+    test('a record cannot recommend itself from circular taste data', () async {
+      final album = _album('solo', 'Solo Record', releaseYear: 1972);
+      final service = _service(
+        albums: [album],
+        plays: [_play('solo-1', album.id, '2026-07-01T12:00:00.000Z')],
+        genresByAlbum: {
+          album.id: [rock],
+        },
+      );
+
+      final result = await service.getRecommendations();
+
+      expect(result.genrePicks, isEmpty);
+      expect(result.eraPicks, isEmpty);
+      expect(result.underplayed.single.album.id, album.id);
+    });
+
+    test('future and invalid dates do not shape recent taste', () async {
+      final album = _album('dated', 'Dated Record');
+      final service = _service(
+        albums: [album],
+        plays: [
+          _play('valid', album.id, '2026-08-20T12:00:00.000Z'),
+          _play('future', album.id, '2027-01-01T12:00:00.000Z'),
+          _play('invalid', album.id, 'not-a-date'),
+        ],
+        genresByAlbum: {
+          album.id: [rock],
+        },
+      );
+
+      final result = await service.getRecommendations();
+
+      expect(result.tasteProfile!.totalPlays, 3);
+      expect(result.tasteProfile!.recentPlayCount, 1);
+      expect(result.tasteProfile!.recentTopGenres.single.playCount, 1);
+      expect(result.tasteProfile!.topArtists.single.playCount, 3);
+      expect(result.tasteProfile!.topArtists.single.recentPlayCount, 1);
+    });
+
+    test(
+      'taste evidence combines genre, artist, era, and record history',
+      () async {
+        final anchor = _album(
+          'anchor',
+          'Anchor',
+          releaseYear: 1955,
+          artistId: 'coltrane',
+        );
+        final pick = _album(
+          'pick',
+          'Pick',
+          releaseYear: 1957,
+          artistId: 'coltrane',
+        );
+        final service = _service(
+          albums: [anchor, pick],
+          plays: [_play('play-1', anchor.id, '2026-08-20T12:00:00.000Z')],
+          genresByAlbum: {
+            anchor.id: [jazz, rock],
+            pick.id: [jazz, rock],
+          },
+        );
+
+        final result = await service.getRecommendations();
+
+        expect(result.genrePicks.single.evidence.map((item) => item.title), [
+          'Recent Jazz match',
+          'Recent Rock match',
+          'Artist affinity',
+          'Era match',
+          'This record',
+        ]);
+        expect(
+          result.genrePicks.single.evidence.last.detail,
+          'No plays logged for this record',
+        );
+      },
+    );
+
+    test('rejects an empty recent-taste window', () async {
+      final service = _service(
+        albums: [_album('album-1', 'Blue Train')],
+        plays: const [],
+      );
+
+      await expectLater(
+        service.getRecommendations(recentTasteWindow: Duration.zero),
+        throwsArgumentError,
+      );
     });
 
     test(
@@ -126,8 +314,13 @@ void main() {
       final result = await service.getRecommendations();
 
       expect(result.tasteProfile!.favoriteDecade, 1950);
+      expect(result.tasteProfile!.favoriteDecadePlayCount, 3);
       expect(result.eraPicks.single.album.id, eraPick.id);
-      expect(result.eraPicks.single.reason, contains('1950s'));
+      expect(
+        result.eraPicks.single.reason,
+        '3 of your other logged plays come from 1950s records • '
+        'No plays logged for this record',
+      );
     });
 
     test('no plays returns a low-data result without invented taste', () async {
@@ -144,8 +337,69 @@ void main() {
       expect(result.rediscover, isEmpty);
       expect(result.genrePicks, isEmpty);
       expect(result.eraPicks, isEmpty);
-      expect(result.hasRecommendations, isFalse);
+      expect(result.underplayed.single.album.id, 'album-1');
+      expect(
+        result.underplayed.single.reason,
+        'Added Jan 1, 2026 • No plays logged yet',
+      );
+      expect(result.hasRecommendations, isTrue);
     });
+
+    test(
+      'underplayed picks respect recency, counts, ties and section limit',
+      () async {
+        final service = _service(
+          albums: [
+            _album('z', 'Zulu'),
+            _album('b', 'Alpha'),
+            _album('a', 'Alpha'),
+            _album('old', 'Old'),
+            _album('recent', 'Recent'),
+            _album('frequent', 'Frequent'),
+          ],
+          plays: [
+            _play('old-1', 'old', '2026-07-01T12:00:00.000Z'),
+            _play('recent-1', 'recent', '2026-08-24T12:00:00.000Z'),
+            for (var i = 0; i < 3; i++)
+              _play('frequent-$i', 'frequent', '2026-07-01T12:00:00.000Z'),
+          ],
+        );
+        final result = await service.getRecommendations();
+        expect(result.underplayed.map((item) => item.album.id), [
+          'a',
+          'b',
+          'z',
+          'old',
+        ]);
+        final limited = await service.getRecommendations(sectionLimit: 2);
+        expect(limited.underplayed.map((item) => item.album.id), ['a', 'b']);
+      },
+    );
+
+    test(
+      'underplayed never repeats an existing genre or rediscover pick',
+      () async {
+        final service = _service(
+          albums: [
+            _album('anchor', 'Anchor'),
+            _album('pick', 'Pick'),
+            _album('old', 'Old'),
+          ],
+          plays: [
+            _play('a', 'anchor', '2026-08-24T12:00:00.000Z'),
+            _play('o', 'old', '2026-01-01T12:00:00.000Z'),
+          ],
+          genresByAlbum: {
+            'anchor': [jazz],
+            'pick': [jazz],
+          },
+        );
+        final result = await service.getRecommendations();
+        expect(result.genrePicks.single.album.id, 'pick');
+        expect(result.rediscover.single.album.id, 'old');
+        expect(result.underplayed, isEmpty);
+      },
+    );
 
     test('empty collection returns a stable empty result', () async {
       final service = _service(albums: const [], plays: const []);
@@ -182,16 +436,11 @@ RecommendationService _service({
   );
 }
 
-Album _album(
-  String id,
-  String title, {
-  int? releaseYear,
-  String artistId = 'artist-1',
-}) {
+Album _album(String id, String title, {int? releaseYear, String? artistId}) {
   return Album(
     id: id,
     title: title,
-    artistId: artistId,
+    artistId: artistId ?? 'artist-$id',
     releaseYear: releaseYear,
     createdAt: '2026-01-01T00:00:00.000Z',
   );
@@ -205,6 +454,11 @@ Play _play(String id, String albumId, String playedAt) {
     sidePlayed: SidePlayed.full,
     createdAt: playedAt,
   );
+}
+
+String _augustDate(int day) {
+  final paddedDay = day.toString().padLeft(2, '0');
+  return '2026-08-${paddedDay}T12:00:00.000Z';
 }
 
 class _FakeAlbumRepository implements IAlbumRepository {
