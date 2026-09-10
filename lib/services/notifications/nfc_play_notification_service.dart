@@ -20,10 +20,8 @@ String? albumIdFromNotificationUri(Uri uri) {
   );
 }
 
-typedef NotificationMethodInvoker = Future<bool?> Function(
-  String method,
-  Map<String, Object?> arguments,
-);
+typedef NotificationMethodInvoker =
+    Future<bool?> Function(String method, Map<String, Object?> arguments);
 
 /// Displays an Android system notification after an automatic NFC play.
 ///

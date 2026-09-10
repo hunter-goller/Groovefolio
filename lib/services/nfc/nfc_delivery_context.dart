@@ -25,10 +25,8 @@ abstract interface class INfcDeliveryContextService {
   Future<void> showExternalMessage(String message);
 }
 
-typedef NfcDeliveryMethodInvoker = Future<Object?> Function(
-  String method,
-  Map<String, Object?>? arguments,
-);
+typedef NfcDeliveryMethodInvoker =
+    Future<Object?> Function(String method, Map<String, Object?>? arguments);
 
 class AndroidNfcDeliveryContextService implements INfcDeliveryContextService {
   AndroidNfcDeliveryContextService({

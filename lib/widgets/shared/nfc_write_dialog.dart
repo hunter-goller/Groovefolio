@@ -165,8 +165,9 @@ class _NfcWriteDialogState extends ConsumerState<NfcWriteDialog> {
               Text(
                 'Your record is already saved.',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: colors.onSurfaceVariant),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
               ),
             ],
           ],
