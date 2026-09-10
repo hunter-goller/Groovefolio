@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
+import 'package:vinyl_app/services/notifications/nfc_play_notification_service.dart';
 
 enum NfcWriteOutcome { written, skipped }
 
@@ -14,7 +17,7 @@ Future<NfcWriteOutcome> showNfcWriteDialog(
     listen: false,
   ).read(nfcServiceProvider);
   try {
-    return await service.withForegroundInteraction(() async {
+    final outcome = await service.withForegroundInteraction(() async {
       if (!context.mounted) return NfcWriteOutcome.skipped;
       return await showDialog<NfcWriteOutcome>(
             context: context,
@@ -26,6 +29,11 @@ Future<NfcWriteOutcome> showNfcWriteDialog(
           ) ??
           NfcWriteOutcome.skipped;
     });
+    if (outcome == NfcWriteOutcome.written) {
+      // Ask while Groovefolio is visibly open, never from an external tag tap.
+      unawaited(requestNfcPlayNotificationPermission());
+    }
+    return outcome;
   } on NfcException {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -157,9 +165,8 @@ class _NfcWriteDialogState extends ConsumerState<NfcWriteDialog> {
               Text(
                 'Your record is already saved.',
                 textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: colors.onSurfaceVariant),
               ),
             ],
           ],

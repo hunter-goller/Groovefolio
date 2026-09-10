@@ -20,8 +20,10 @@ String? albumIdFromNotificationUri(Uri uri) {
   );
 }
 
-typedef NotificationMethodInvoker =
-    Future<bool?> Function(String method, Map<String, Object?> arguments);
+typedef NotificationMethodInvoker = Future<bool?> Function(
+  String method,
+  Map<String, Object?> arguments,
+);
 
 /// Displays an Android system notification after an automatic NFC play.
 ///
@@ -82,15 +84,17 @@ class AndroidNfcPlayNotificationService implements INfcPlayNotificationService {
   }
 }
 
-/// Removes a success notification after its exact play has been undone.
-Future<void> cancelNfcPlayNotification(String playId) async {
-  if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+/// Requests notification permission while the user is already in Groovefolio
+/// after successfully linking a tag. External tag delivery never prompts.
+Future<bool> requestNfcPlayNotificationPermission() async {
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return false;
   try {
-    await const MethodChannel(
-      'com.huntergoller.vinyl_app/nfc_notifications',
-    ).invokeMethod<bool>('cancelNfcPlayLogged', {'playId': playId});
+    return await const MethodChannel(
+          'com.huntergoller.vinyl_app/nfc_notifications',
+        ).invokeMethod<bool>('requestNfcNotificationPermission') ??
+        false;
   } on Object {
-    // Notification cleanup must not turn a successful database Undo into an error.
+    return false;
   }
 }
 

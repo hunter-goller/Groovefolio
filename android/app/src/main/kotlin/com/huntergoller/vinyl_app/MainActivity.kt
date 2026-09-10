@@ -10,11 +10,12 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
-import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -25,8 +26,12 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val METHOD_CHANNEL = "com.huntergoller.vinyl_app/nfc_notifications"
         private const val SHOW_NFC_PLAY_LOGGED = "showNfcPlayLogged"
+        private const val REQUEST_NFC_NOTIFICATION_PERMISSION =
+            "requestNfcNotificationPermission"
         private const val FOREGROUND_INTENT_CHANNEL =
             "com.huntergoller.vinyl_app/nfc_foreground_intents"
+        private const val DELIVERY_CHANNEL =
+            "com.huntergoller.vinyl_app/nfc_delivery"
         private const val SET_FOREGROUND_NFC_OPERATION_ACTIVE =
             "setForegroundNfcOperationActive"
         private const val NOTIFICATION_CHANNEL_ID = "nfc_play_logging"
@@ -40,11 +45,13 @@ class MainActivity : FlutterActivity() {
     }
 
     private val nfcGateOwner = Any()
-    private var pendingNotification: NfcPlayNotification? = null
-    private var pendingNotificationResult: MethodChannel.Result? = null
+    private val nfcDeliveryTracker = NfcDeliveryTracker()
+    private var isActivityVisible = false
+    private var pendingPermissionResult: MethodChannel.Result? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val suppressed = shouldSuppressAlbumNfcIntent(intent)
+        val delivery = if (suppressed) null else recordAlbumNfcDelivery(intent)
         traceNfcEntry("onCreate", suppressed)
         if (suppressed) {
             // AppLinks inspects activity.intent when Flutter attaches. Remove
@@ -54,32 +61,35 @@ class MainActivity : FlutterActivity() {
         super.onCreate(savedInstanceState)
         // singleTask normally routes to the existing activity; if Android did
         // create a second one, return to the original dialog without logging.
-        if (suppressed) finish()
+        if (suppressed) {
+            finish()
+        } else if (delivery?.external == true) {
+            returnTaskToBackground()
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, METHOD_CHANNEL)
             .setMethodCallHandler { call, result ->
-                if (call.method == "cancelNfcPlayLogged") {
-                    val playId = safeArgument(call, "playId", 128)
-                    if (playId != null) {
-                        getSystemService(NotificationManager::class.java).cancel(playId, 0)
+                when (call.method) {
+                    SHOW_NFC_PLAY_LOGGED -> {
+                        val notification = parseNotification(call)
+                        if (notification == null) {
+                            result.error(
+                                "invalid_arguments",
+                                "Invalid NFC notification data",
+                                null,
+                            )
+                        } else {
+                            result.success(showNotification(notification))
+                        }
                     }
-                    result.success(playId != null)
-                    return@setMethodCallHandler
+                    REQUEST_NFC_NOTIFICATION_PERMISSION -> {
+                        requestNfcNotificationPermission(result)
+                    }
+                    else -> result.notImplemented()
                 }
-                if (call.method != SHOW_NFC_PLAY_LOGGED) {
-                    result.notImplemented()
-                    return@setMethodCallHandler
-                }
-
-                val notification = parseNotification(call)
-                if (notification == null) {
-                    result.error("invalid_arguments", "Invalid NFC notification data", null)
-                    return@setMethodCallHandler
-                }
-                showOrRequestNotificationPermission(notification, result)
             }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, FOREGROUND_INTENT_CHANNEL)
@@ -98,13 +108,68 @@ class MainActivity : FlutterActivity() {
                 foregroundIntentGate.setActive(nfcGateOwner, active)
                 result.success(null)
             }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DELIVERY_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "consumeNfcDelivery" -> {
+                        val delivery = nfcDeliveryTracker.consume()
+                        result.success(
+                            delivery?.let {
+                                mapOf("id" to it.id, "external" to it.external)
+                            },
+                        )
+                    }
+                    "completeExternalNfcDelivery" -> {
+                        returnTaskToBackground()
+                        result.success(null)
+                    }
+                    "showExternalNfcMessage" -> {
+                        val message = safeArgument(call, "message", 240)
+                        if (message == null) {
+                            result.error("invalid_arguments", "Missing NFC message", null)
+                        } else {
+                            Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
+                            result.success(null)
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
     }
 
     override fun onNewIntent(intent: Intent) {
         val suppressed = shouldSuppressAlbumNfcIntent(intent)
+        val delivery = if (suppressed) null else recordAlbumNfcDelivery(intent)
         traceNfcEntry("onNewIntent", suppressed)
         if (suppressed) return
         super.onNewIntent(intent)
+        if (delivery?.external == true) returnTaskToBackground()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        isActivityVisible = true
+    }
+
+    override fun onStop() {
+        isActivityVisible = false
+        super.onStop()
+    }
+
+    private fun recordAlbumNfcDelivery(intent: Intent): NfcDelivery? {
+        return nfcDeliveryTracker.record(
+            action = intent.action,
+            scheme = intent.data?.scheme,
+            host = intent.data?.host,
+            wasVisible = isActivityVisible,
+        )
+    }
+
+    private fun returnTaskToBackground() {
+        window.decorView.post {
+            if (!isFinishing && !isDestroyed) moveTaskToBack(true)
+        }
     }
 
     private fun shouldSuppressAlbumNfcIntent(intent: Intent): Boolean {
@@ -140,33 +205,29 @@ class MainActivity : FlutterActivity() {
             ?.take(maxLength)
     }
 
-    private fun showOrRequestNotificationPermission(
-        notification: NfcPlayNotification,
-        result: MethodChannel.Result,
-    ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+    private fun requestNfcNotificationPermission(result: MethodChannel.Result) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
                 PackageManager.PERMISSION_GRANTED
         ) {
-            val preferences = getSharedPreferences("groovefolio_notifications", MODE_PRIVATE)
-            if (preferences.getBoolean(NOTIFICATION_PERMISSION_ASKED, false) ||
-                pendingNotificationResult != null
-            ) {
-                result.success(false)
-                return
-            }
-
-            preferences.edit().putBoolean(NOTIFICATION_PERMISSION_ASKED, true).apply()
-            pendingNotification = notification
-            pendingNotificationResult = result
-            requestPermissions(
-                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                NOTIFICATION_PERMISSION_REQUEST,
-            )
+            result.success(true)
             return
         }
 
-        result.success(showNotification(notification))
+        val preferences = getSharedPreferences("groovefolio_notifications", MODE_PRIVATE)
+        if (preferences.getBoolean(NOTIFICATION_PERMISSION_ASKED, false) ||
+            pendingPermissionResult != null
+        ) {
+            result.success(false)
+            return
+        }
+
+        preferences.edit().putBoolean(NOTIFICATION_PERMISSION_ASKED, true).apply()
+        pendingPermissionResult = result
+        requestPermissions(
+            arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+            NOTIFICATION_PERMISSION_REQUEST,
+        )
     }
 
     override fun onRequestPermissionsResult(
@@ -177,13 +238,9 @@ class MainActivity : FlutterActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode != NOTIFICATION_PERMISSION_REQUEST) return
 
-        val notification = pendingNotification
-        val result = pendingNotificationResult
-        pendingNotification = null
-        pendingNotificationResult = null
-
         val granted = grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED
-        result?.success(granted && notification != null && showNotification(notification))
+        pendingPermissionResult?.success(granted)
+        pendingPermissionResult = null
     }
 
     private fun showNotification(notification: NfcPlayNotification): Boolean {

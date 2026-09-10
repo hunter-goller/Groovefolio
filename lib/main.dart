@@ -11,6 +11,7 @@ import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/routing/router.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
+import 'package:vinyl_app/services/nfc/nfc_delivery_context.dart';
 import 'package:vinyl_app/services/nfc/nfc_intent_play_handler.dart';
 import 'package:vinyl_app/services/nfc/nfc_play_undo.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
@@ -54,7 +55,11 @@ class MyApp extends ConsumerWidget {
 
   static final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
-  Future<void> _showNfcResult(WidgetRef ref, NfcIntentPlayResult result) async {
+  Future<void> _showNfcResult(
+    WidgetRef ref,
+    NfcIntentPlayResult result,
+    NfcDeliveryContext delivery,
+  ) async {
     if (result.suppressed) {
       // Keep the first play's Undo visible while the tag remains nearby.
       return;
@@ -62,17 +67,34 @@ class MyApp extends ConsumerWidget {
 
     final play = result.play;
     if (play == null) {
-      _showNfcMessage('Play logged: ${result.album.title}');
+      final message = 'Play logged: ${result.album.title}';
+      if (delivery.isExternal) {
+        await ref
+            .read(nfcDeliveryContextServiceProvider)
+            .showExternalMessage(message);
+      } else {
+        _showNfcMessage(message);
+      }
       return;
     }
 
     final repository = ref.read(playRepositoryProvider);
     _refreshPlayData(ref, result.album.id);
+
+    if (delivery.isExternal) {
+      final notificationShown = await ref
+          .read(nfcPlayNotificationServiceProvider)
+          .showLoggedPlay(album: result.album, play: play);
+      if (!notificationShown) {
+        await ref
+            .read(nfcDeliveryContextServiceProvider)
+            .showExternalMessage('Play logged: ${result.album.title}');
+      }
+      return;
+    }
+
     // Haptic failure is feedback failure, not a failed database insert.
     unawaited(HapticFeedback.lightImpact().catchError((Object _) {}));
-    await ref
-        .read(nfcPlayNotificationServiceProvider)
-        .showLoggedPlay(album: result.album, play: play);
     if (!ref.context.mounted) return;
     final undo = NfcPlayUndo(deletePlay: () => repository.deleteById(play.id));
     _showNfcMessage(
@@ -84,10 +106,6 @@ class MyApp extends ConsumerWidget {
             final removed = await undo.undo();
             if (!ref.context.mounted) return;
             _refreshPlayData(ref, result.album.id);
-            if (removed) {
-              // Native cleanup is best-effort and must not delay Undo feedback.
-              unawaited(cancelNfcPlayNotification(play.id));
-            }
             _showNfcMessage(
               removed ? 'Play removed.' : 'Undo is no longer available.',
             );
@@ -129,12 +147,22 @@ class MyApp extends ConsumerWidget {
     }
   }
 
-  void _showNfcError(Object error) {
+  Future<void> _showNfcError(
+    WidgetRef ref,
+    Object error,
+    NfcDeliveryContext delivery,
+  ) async {
     final message = error is NfcException
         ? error.message
         : 'Groovefolio couldn’t log that NFC play.';
 
-    _showNfcMessage(message);
+    if (delivery.isExternal) {
+      await ref
+          .read(nfcDeliveryContextServiceProvider)
+          .showExternalMessage(message);
+    } else {
+      _showNfcMessage(message);
+    }
   }
 
   void _showNfcMessage(
@@ -167,11 +195,15 @@ class MyApp extends ConsumerWidget {
   }
 
   Future<void> _handleNfcUri(WidgetRef ref, Uri uri) async {
+    final deliveryService = ref.read(nfcDeliveryContextServiceProvider);
+    final delivery = await deliveryService.consume();
     try {
       final result = await ref.read(nfcIntentPlayHandlerProvider).handle(uri);
-      if (result != null) await _showNfcResult(ref, result);
+      if (result != null) await _showNfcResult(ref, result, delivery);
     } on Object catch (error) {
-      _showNfcError(error);
+      await _showNfcError(ref, error, delivery);
+    } finally {
+      await deliveryService.completeExternal(delivery);
     }
   }
 
@@ -216,7 +248,10 @@ class MyApp extends ConsumerWidget {
             unawaited(_openNotificationAlbum(ref, notificationAlbumId));
             return;
           }
-          if (albumIdFromNfcUri(uri) == null) return;
+          // Consume every native album-delivery classification, including a
+          // malformed URI that the strict handler will safely reject. Leaving
+          // one queued would misclassify the next valid, repeated tag event.
+          if (uri.scheme != 'groovefolio' || uri.host != 'album') return;
           unawaited(_handleNfcUri(ref, uri));
         });
       });

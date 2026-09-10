@@ -1,23 +1,19 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
-import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
-import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/play_logging_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/types/side_played.dart';
 import 'package:vinyl_app/widgets/shared/album_select_tile.dart';
-import 'package:vinyl_app/widgets/shared/nfc_prompt.dart';
 import 'package:vinyl_app/widgets/shared/side_selector.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 import 'package:vinyl_app/widgets/ui/search_field.dart';
 
-/// Play logging flow with NFC or manual album selection.
+/// Manual play-logging flow with searchable album selection.
 class LogPlayScreen extends ConsumerStatefulWidget {
   const LogPlayScreen({
     this.isBottomSheet = false,
@@ -44,10 +40,6 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
   late TimeOfDay _selectedTime;
   SidePlayed _side = SidePlayed.full;
   bool _isSaving = false;
-  bool _isNfcScanning = false;
-  bool _initialNfcScanScheduled = false;
-  int _nfcScanGeneration = 0;
-  late final NfcService _nfcService;
 
   @override
   void initState() {
@@ -57,24 +49,13 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
     _selectedTime = TimeOfDay.fromDateTime(now);
     _searchController = TextEditingController();
     _selectedAlbum = widget.initialAlbum;
-    _nfcService = ref.read(nfcServiceProvider);
   }
 
   @override
   void dispose() {
-    _nfcScanGeneration += 1;
-    unawaited(_stopNfcServiceForDispose());
     _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
-  }
-
-  Future<void> _stopNfcServiceForDispose() async {
-    try {
-      await _nfcService.stopScan();
-    } on Object catch (error, stackTrace) {
-      _logNfcDiagnostic(error, stackTrace);
-    }
   }
 
   void _scheduleSearch(String value) {
@@ -97,7 +78,6 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
   }
 
   void _selectAlbum(CollectionAlbum album) {
-    unawaited(_stopNfcScan());
     _searchDebounce?.cancel();
     _searchController.clear();
     setState(() {
@@ -113,119 +93,6 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
       _query = '';
       _browseAll = false;
     });
-
-    if (ref.read(nfcAvailabilityProvider).value ==
-        NfcAvailabilityState.available) {
-      unawaited(_startNfcScan());
-    }
-  }
-
-  void _scheduleInitialNfcScan(bool canScanNfc) {
-    if (!canScanNfc ||
-        _selectedAlbum != null ||
-        _isNfcScanning ||
-        _initialNfcScanScheduled) {
-      return;
-    }
-
-    _initialNfcScanScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _selectedAlbum != null || _isNfcScanning) {
-        return;
-      }
-      unawaited(_startNfcScan());
-    });
-  }
-
-  Future<void> _startNfcScan() async {
-    if (!mounted ||
-        _isNfcScanning ||
-        _selectedAlbum != null ||
-        ref.read(nfcAvailabilityProvider).value !=
-            NfcAvailabilityState.available) {
-      return;
-    }
-
-    final generation = ++_nfcScanGeneration;
-    setState(() => _isNfcScanning = true);
-
-    try {
-      final albumId = await _nfcService.startScan().first;
-      if (!mounted || generation != _nfcScanGeneration) return;
-
-      final detail = await ref.read(albumDetailProvider(albumId).future);
-      if (!mounted || generation != _nfcScanGeneration) return;
-
-      if (detail == null) {
-        _showNfcMessage('That tag’s record is no longer in your collection.');
-        return;
-      }
-
-      _searchDebounce?.cancel();
-      _searchController.clear();
-      setState(() {
-        _selectedAlbum = detail.collectionAlbum;
-        _query = '';
-        _browseAll = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${detail.album.title} selected from NFC.')),
-      );
-    } on Object catch (error, stackTrace) {
-      if (!mounted || generation != _nfcScanGeneration) return;
-      if (error is NfcException && error.failure == NfcFailure.cancelled) {
-        return;
-      }
-
-      _logNfcDiagnostic(error, stackTrace);
-      final message = switch (error) {
-        NfcException(failure: NfcFailure.unregisteredTag) =>
-          'Tag not linked to any album',
-        NfcException() => error.message,
-        _ => 'Groovefolio couldn’t scan that NFC tag.',
-      };
-      _showNfcMessage(message);
-    } finally {
-      if (mounted && generation == _nfcScanGeneration && _isNfcScanning) {
-        setState(() => _isNfcScanning = false);
-      }
-    }
-  }
-
-  Future<void> _stopNfcScan() async {
-    if (!_isNfcScanning) return;
-
-    _nfcScanGeneration += 1;
-    if (mounted && _isNfcScanning) {
-      setState(() => _isNfcScanning = false);
-    }
-
-    try {
-      await _nfcService.stopScan();
-    } on Object catch (error, stackTrace) {
-      _logNfcDiagnostic(error, stackTrace);
-    }
-  }
-
-  void _showNfcMessage(String message) {
-    if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(message),
-        action: SnackBarAction(
-          label: 'Scan again',
-          onPressed: () => unawaited(_startNfcScan()),
-        ),
-      ),
-    );
-  }
-
-  void _logNfcDiagnostic(Object error, StackTrace stackTrace) {
-    if (!kDebugMode) return;
-    debugPrint('[Groovefolio] Foreground NFC scan failed: $error');
-    debugPrintStack(stackTrace: stackTrace);
   }
 
   Future<void> _pickDate() async {
@@ -297,9 +164,8 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Couldn’t log play: $error')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Couldn’t log play: $error')));
     }
   }
 
@@ -307,10 +173,6 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final albumsAsync = ref.watch(albumSearchProvider(_query));
-    final canScanNfc =
-        ref.watch(nfcAvailabilityProvider).value ==
-        NfcAvailabilityState.available;
-    _scheduleInitialNfcScan(canScanNfc);
 
     final body = SafeArea(
       top: false,
@@ -354,15 +216,6 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
           if (_selectedAlbum != null)
             _SelectedAlbum(album: _selectedAlbum!, onChange: _changeAlbum)
           else ...[
-            if (canScanNfc) ...[
-              NFCPrompt(
-                key: const Key('log-play-nfc-prompt'),
-                isScanning: _isNfcScanning,
-                onStart: () => unawaited(_startNfcScan()),
-                onCancel: () => unawaited(_stopNfcScan()),
-              ),
-              SizedBox(height: tokens.space12),
-            ],
             SearchField(
               key: const Key('log-play-search'),
               controller: _searchController,
@@ -412,9 +265,8 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
               Expanded(
                 child: _PickerButton(
                   icon: Icons.schedule_rounded,
-                  label: MaterialLocalizations.of(
-                    context,
-                  ).formatTimeOfDay(_selectedTime),
+                  label: MaterialLocalizations.of(context)
+                      .formatTimeOfDay(_selectedTime),
                   onPressed: _pickTime,
                 ),
               ),
