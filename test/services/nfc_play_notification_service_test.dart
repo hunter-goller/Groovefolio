@@ -40,10 +40,58 @@ void main() {
       expect(method, 'showNfcPlayLogged');
       expect(arguments, {
         'playId': 'play-1',
+        'albumId': 'album-1',
         'albumTitle': 'Blue Train',
         'sideLabel': 'Full album',
         'artworkPath': '/data/user/0/app/app_flutter/artwork/album-1.jpg',
       });
+    },
+  );
+
+  test('notification links are navigation-only and strictly validated', () {
+    expect(
+      albumIdFromNotificationUri(
+        Uri.parse('groovefolio-notification://album/album-1/play-1'),
+      ),
+      'album-1',
+    );
+    for (final value in [
+      'groovefolio://album/album-1',
+      'groovefolio-notification://album/album-1/play-1/extra',
+      'groovefolio-notification://album/album-1/play-1?undo=play-1',
+      'groovefolio-notification://album/album-1/play-1#fragment',
+      'groovefolio-notification://user@album/album-1/play-1',
+      'groovefolio-notification://album/a%2Fb/play-1',
+      'groovefolio-notification://album/album-1/a%2Fb',
+    ]) {
+      expect(
+        albumIdFromNotificationUri(Uri.parse(value)),
+        isNull,
+        reason: value,
+      );
+    }
+  });
+
+  test(
+    'missing artwork is omitted and denied permission returns false',
+    () async {
+      final service = AndroidNfcPlayNotificationService(
+        isAndroid: true,
+        invoke: (method, arguments) async {
+          expect(arguments.containsKey('artworkPath'), isFalse);
+          return false;
+        },
+      );
+      const noArtwork = Album(
+        id: 'album-1',
+        title: 'Blue Train',
+        artistId: 'artist-1',
+        createdAt: '2026-09-08',
+      );
+      expect(
+        await service.showLoggedPlay(album: noArtwork, play: play),
+        isFalse,
+      );
     },
   );
 
