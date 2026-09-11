@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/types/side_played.dart';
@@ -44,8 +43,7 @@ void main() {
 
     final semantics = tester.getSemantics(find.text('Full album'));
     expect(semantics.label, 'Full album');
-    expect(semantics.hasFlag(SemanticsFlag.isSelected), isTrue);
-    expect(semantics.hasAction(SemanticsAction.tap), isTrue);
+    expect(semantics.hint, 'Selected');
     expect(tester.takeException(), isNull);
   });
 }

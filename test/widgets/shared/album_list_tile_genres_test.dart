@@ -84,8 +84,9 @@ void main() {
     expect(semantics.label, contains('Blue Train by John Coltrane'));
     expect(semantics.label, contains('6 plays'));
     expect(semantics.hint, contains('Long press for record actions'));
-    expect(semantics.hasAction(SemanticsAction.tap), isTrue);
-    expect(semantics.hasAction(SemanticsAction.longPress), isTrue);
+    final data = semantics.getSemanticsData();
+    expect(data.hasAction(SemanticsAction.tap), isTrue);
+    expect(data.hasAction(SemanticsAction.longPress), isTrue);
   });
 }
 
