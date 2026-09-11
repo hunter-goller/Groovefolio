@@ -160,7 +160,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         children: [
                           for (var index = 0; index < _pages.length; index++)
                             AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
+                              duration: MediaQuery.disableAnimationsOf(context)
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 180),
                               width: index == _page ? 24 : 8,
                               height: 8,
                               margin: EdgeInsets.symmetric(
@@ -223,14 +225,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   void _next() {
     _pageController.nextPage(
-      duration: const Duration(milliseconds: 240),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 240),
       curve: Curves.easeOutCubic,
     );
   }
 
   void _previous() {
     _pageController.previousPage(
-      duration: const Duration(milliseconds: 240),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 240),
       curve: Curves.easeOutCubic,
     );
   }

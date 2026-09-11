@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/widgets/shared/album_list_tile.dart';
@@ -59,6 +60,32 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('album-list-genres')), findsNothing);
+  });
+
+  testWidgets('exposes one useful TalkBack action for a record', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AlbumListTile(
+            title: 'Blue Train',
+            artist: 'John Coltrane',
+            playCount: 6,
+            lastPlayedAt: DateTime.now(),
+            onTap: _noop,
+            onLongPress: _noop,
+          ),
+        ),
+      ),
+    );
+
+    final semantics = tester.getSemantics(find.byType(AlbumListTile));
+    expect(semantics.label, contains('Blue Train by John Coltrane'));
+    expect(semantics.label, contains('6 plays'));
+    expect(semantics.hint, contains('Long press for record actions'));
+    expect(semantics.hasAction(SemanticsAction.tap), isTrue);
+    expect(semantics.hasAction(SemanticsAction.longPress), isTrue);
   });
 }
 

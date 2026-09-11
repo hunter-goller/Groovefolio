@@ -38,7 +38,12 @@ class AlbumListTile extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: '$title by $artist',
+      excludeSemantics: true,
+      label: '$title by $artist. $playLabel. $lastPlayedLabel.',
+      hint: onLongPress == null
+          ? 'Double tap to open record'
+          : 'Double tap to open record. Long press for record actions',
+      onTap: onTap,
       onLongPress: onLongPress,
       child: Material(
         color: Colors.transparent,

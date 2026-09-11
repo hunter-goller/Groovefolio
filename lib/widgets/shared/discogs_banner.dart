@@ -21,48 +21,57 @@ class DiscogsBanner extends StatelessWidget {
     final tokens = context.tokens;
     final query = prefillQuery.trim();
 
-    return Material(
-      color: tokens.surfaceElevated,
-      borderRadius: BorderRadius.circular(tokens.radiusMedium),
-      child: InkWell(
-        onTap: onTap,
+    return Semantics(
+      button: true,
+      excludeSemantics: true,
+      label: query.isEmpty
+          ? 'Search Discogs to autofill record information'
+          : 'Search Discogs to autofill record information. Search: $query',
+      hint: 'Double tap to search Discogs',
+      onTap: onTap,
+      child: Material(
+        color: tokens.surfaceElevated,
         borderRadius: BorderRadius.circular(tokens.radiusMedium),
-        child: Padding(
-          padding: EdgeInsets.all(tokens.space12),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.travel_explore_rounded,
-                color: AppThemeTokens.accent,
-              ),
-              SizedBox(width: tokens.space12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Search Discogs to autofill',
-                      style: context.theme.textTheme.titleSmall?.copyWith(
-                        color: tokens.text,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (query.isNotEmpty) ...[
-                      SizedBox(height: tokens.space4),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(tokens.radiusMedium),
+          child: Padding(
+            padding: EdgeInsets.all(tokens.space12),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.travel_explore_rounded,
+                  color: AppThemeTokens.accent,
+                ),
+                SizedBox(width: tokens.space12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        query,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.theme.textTheme.bodySmall?.copyWith(
-                          color: tokens.textMuted,
+                        'Search Discogs to autofill',
+                        style: context.theme.textTheme.titleSmall?.copyWith(
+                          color: tokens.text,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
+                      if (query.isNotEmpty) ...[
+                        SizedBox(height: tokens.space4),
+                        Text(
+                          query,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.theme.textTheme.bodySmall?.copyWith(
+                            color: tokens.textMuted,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              Icon(Icons.chevron_right_rounded, color: tokens.textMuted),
-            ],
+                Icon(Icons.chevron_right_rounded, color: tokens.textMuted),
+              ],
+            ),
           ),
         ),
       ),

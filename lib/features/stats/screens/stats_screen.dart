@@ -349,54 +349,58 @@ class _StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        borderRadius: BorderRadius.circular(tokens.radiusLarge),
-        border: Border.all(color: tokens.textMuted.withValues(alpha: 0.13)),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(tokens.space12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              label,
-              style: context.theme.textTheme.labelSmall?.copyWith(
-                color: tokens.textMuted,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.7,
+    return Semantics(
+      label: '$label, $value $detail',
+      excludeSemantics: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: tokens.surface,
+          borderRadius: BorderRadius.circular(tokens.radiusLarge),
+          border: Border.all(color: tokens.textMuted.withValues(alpha: 0.13)),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(tokens.space12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: context.theme.textTheme.labelSmall?.copyWith(
+                  color: tokens.textMuted,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.7,
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Flexible(
-                  child: Text(
-                    value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      height: 1,
+              const SizedBox(height: 2),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Flexible(
+                    child: Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        height: 1,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
-                  child: Text(
-                    detail,
-                    style: context.theme.textTheme.labelSmall?.copyWith(
-                      color: tokens.textMuted,
+                  const SizedBox(width: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Text(
+                      detail,
+                      style: context.theme.textTheme.labelSmall?.copyWith(
+                        color: tokens.textMuted,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -670,57 +674,64 @@ class _YearlyBarChart extends StatelessWidget {
         children: [
           for (final year in years)
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text(
-                      '${year.playCount}',
-                      style: context.theme.textTheme.labelSmall?.copyWith(
-                        color: tokens.textMuted,
+              child: Semantics(
+                label:
+                    '${year.year}, ${year.playCount} ${year.playCount == 1 ? 'play' : 'plays'}',
+                excludeSemantics: true,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${year.playCount}',
+                        style: context.theme.textTheme.labelSmall?.copyWith(
+                          color: tokens.textMuted,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final target = maxPlays == 0
-                              ? 0.0
-                              : year.playCount / maxPlays;
-                          return Align(
-                            alignment: Alignment.bottomCenter,
-                            child: TweenAnimationBuilder<double>(
-                              key: ValueKey(
-                                'stats-year-animation-${year.year}',
-                              ),
-                              tween: Tween(begin: 0, end: target),
-                              duration: const Duration(milliseconds: 450),
-                              curve: Curves.easeOutCubic,
-                              builder: (context, value, child) => Container(
-                                key: Key('stats-year-bar-${year.year}'),
-                                height: constraints.maxHeight * value,
-                                constraints: const BoxConstraints(minHeight: 2),
-                                decoration: BoxDecoration(
-                                  color: AppThemeTokens.accent,
-                                  borderRadius: BorderRadius.circular(5),
+                      const SizedBox(height: 4),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final target = maxPlays == 0
+                                ? 0.0
+                                : year.playCount / maxPlays;
+                            return Align(
+                              alignment: Alignment.bottomCenter,
+                              child: TweenAnimationBuilder<double>(
+                                key: ValueKey(
+                                  'stats-year-animation-${year.year}',
+                                ),
+                                tween: Tween(begin: 0, end: target),
+                                duration: const Duration(milliseconds: 450),
+                                curve: Curves.easeOutCubic,
+                                builder: (context, value, child) => Container(
+                                  key: Key('stats-year-bar-${year.year}'),
+                                  height: constraints.maxHeight * value,
+                                  constraints: const BoxConstraints(
+                                    minHeight: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppThemeTokens.accent,
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${year.year}',
-                      key: Key('stats-year-label-${year.year}'),
-                      maxLines: 1,
-                      style: context.theme.textTheme.labelSmall?.copyWith(
-                        color: tokens.textMuted,
+                      const SizedBox(height: 8),
+                      Text(
+                        '${year.year}',
+                        key: Key('stats-year-label-${year.year}'),
+                        maxLines: 1,
+                        style: context.theme.textTheme.labelSmall?.copyWith(
+                          color: tokens.textMuted,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -746,63 +757,68 @@ class _RankedAlbumRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    return Row(
-      children: [
-        SizedBox(
-          width: 28,
-          child: Text(
-            '$rank',
-            style: context.theme.textTheme.titleMedium?.copyWith(
-              color: AppThemeTokens.accent,
-              fontWeight: FontWeight.w800,
+    return Semantics(
+      label:
+          'Rank $rank. ${item.album.title} by ${item.artistName}. ${item.playCount} ${item.playCount == 1 ? 'play' : 'plays'}.',
+      excludeSemantics: true,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 28,
+            child: Text(
+              '$rank',
+              style: context.theme.textTheme.titleMedium?.copyWith(
+                color: AppThemeTokens.accent,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
-        ),
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: tokens.surfaceElevated,
-            borderRadius: BorderRadius.circular(tokens.radiusSmall),
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: tokens.surfaceElevated,
+              borderRadius: BorderRadius.circular(tokens.radiusSmall),
+            ),
+            child: const Icon(
+              Icons.album_rounded,
+              color: AppThemeTokens.accent,
+              size: 24,
+            ),
           ),
-          child: const Icon(
-            Icons.album_rounded,
-            color: AppThemeTokens.accent,
-            size: 24,
-          ),
-        ),
-        SizedBox(width: tokens.space12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                item.album.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
+          SizedBox(width: tokens.space12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.album.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              Text(
-                item.artistName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.theme.textTheme.bodySmall?.copyWith(
-                  color: tokens.textMuted,
+                Text(
+                  item.artistName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.theme.textTheme.bodySmall?.copyWith(
+                    color: tokens.textMuted,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        SizedBox(width: tokens.space8),
-        Text(
-          '${item.playCount} ${item.playCount == 1 ? 'play' : 'plays'}',
-          style: context.theme.textTheme.labelMedium?.copyWith(
-            color: tokens.textMuted,
+          SizedBox(width: tokens.space8),
+          Text(
+            '${item.playCount} ${item.playCount == 1 ? 'play' : 'plays'}',
+            style: context.theme.textTheme.labelMedium?.copyWith(
+              color: tokens.textMuted,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

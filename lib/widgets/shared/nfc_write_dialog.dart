@@ -141,9 +141,15 @@ class _NfcWriteDialogState extends ConsumerState<NfcWriteDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (_isWriting) ...[
-              const SizedBox.square(
-                dimension: 28,
-                child: CircularProgressIndicator(strokeWidth: 3),
+              const Semantics(
+                liveRegion: true,
+                label: 'Waiting for NFC tag',
+                child: ExcludeSemantics(
+                  child: SizedBox.square(
+                    dimension: 28,
+                    child: CircularProgressIndicator(strokeWidth: 3),
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               Text(

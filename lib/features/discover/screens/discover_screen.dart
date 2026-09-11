@@ -363,81 +363,89 @@ class _RecommendationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          InkWell(
-            key: Key('discover-recommendation-${recommendation.album.id}'),
+          Semantics(
+            button: true,
+            excludeSemantics: true,
+            label:
+                '${recommendation.album.title} by ${recommendation.artistName}. ${recommendation.reason}',
+            hint: 'Double tap to open record',
             onTap: () => context.push(
               AppRoutes.albumDetailPath(recommendation.album.id),
             ),
-            child: Padding(
-              padding: EdgeInsets.all(tokens.space12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _AlbumArtwork(recommendation: recommendation),
-                  SizedBox(width: tokens.space12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          recommendation.album.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        SizedBox(height: tokens.space4),
-                        Text(
-                          recommendation.artistName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.theme.textTheme.bodyMedium?.copyWith(
-                            color: tokens.textMuted,
-                          ),
-                        ),
-                        SizedBox(height: tokens.space8),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.only(top: 1),
-                              child: Icon(
-                                Icons.auto_awesome_rounded,
-                                size: 16,
-                                color: AppThemeTokens.accent,
-                              ),
-                            ),
-                            SizedBox(width: tokens.space8),
-                            Expanded(
-                              child: Text(
-                                recommendation.reason,
-                                style: context.theme.textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: tokens.text,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (recommendation.genres.isNotEmpty) ...[
-                          SizedBox(height: tokens.space8),
+            child: InkWell(
+              key: Key('discover-recommendation-${recommendation.album.id}'),
+              onTap: () => context.push(
+                AppRoutes.albumDetailPath(recommendation.album.id),
+              ),
+              child: Padding(
+                padding: EdgeInsets.all(tokens.space12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _AlbumArtwork(recommendation: recommendation),
+                    SizedBox(width: tokens.space12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            recommendation.genres.take(2).join(' · '),
+                            recommendation.album.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.theme.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          SizedBox(height: tokens.space4),
+                          Text(
+                            recommendation.artistName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: context.theme.textTheme.labelSmall?.copyWith(
+                            style: context.theme.textTheme.bodyMedium?.copyWith(
                               color: tokens.textMuted,
                             ),
                           ),
+                          SizedBox(height: tokens.space8),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.only(top: 1),
+                                child: Icon(
+                                  Icons.auto_awesome_rounded,
+                                  size: 16,
+                                  color: AppThemeTokens.accent,
+                                ),
+                              ),
+                              SizedBox(width: tokens.space8),
+                              Expanded(
+                                child: Text(
+                                  recommendation.reason,
+                                  style: context.theme.textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: tokens.text,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (recommendation.genres.isNotEmpty) ...[
+                            SizedBox(height: tokens.space8),
+                            Text(
+                              recommendation.genres.take(2).join(' · '),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: context.theme.textTheme.labelSmall
+                                  ?.copyWith(color: tokens.textMuted),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  SizedBox(width: tokens.space4),
-                  Icon(Icons.chevron_right_rounded, color: tokens.textMuted),
-                ],
+                    SizedBox(width: tokens.space4),
+                    Icon(Icons.chevron_right_rounded, color: tokens.textMuted),
+                  ],
+                ),
               ),
             ),
           ),
