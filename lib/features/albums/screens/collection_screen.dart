@@ -235,7 +235,12 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       ),
       floatingActionButton: hasAlbums && !_showSearch
           ? FloatingActionButton.extended(
-              onPressed: () => context.push(AppRoutes.addAlbum),
+              onPressed: () => context.push(
+                GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+                        'true'
+                    ? '${AppRoutes.addAlbum}?onboarding=true'
+                    : AppRoutes.addAlbum,
+              ),
               icon: const Icon(Icons.add_rounded),
               label: const Text('Add record'),
             )
@@ -248,7 +253,12 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
             AppRoutes.stats,
             AppRoutes.discover,
           ];
-          context.go(routes[index]);
+          if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+              'true') {
+            context.push('${routes[index]}?onboarding=true');
+          } else {
+            context.go(routes[index]);
+          }
         },
       ),
     );
@@ -608,7 +618,12 @@ class _CollectionBody extends StatelessWidget {
               subtitle:
                   'Add your first record and Groovefolio will start building your listening history.',
               ctaLabel: 'Add your first record',
-              onCtaTap: () => context.push(AppRoutes.addAlbum),
+              onCtaTap: () => context.push(
+                GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+                        'true'
+                    ? '${AppRoutes.addAlbum}?onboarding=true'
+                    : AppRoutes.addAlbum,
+              ),
             ),
         ],
       ),

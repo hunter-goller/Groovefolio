@@ -37,7 +37,9 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: AppRoutes.collection,
         builder: (context, state) =>
-            const OnboardingGate(child: CollectionScreen()),
+            state.uri.queryParameters['onboarding'] == 'true'
+            ? const CollectionScreen()
+            : const OnboardingGate(child: CollectionScreen()),
       ),
       GoRoute(
         path: AppRoutes.stats,

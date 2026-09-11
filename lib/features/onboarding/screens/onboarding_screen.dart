@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
+import 'package:vinyl_app/features/settings/widgets/discogs_connection_card.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/onboarding_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
@@ -19,6 +22,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   late final PageController _pageController;
   int _page = 0;
   bool _isFinishing = false;
+  bool _loading = true;
+  String? _loadError;
 
   static const _pages = <_OnboardingPageData>[
     _OnboardingPageData(
@@ -31,6 +36,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       bullets: [
         'Local-first: your collection stays on your device',
         'No Groovefolio account required',
+        'No automatic backup: uninstalling or replacing your phone loses local data',
+      ],
+    ),
+    _OnboardingPageData(
+      keyName: 'discogs',
+      icon: Icons.link_rounded,
+      eyebrow: 'OPTIONAL CONNECTION',
+      title: 'Bring your Discogs collection',
+      body:
+          'Connect to find release details and import records. Discogs uses the Internet; manual entry works offline.',
+      bullets: [
+        'Already connected? Use your existing account',
+        'Prefer to start offline? Choose Not now',
       ],
     ),
     _OnboardingPageData(
@@ -70,6 +88,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       ],
     ),
     _OnboardingPageData(
+      keyName: 'nfc',
+      icon: Icons.nfc_rounded,
+      eyebrow: 'OPTIONAL TAP TO LOG',
+      title: 'Turn a tap into a listen',
+      body:
+          'On a supported phone, open a record’s menu in Album Details to link an NFC tag. Later taps automatically log a full-album play.',
+      bullets: [
+        'In the app: confirmation with a ten-second Undo',
+        'Outside the app: a notification, or a short message when notifications are unavailable',
+        'No tag? Manual play logging is always available',
+      ],
+    ),
+    _OnboardingPageData(
       keyName: 'swipe-actions',
       icon: Icons.swipe_left_rounded,
       eyebrow: 'QUICK ACTIONS',
@@ -99,6 +130,126 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void initState() {
     super.initState();
     _pageController = PageController();
+    _restore();
+  }
+
+  Future<void> _restore() async {
+    try {
+      final service = ref.read(onboardingServiceProvider);
+      final page = widget.replay ? 0 : await service.resumeStep();
+      if (!widget.replay) await service.saveStep(page);
+      if (!mounted) return;
+      setState(() {
+        _page = page;
+        _loading = false;
+        _loadError = null;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _pageController.hasClients) {
+          _pageController.jumpToPage(_page);
+        }
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _loadError = 'Couldn’t load your getting-started progress.';
+        });
+      }
+    }
+  }
+
+  void _showError() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Couldn’t save your progress. Please try again.'),
+      ),
+    );
+  }
+
+  Future<void> _open(String route) async {
+    if (_isFinishing) return;
+    setState(() => _isFinishing = true);
+    try {
+      if (!widget.replay) {
+        await ref.read(onboardingServiceProvider).saveStep(_page);
+      }
+      if (!mounted) return;
+      await context.push('$route?onboarding=true');
+    } catch (_) {
+      _showError();
+    } finally {
+      if (mounted) setState(() => _isFinishing = false);
+    }
+  }
+
+  Widget? _actions(String key) {
+    Widget button(String label, String route) => Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: OutlinedButton(
+        onPressed: _isFinishing ? null : () => _open(route),
+        child: Text(label),
+      ),
+    );
+    switch (key) {
+      case 'discogs':
+        return DiscogsConnectionCard(
+          configured: ref.watch(discogsConfigProvider).isConfigured,
+          accountAsync: ref.watch(discogsAccountProvider),
+          authorization: ref.watch(discogsAuthorizationControllerProvider),
+          onConnect: () => ref
+              .read(discogsAuthorizationControllerProvider.notifier)
+              .connect(),
+          onCancel: () => ref
+              .read(discogsAuthorizationControllerProvider.notifier)
+              .cancelAuthorization(),
+          onDisconnect: () => ref
+              .read(discogsAuthorizationControllerProvider.notifier)
+              .disconnect(),
+          onImport: () => _open(AppRoutes.discogsCollectionImport),
+          onRetryIdentity: () => ref.invalidate(discogsAccountProvider),
+          onClearFailure: () => ref
+              .read(discogsAuthorizationControllerProvider.notifier)
+              .clearFailure(),
+        );
+      case 'add-records':
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            button('Add a record', AppRoutes.addAlbum),
+            button('Import from Discogs', AppRoutes.discogsCollectionImport),
+          ],
+        );
+      case 'collection':
+      case 'swipe-actions':
+        return button('Try it in Collection', AppRoutes.collection);
+      case 'log-plays':
+        return button('Log a real play', AppRoutes.logPlay);
+      case 'nfc':
+        if (!ref.watch(nfcHelpVisibleProvider)) {
+          return const Text(
+            'NFC setup isn’t available on this device. You can continue with manual logging.',
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            button('Choose a record to link', AppRoutes.collection),
+            button('NFC help & tags', AppRoutes.nfcHelp),
+          ],
+        );
+      case 'insights':
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            button('Explore Stats', AppRoutes.stats),
+            button('Explore Discover', AppRoutes.discover),
+          ],
+        );
+      default:
+        return null;
+    }
   }
 
   @override
@@ -109,8 +260,29 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loading || _loadError != null) {
+      return Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: _loading
+                ? const CircularProgressIndicator()
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_loadError!),
+                      FilledButton(
+                        onPressed: _restore,
+                        child: const Text('Try again'),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      );
+    }
     final tokens = context.tokens;
     final isLastPage = _page == _pages.length - 1;
+    final action = _actions(_pages[_page].keyName);
 
     return PopScope(
       canPop: widget.replay,
@@ -136,11 +308,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 child: PageView.builder(
                   key: const Key('onboarding-pages'),
                   controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
                   itemCount: _pages.length,
-                  onPageChanged: (page) => setState(() => _page = page),
+
                   itemBuilder: (context, index) => _OnboardingPage(
                     key: Key('onboarding-page-${_pages[index].keyName}'),
                     data: _pages[index],
+                    action: index == _page ? action : null,
                   ),
                 ),
               ),
@@ -160,7 +334,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         children: [
                           for (var index = 0; index < _pages.length; index++)
                             AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
+                              duration: MediaQuery.disableAnimationsOf(context)
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 180),
                               width: index == _page ? 24 : 8,
                               height: 8,
                               margin: EdgeInsets.symmetric(
@@ -206,7 +382,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                       strokeWidth: 2,
                                     ),
                                   )
-                                : Text(isLastPage ? 'Get started' : 'Next'),
+                                : Text(
+                                    isLastPage
+                                        ? 'Get started'
+                                        : _page == 1
+                                        ? 'Not now'
+                                        : _page == 5
+                                        ? 'Set up later'
+                                        : 'Next',
+                                  ),
                           ),
                         ),
                       ],
@@ -221,31 +405,50 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
-  void _next() {
-    _pageController.nextPage(
-      duration: const Duration(milliseconds: 240),
-      curve: Curves.easeOutCubic,
-    );
-  }
+  Future<void> _next() => _move(_page + 1);
 
-  void _previous() {
-    _pageController.previousPage(
-      duration: const Duration(milliseconds: 240),
-      curve: Curves.easeOutCubic,
-    );
+  Future<void> _previous() => _move(_page - 1);
+
+  Future<void> _move(int page) async {
+    if (_isFinishing) return;
+    setState(() => _isFinishing = true);
+    try {
+      if (!widget.replay) {
+        await ref.read(onboardingServiceProvider).saveStep(page);
+      }
+      if (!mounted) return;
+      setState(() => _page = page);
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _pageController.jumpToPage(page);
+      } else {
+        await _pageController.animateToPage(
+          page,
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    } catch (_) {
+      _showError();
+    } finally {
+      if (mounted) setState(() => _isFinishing = false);
+    }
   }
 
   Future<void> _finish() async {
     setState(() => _isFinishing = true);
     try {
-      await ref.read(onboardingServiceProvider).completeOnboarding();
-      ref.invalidate(onboardingRequiredProvider);
+      if (!widget.replay) {
+        await ref.read(onboardingServiceProvider).completeOnboarding();
+        ref.invalidate(onboardingRequiredProvider);
+      }
       if (!mounted) return;
       if (widget.replay && context.canPop()) {
         context.pop();
       } else {
         context.go(AppRoutes.collection);
       }
+    } catch (_) {
+      _showError();
     } finally {
       if (mounted) setState(() => _isFinishing = false);
     }
@@ -253,7 +456,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 }
 
 class _OnboardingPage extends StatelessWidget {
-  const _OnboardingPage({super.key, required this.data});
+  const _OnboardingPage({super.key, required this.data, this.action});
+
+  final Widget? action;
 
   final _OnboardingPageData data;
 
@@ -305,6 +510,13 @@ class _OnboardingPage extends StatelessWidget {
               height: 1.45,
             ),
           ),
+          if (action != null) ...[
+            SizedBox(height: tokens.space16),
+            action!,
+            const Text(
+              'These actions use your real collection. Return here with Back when you’re ready.',
+            ),
+          ],
           SizedBox(height: tokens.space24),
           Card(
             child: Padding(

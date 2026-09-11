@@ -182,7 +182,12 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
             AppRoutes.stats,
             AppRoutes.discover,
           ];
-          context.go(routes[index]);
+          if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+              'true') {
+            context.push('${routes[index]}?onboarding=true');
+          } else {
+            context.go(routes[index]);
+          }
         },
       ),
     );
@@ -836,7 +841,12 @@ class _NoPlaysCard extends StatelessWidget {
           SizedBox(height: tokens.space16),
           FilledButton.icon(
             key: const Key('stats-log-play'),
-            onPressed: () => context.push(AppRoutes.logPlay),
+            onPressed: () => context.push(
+              GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+                      'true'
+                  ? '${AppRoutes.logPlay}?onboarding=true'
+                  : AppRoutes.logPlay,
+            ),
             icon: const Icon(Icons.add_rounded),
             label: const Text('Log a play'),
           ),
