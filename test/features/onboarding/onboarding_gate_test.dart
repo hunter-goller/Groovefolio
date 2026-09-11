@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:vinyl_app/features/onboarding/widgets/onboarding_gate.dart';
 import 'package:vinyl_app/services/onboarding_service.dart';
 import 'package:vinyl_app/theme/app_theme.dart';

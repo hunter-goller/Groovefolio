@@ -1,10 +1,10 @@
-import 'package:vinyl_app/features/settings/widgets/discogs_connection_card.dart';
-import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
-import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
+import 'package:vinyl_app/features/settings/widgets/discogs_connection_card.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/onboarding_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
@@ -145,15 +145,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         _loadError = null;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _pageController.hasClients)
+        if (mounted && _pageController.hasClients) {
           _pageController.jumpToPage(_page);
+        }
       });
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _loading = false;
           _loadError = 'Couldn’t load your getting-started progress.';
         });
+      }
     }
   }
 
@@ -225,10 +227,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       case 'log-plays':
         return button('Log a real play', AppRoutes.logPlay);
       case 'nfc':
-        if (!ref.watch(nfcHelpVisibleProvider))
+        if (!ref.watch(nfcHelpVisibleProvider)) {
           return const Text(
             'NFC setup isn’t available on this device. You can continue with manual logging.',
           );
+        }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

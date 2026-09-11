@@ -16,8 +16,8 @@ import 'package:vinyl_app/services/nfc/nfc_intent_play_handler.dart';
 import 'package:vinyl_app/services/nfc/nfc_play_undo.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/notifications/nfc_play_notification_service.dart';
-import 'package:vinyl_app/services/recommendation_service.dart';
 import 'package:vinyl_app/services/onboarding_service.dart';
+import 'package:vinyl_app/services/recommendation_service.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/theme/theme_provider.dart';
 

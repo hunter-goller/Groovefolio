@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vinyl_app/services/discogs/discogs_providers.dart';
-import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/onboarding/screens/onboarding_screen.dart';
+import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
 import 'package:vinyl_app/repositories/album_repository.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/onboarding_service.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 
