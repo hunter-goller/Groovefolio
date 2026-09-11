@@ -10,6 +10,7 @@ import 'package:vinyl_app/features/onboarding/screens/onboarding_screen.dart';
 import 'package:vinyl_app/features/onboarding/widgets/onboarding_gate.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/features/settings/screens/discogs_collection_import_screen.dart';
+import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
 import 'package:vinyl_app/features/settings/screens/settings_screen.dart';
 import 'package:vinyl_app/features/stats/screens/stats_screen.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
@@ -71,6 +72,10 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: AppRoutes.logPlay,
         builder: (context, state) => const LogPlayScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.nfcHelp,
+        builder: (context, state) => const NfcHelpScreen(),
       ),
       GoRoute(
         path: AppRoutes.settings,

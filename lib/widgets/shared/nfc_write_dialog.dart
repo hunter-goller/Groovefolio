@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/notifications/nfc_play_notification_service.dart';
 
@@ -173,6 +174,7 @@ class _NfcWriteDialogState extends ConsumerState<NfcWriteDialog> {
           ],
         ),
         actions: [
+          if (!_isWriting && !_isClosing) const NfcHelpButton(),
           TextButton(
             key: const Key('nfc-write-skip'),
             onPressed: _isClosing ? null : _skip,

@@ -17,7 +17,7 @@ void main() {
     final fixture = _Fixture.single();
     await _pumpLogPlay(tester, fixture: fixture);
 
-    expect(find.textContaining('NFC'), findsNothing);
+    expect(find.byKey(const Key('log-play-nfc-prompt')), findsNothing);
     expect(find.text('Blue Train'), findsOneWidget);
     await tester.tap(find.text('Blue Train'));
     await tester.pump();
