@@ -1,25 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:vinyl_app/theme/theme_preference_store.dart';
 
 part 'theme_provider.g.dart';
 
 /// Controls whether Groovefolio follows the system theme or forces light/dark.
 ///
-/// Persistence of a manual choice is intentionally out of scope for
-/// VinylApp-008. The provider owns the in-memory override for the app session.
+/// Restores the saved choice without overwriting a newer user selection.
 @Riverpod(keepAlive: true)
 class ThemeModeController extends _$ThemeModeController {
-  @override
-  ThemeMode build() => ThemeMode.system;
+  int _revision = 0;
+  Future<void> _writes = Future<void>.value();
 
-  void setMode(ThemeMode mode) {
-    if (state == mode) return;
-    state = mode;
+  @override
+  ThemeMode build() {
+    final store = ref.read(themePreferenceStoreProvider);
+    final revision = _revision;
+    store
+        .read()
+        .then((value) {
+          if (!ref.mounted || revision != _revision) {
+            return;
+          }
+          state = switch (value) {
+            'light' => ThemeMode.light,
+            'dark' => ThemeMode.dark,
+            _ => ThemeMode.system,
+          };
+        })
+        .catchError((Object _) {});
+    return ThemeMode.system;
   }
 
-  void useSystem() => setMode(ThemeMode.system);
+  Future<bool> setMode(ThemeMode mode) async {
+    _revision++;
+    state = mode;
+    final store = ref.read(themePreferenceStoreProvider);
+    final write = _writes.then((_) => store.write(mode.name));
+    _writes = write.catchError((Object _) {});
+    try {
+      await write;
+      return true;
+    } on Object {
+      return false;
+    }
+  }
 
-  void useLight() => setMode(ThemeMode.light);
+  Future<bool> useSystem() => setMode(ThemeMode.system);
 
-  void useDark() => setMode(ThemeMode.dark);
+  Future<bool> useLight() => setMode(ThemeMode.light);
+
+  Future<bool> useDark() => setMode(ThemeMode.dark);
 }
