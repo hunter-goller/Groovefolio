@@ -205,6 +205,11 @@ class _NfcHelpScreenState extends ConsumerState<NfcHelpScreen>
                     text:
                         'Check that NFC is on and your phone is unlocked. Move the back of the phone slowly over the tag to find its antenna; placement varies by phone. Try removing a thick or metallic case. Keep only one tag near the phone.\n\nAn empty tag needs to be linked in Groovefolio first. A locked/read-only tag cannot be rewritten. If the tag points to a deleted record or data from before reinstall/reset, add the record again and relink the tag from Album Details. Reinstalling over the existing app preserves your data; uninstalling or resetting removes it.\n\nIf notifications are off, the play can still be logged. An outside-app tap shows a brief bottom-screen message instead. Errors also use a brief message outside the app and detailed guidance inside it. Check the play count before tapping again. Collection and play logging work offline; shopping links need a connection.',
                   ),
+                  const _HelpSection(
+                    title: 'Common questions',
+                    text:
+                        'Does NFC detect listening? No. Each accepted tap logs one full-album play; Groovefolio does not detect whether the record is playing.\n\nWhere is Undo? When the app is open, the confirmation offers Undo for ten seconds. Outside-app notifications do not offer Undo.\n\nWhy does my phone beep again? Android may detect the tag during the five-second cooldown even though Groovefolio adds no extra play. Remove the tag and wait at least five seconds before tapping again.\n\nWhere do I enable notifications? In Android Settings, open Apps, Groovefolio, then Notifications and allow notifications. Names may vary by phone.\n\nWhat if I change phones or lose my collection? Tags refer to records in this installation. If those records are missing, add them again and relink the tags.',
+                  ),
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
@@ -216,6 +221,28 @@ class _NfcHelpScreenState extends ConsumerState<NfcHelpScreen>
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
                           const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.asset(
+                              'assets/help/tested-ntag215.jpg',
+                              height: 200,
+                              width: double.infinity,
+                              fit: BoxFit.contain,
+                              semanticLabel:
+                                  'Product listing photo of round adhesive NFC tags',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Tested tags: Timeskey NFC NTAG215, 10-pack',
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Tested with Groovefolio on a Galaxy S22 Ultra. '
+                            'Product listing: B0GFMTFQT1. Listing photo supplied by the seller; '
+                            'appearance and pack options may vary. Compatible tags you already own also work.',
+                          ),
+                          const SizedBox(height: 12),
                           if (!validStore)
                             const Text(
                               'Verified product links are coming soon. You can use compatible tags you already own.',
