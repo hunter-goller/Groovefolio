@@ -11,6 +11,7 @@ abstract final class AppRoutes {
   static const editAlbum = '/album/:id/edit';
   static const logPlay = '/play/log';
   static const settings = '/settings';
+  static const nfcHelp = '/settings/nfc-help';
   static const onboarding = '/onboarding';
   static const discogsCollectionImport = '/settings/discogs/import';
 
