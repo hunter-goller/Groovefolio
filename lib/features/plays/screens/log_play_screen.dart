@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/play_logging_service.dart';
@@ -245,6 +246,7 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
             ),
           ],
           SizedBox(height: tokens.space24),
+          const NfcHelpButton(),
           Text(
             'When',
             style: context.theme.textTheme.titleMedium?.copyWith(

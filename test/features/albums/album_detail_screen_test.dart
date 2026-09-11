@@ -274,6 +274,17 @@ void main() {
       expect(find.byKey(const Key('nfc-write-dialog')), findsOneWidget);
       expect(platform.writtenUris, isEmpty);
 
+      await tester.tap(find.text('NFC help & tags'));
+      await tester.pumpAndSettle();
+      expect(find.text('Tap a record. Remember the listen.'), findsOneWidget);
+      elapsed = const Duration(minutes: 2);
+      expect(service.shouldSuppressAutomaticIntent, isTrue);
+      expect(platform.gateActive, isTrue);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('nfc-write-error')), findsOneWidget);
+      expect(service.shouldSuppressAutomaticIntent, isTrue);
+
       await tester.tap(find.byKey(const Key('nfc-write-retry')));
       await tester.pumpAndSettle();
       elapsed = const Duration(minutes: 2);
