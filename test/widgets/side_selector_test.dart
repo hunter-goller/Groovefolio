@@ -25,4 +25,25 @@ void main() {
 
     expect(selected, SidePlayed.sideA);
   });
+
+  testWidgets('supports large text and exposes selected state', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 300));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: Scaffold(
+            body: SideSelector(value: SidePlayed.full, onChanged: (_) {}),
+          ),
+        ),
+      ),
+    );
+
+    final semantics = tester.getSemantics(find.text('Full album'));
+    expect(semantics.label, 'Full album');
+    expect(semantics.hint, 'Selected');
+    expect(tester.takeException(), isNull);
+  });
 }

@@ -37,7 +37,10 @@ class AlbumSelectTile extends StatelessWidget {
     return Semantics(
       button: true,
       selected: isSelected,
-      label: '$title by $artist',
+      excludeSemantics: true,
+      label: '$title by $artist. $details.',
+      hint: isSelected ? 'Selected record' : 'Double tap to select record',
+      onTap: onTap,
       child: Material(
         color: isSelected
             ? context.theme.colorScheme.primary.withValues(alpha: 0.12)
@@ -86,7 +89,9 @@ class AlbumSelectTile extends StatelessWidget {
                 ),
                 SizedBox(width: tokens.space8),
                 AnimatedOpacity(
-                  duration: const Duration(milliseconds: 150),
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : const Duration(milliseconds: 150),
                   opacity: isSelected ? 1 : 0,
                   child: Icon(
                     Icons.check_circle_rounded,

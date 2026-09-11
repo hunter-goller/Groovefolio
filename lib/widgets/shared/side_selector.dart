@@ -14,7 +14,7 @@ class SideSelector extends StatelessWidget {
     final tokens = context.tokens;
 
     return Container(
-      height: 40,
+      constraints: const BoxConstraints(minHeight: 48),
       padding: EdgeInsets.all(tokens.space4 / 2),
       decoration: BoxDecoration(
         color: tokens.surface,
@@ -63,11 +63,17 @@ class _Segment extends StatelessWidget {
       child: Semantics(
         button: true,
         selected: selected,
+        excludeSemantics: true,
+        label: label,
+        hint: selected ? 'Selected' : 'Double tap to select',
+        onTap: onTap,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(tokens.radiusSmall - 2),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 150),
             curve: Curves.easeOut,
             alignment: Alignment.center,
             decoration: BoxDecoration(
@@ -76,15 +82,19 @@ class _Segment extends StatelessWidget {
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(tokens.radiusSmall - 2),
             ),
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.theme.textTheme.labelMedium?.copyWith(
-                color: selected
-                    ? context.theme.colorScheme.onPrimary
-                    : tokens.text,
-                fontWeight: FontWeight.w600,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: context.theme.textTheme.labelMedium?.copyWith(
+                  color: selected
+                      ? context.theme.colorScheme.onPrimary
+                      : tokens.text,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),

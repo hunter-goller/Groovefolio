@@ -286,7 +286,7 @@ class _AlbumHero extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _AlbumArtwork(path: album.artworkPath),
+        _AlbumArtwork(path: album.artworkPath, albumTitle: album.title),
         SizedBox(width: tokens.space16),
         Expanded(
           child: Column(
@@ -636,7 +636,8 @@ String _formatTrackDuration(int seconds) {
 }
 
 class _AlbumArtwork extends StatelessWidget {
-  const _AlbumArtwork({this.path});
+  const _AlbumArtwork({required this.albumTitle, this.path});
+  final String albumTitle;
   final String? path;
 
   @override
@@ -656,17 +657,25 @@ class _AlbumArtwork extends StatelessWidget {
         ),
       ),
     );
-    return SizedBox.square(
-      dimension: 142,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(tokens.radiusMedium),
-        child: normalizedPath == null || normalizedPath.isEmpty
-            ? placeholder
-            : Image.file(
-                File(normalizedPath),
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => placeholder,
-              ),
+    return Semantics(
+      image: true,
+      label: normalizedPath == null || normalizedPath.isEmpty
+          ? 'No artwork for $albumTitle'
+          : 'Album artwork for $albumTitle',
+      child: ExcludeSemantics(
+        child: SizedBox.square(
+          dimension: 142,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(tokens.radiusMedium),
+            child: normalizedPath == null || normalizedPath.isEmpty
+                ? placeholder
+                : Image.file(
+                    File(normalizedPath),
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => placeholder,
+                  ),
+          ),
+        ),
       ),
     );
   }

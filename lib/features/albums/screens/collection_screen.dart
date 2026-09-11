@@ -381,7 +381,7 @@ class _CollectionAlbumTileState extends ConsumerState<_CollectionAlbumTile> {
             ),
           ),
           AnimatedContainer(
-            duration: _isDragging
+            duration: _isDragging || MediaQuery.disableAnimationsOf(context)
                 ? Duration.zero
                 : const Duration(milliseconds: 180),
             curve: Curves.easeOutCubic,
