@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:vinyl_app/features/settings/widgets/settings_preferences.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/providers/track_providers.dart';
@@ -86,6 +87,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onTap: () => context.push(AppRoutes.onboarding),
               ),
             ),
+            const SettingsPreferences(),
             if (showDeveloperTools) ...[
               SizedBox(height: tokens.space24),
               Text(

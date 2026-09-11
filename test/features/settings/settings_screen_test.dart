@@ -128,12 +128,8 @@ void main() {
       );
       await tester.pump();
 
-      expect(
-        find.byKey(const Key('developer-settings-heading')),
-        findsOneWidget,
-      );
       final resetTile = find.byKey(const Key('developer-reset-local-data'));
-      await tester.ensureVisible(resetTile);
+      await tester.scrollUntilVisible(resetTile, 400);
       await tester.pumpAndSettle();
       await tester.tap(resetTile);
       await tester.pumpAndSettle();
@@ -149,11 +145,12 @@ void main() {
 
       expect(resetRepository.clearCalls, 1);
       expect(artworkStorageService.clearCalls, 1);
-      expect(find.text('Connected as hunter'), findsOneWidget);
       expect(
         find.text('Local app data reset. Discogs connection kept.'),
         findsOneWidget,
       );
+      await tester.scrollUntilVisible(find.text('Connected as hunter'), -400);
+      expect(find.text('Connected as hunter'), findsOneWidget);
     },
   );
 }

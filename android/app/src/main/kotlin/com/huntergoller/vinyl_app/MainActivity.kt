@@ -89,6 +89,23 @@ open class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         retainedEngine = flutterEngine
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
+            "com.huntergoller.vinyl_app/app_info")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "getVersion") {
+                    result.notImplemented()
+                } else {
+                    @Suppress("DEPRECATION")
+                    val info = packageManager.getPackageInfo(packageName, 0)
+                    @Suppress("DEPRECATION")
+                    val build = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        info.longVersionCode.toString()
+                    } else {
+                        info.versionCode.toString()
+                    }
+                    result.success(mapOf("version" to info.versionName, "build" to build))
+                }
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, METHOD_CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
