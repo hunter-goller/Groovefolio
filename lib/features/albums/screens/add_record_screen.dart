@@ -309,7 +309,13 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
 
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
-      context.go(AppRoutes.collection);
+      if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+              'true' &&
+          context.canPop()) {
+        context.pop();
+      } else {
+        context.go(AppRoutes.collection);
+      }
       if (nfcOutcome == NfcWriteOutcome.written) {
         messenger.showSnackBar(
           const SnackBar(content: Text('Record added and NFC tag linked.')),

@@ -143,7 +143,15 @@ class _DiscogsCollectionImportScreenState
           (false, true, _, _, _) => _ImportProgressState(progress: _progress),
           (false, false, final result?, _, _) => _ImportResultState(
             result: result,
-            onViewCollection: () => context.go(AppRoutes.collection),
+            onViewCollection: () {
+              if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+                      'true' &&
+                  context.canPop()) {
+                context.pop();
+              } else {
+                context.go(AppRoutes.collection);
+              }
+            },
             onImportMore: _loadPreview,
           ),
           (false, false, _, final error?, _) => _ImportErrorState(

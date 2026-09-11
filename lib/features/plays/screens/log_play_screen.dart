@@ -157,7 +157,13 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
       if (widget.isBottomSheet) {
         Navigator.of(context).pop();
       } else {
-        context.go(AppRoutes.collection);
+        if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+                'true' &&
+            context.canPop()) {
+          context.pop();
+        } else {
+          context.go(AppRoutes.collection);
+        }
       }
       messenger
         ..hideCurrentSnackBar()

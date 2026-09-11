@@ -17,6 +17,7 @@ import 'package:vinyl_app/services/nfc/nfc_play_undo.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/notifications/nfc_play_notification_service.dart';
 import 'package:vinyl_app/services/recommendation_service.dart';
+import 'package:vinyl_app/services/onboarding_service.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/theme/theme_provider.dart';
 
@@ -233,17 +234,27 @@ class MyApp extends ConsumerWidget {
 
     if (ref.watch(appLinksEnabledProvider)) {
       ref.listen(discogsIncomingUriProvider, (previous, next) {
-        next.whenData((uri) {
+        next.whenData((uri) async {
           final config = ref.read(discogsConfigProvider);
           if (!config.matchesCallback(uri)) return;
 
-          // Route first so cold-start callbacks land on Settings immediately.
-          // The controller then completes the verifier exchange and the screen
-          // reacts to its state.
-          router.go(AppRoutes.settings);
-          ref
-              .read(discogsAuthorizationControllerProvider.notifier)
-              .handleCallback(uri);
+          final service = ref.read(onboardingServiceProvider);
+          final controller = ref.read(
+            discogsAuthorizationControllerProvider.notifier,
+          );
+          // A live walkthrough (including replay) owns its return destination.
+          bool pending = false;
+          try {
+            pending = await service.hasPendingWalkthrough();
+          } catch (_) {
+            // Storage failure must not block the existing OAuth flow.
+          }
+          if (!context.mounted) return;
+          if (router.routeInformationProvider.value.uri.path !=
+              AppRoutes.onboarding) {
+            router.go(pending ? AppRoutes.collection : AppRoutes.settings);
+          }
+          await controller.handleCallback(uri);
         });
       });
 
