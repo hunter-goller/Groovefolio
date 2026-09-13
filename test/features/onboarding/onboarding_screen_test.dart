@@ -1,230 +1,243 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/onboarding/screens/onboarding_screen.dart';
+import 'package:vinyl_app/features/onboarding/widgets/walkthrough_frame.dart';
 import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
+import 'package:vinyl_app/features/settings/screens/settings_screen.dart';
 import 'package:vinyl_app/repositories/album_repository.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/discogs/discogs_config.dart';
+import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/onboarding_service.dart';
+import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 
 void main() {
+  setUp(() => FlutterSecureStorage.setMockInitialValues({}));
+
   testWidgets(
-    'replay returns to Settings and leaves first-run progress alone',
+    'welcome opens real Settings and Not now branches to Collection',
     (tester) async {
-      final store = _MemoryOnboardingStore()..progress = 3;
-      await tester.pumpWidget(_app(store, replay: true));
+      final store = _MemoryOnboardingStore();
+      await tester.pumpWidget(_app(store));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Replay'));
+      expect(find.byType(PageView), findsNothing);
+      await tester.tap(find.byKey(const Key('guide-start')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('onboarding-next')));
+      expect(find.byType(SettingsScreen), findsOneWidget);
+      expect(find.byKey(const Key('connect-discogs-button')), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const Key('guide-skip-step')));
+      await tester.tap(find.byKey(const Key('guide-skip-step')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('onboarding-skip')));
-      await tester.pumpAndSettle();
-      expect(find.text('Settings test'), findsOneWidget);
-      expect(store.progress, 3);
+      expect(find.text('Collection test'), findsOneWidget);
+      expect(store.progress, 1);
       expect(store.completed, isFalse);
     },
   );
 
-  testWidgets('reduced motion changes page without an animation error', (
+  testWidgets('connected Settings offers import or manual entry', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      _app(_MemoryOnboardingStore(), reducedMotion: true),
-    );
+    await tester.pumpWidget(_app(_MemoryOnboardingStore(), connected: true));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('onboarding-next')));
+    await tester.tap(find.byKey(const Key('guide-start')));
     await tester.pumpAndSettle();
-    expect(find.text('Bring your Discogs collection'), findsOneWidget);
-    expect(tester.takeException(), isNull);
+    expect(find.text('Add manually'), findsOneWidget);
+    expect(find.text('Not now'), findsNothing);
+    final import = find.byKey(const Key('discogs-import-collection-button'));
+    await tester.ensureVisible(import);
+    await tester.tap(import);
+    await tester.pumpAndSettle();
+    expect(find.text('Import route'), findsOneWidget);
+    expect(find.textContaining('After reviewing the result'), findsOneWidget);
   });
 
-  testWidgets('unsupported devices have no NFC setup action', (tester) async {
-    await tester.pumpWidget(_app(_MemoryOnboardingStore()..progress = 5));
-    await tester.pumpAndSettle();
-    expect(find.text('Choose a record to link'), findsNothing);
-    expect(find.byKey(const Key('onboarding-next')), findsOneWidget);
-  });
-
-  testWidgets('supported devices can open NFC setup later', (tester) async {
-    await tester.pumpWidget(
-      _app(_MemoryOnboardingStore()..progress = 5, nfc: true),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Choose a record to link'), findsOneWidget);
-    expect(find.text('Set up later'), findsOneWidget);
-  });
-
-  testWidgets('resumes a saved step and returns from a real action', (
+  testWidgets('replay exit returns to Settings without changing progress', (
     tester,
   ) async {
-    final store = _MemoryOnboardingStore()..progress = 2;
-    await tester.pumpWidget(_app(store));
+    final store = _MemoryOnboardingStore()..progress = 3;
+    await tester.pumpWidget(_app(store, replay: true));
     await tester.pumpAndSettle();
-    expect(find.text('Add records your way'), findsOneWidget);
-    await tester.ensureVisible(find.text('Add a record'));
-    await tester.tap(find.text('Add a record'));
+    await tester.tap(find.byKey(const Key('guide-start')));
     await tester.pumpAndSettle();
-    expect(find.text('Real add route'), findsOneWidget);
-    await tester.tap(find.text('Return to tutorial'));
+    await tester.tap(find.byKey(const Key('guide-skip-step')));
     await tester.pumpAndSettle();
-    expect(find.text('Add records your way'), findsOneWidget);
-    expect(store.progress, 2);
+    await tester.tap(find.byKey(const Key('guide-exit')));
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(store.progress, 3);
     expect(store.completed, isFalse);
+    expect(find.byKey(const Key('guide-exit')), findsNothing);
   });
 
-  testWidgets('failed completion stays recoverable without a raw error', (
+  testWidgets('small display and large text keep guide and screen usable', (
     tester,
   ) async {
-    final store = _MemoryOnboardingStore()..failCompletion = true;
-    await tester.pumpWidget(_app(store));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('onboarding-skip')));
-    await tester.pumpAndSettle();
-    expect(store.completed, isFalse);
-    expect(
-      find.text('Couldn’t save your progress. Please try again.'),
-      findsOneWidget,
-    );
-    expect(tester.takeException(), isNull);
-    store.failCompletion = false;
-    await tester.tap(find.byKey(const Key('onboarding-skip')));
-    await tester.pumpAndSettle();
-    expect(store.completed, isTrue);
-  });
-
-  testWidgets('first-run tutorial advances and Skip persists completion', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(430, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    final store = _MemoryOnboardingStore();
-
-    await tester.pumpWidget(_app(store));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Your record shelf, remembered'), findsOneWidget);
-    expect(find.textContaining('NFC'), findsNothing);
-
-    await tester.tap(find.byKey(const Key('onboarding-next')));
-    await tester.pumpAndSettle();
-    expect(find.text('Bring your Discogs collection'), findsOneWidget);
-    expect(find.byKey(const Key('onboarding-back')), findsOneWidget);
-
-    await tester.tap(find.byKey(const Key('onboarding-skip')));
-    await tester.pumpAndSettle();
-
-    expect(store.completed, isTrue);
-    expect(find.text('Collection test'), findsOneWidget);
-  });
-
-  testWidgets('last page finishes with Get started', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(430, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    final store = _MemoryOnboardingStore();
-
-    await tester.pumpWidget(_app(store));
-    await tester.pumpAndSettle();
-
-    for (var page = 1; page < 8; page++) {
-      await tester.tap(find.byKey(const Key('onboarding-next')));
-      await tester.pumpAndSettle();
-    }
-
-    expect(find.text('Stats and picks improve as you listen'), findsOneWidget);
-    expect(find.byKey(const Key('onboarding-skip')), findsNothing);
-
-    await tester.tap(find.byKey(const Key('onboarding-get-started')));
-    await tester.pumpAndSettle();
-
-    expect(store.completed, isTrue);
-    expect(find.text('Collection test'), findsOneWidget);
-  });
-
-  testWidgets('content remains usable with larger text', (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 700));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-
     await tester.pumpWidget(_app(_MemoryOnboardingStore(), textScale: 1.8));
     await tester.pumpAndSettle();
-
+    await tester.ensureVisible(find.byKey(const Key('guide-start')));
+    await tester.tap(find.byKey(const Key('guide-start')));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(find.byKey(const Key('onboarding-next')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('guide-skip-step')));
+    await tester.tap(find.byKey(const Key('guide-skip-step')));
+    await tester.pumpAndSettle();
+    expect(find.text('Collection test'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
+
+  test(
+    'saved actions advance and a failed progress write can retry without repeating the action',
+    () async {
+      final store = _MemoryOnboardingStore();
+      final container = _container(store);
+      addTearDown(container.dispose);
+      final guide = container.read(walkthroughProvider.notifier);
+      await guide.start();
+      await guide.skipStep();
+      store.failProgress = true;
+      await guide.recordSaved('record');
+      expect(container.read(walkthroughProvider).step, 1);
+      expect(container.read(walkthroughProvider).error, isTrue);
+      store.failProgress = false;
+      await guide.retry();
+      expect(container.read(walkthroughProvider).step, 2);
+      expect(container.read(walkthroughProvider).albumId, 'record');
+      await guide.recordOpened('record');
+      expect(container.read(walkthroughProvider).route, '/album/record');
+      await guide.playSaved('record');
+      expect(store.progress, 4);
+      await guide.nfcLinked();
+      guide.swipeRevealed();
+      expect(container.read(walkthroughProvider).practiced, isTrue);
+      await guide.move(6);
+      await guide.move(7);
+      await guide.finish();
+      expect(store.completed, isTrue);
+      await guide.playSaved('record');
+      expect(container.read(walkthroughProvider).active, isFalse);
+    },
+  );
+
+  test(
+    'resuming a record-specific step asks for a record instead of keeping a stale ID',
+    () async {
+      final store = _MemoryOnboardingStore()..progress = 4;
+      final container = _container(store);
+      addTearDown(container.dispose);
+      final guide = container.read(walkthroughProvider.notifier);
+      await guide.start();
+      expect(container.read(walkthroughProvider).route, AppRoutes.collection);
+      await guide.recordOpened('existing');
+      expect(container.read(walkthroughProvider).step, 4);
+      expect(container.read(walkthroughProvider).route, '/album/existing');
+    },
+  );
+
+  test(
+    'replay never writes first-run progress and finish failures remain recoverable',
+    () async {
+      final store = _MemoryOnboardingStore()..progress = 2;
+      final container = _container(store);
+      addTearDown(container.dispose);
+      final guide = container.read(walkthroughProvider.notifier);
+      await guide.start(replay: true);
+      await guide.move(7);
+      await guide.finish();
+      expect(store.progress, 2);
+      expect(store.completed, isFalse);
+      await guide.start();
+      store.failCompletion = true;
+      expect(await guide.finish(), isFalse);
+      expect(container.read(walkthroughProvider).active, isTrue);
+      store.failCompletion = false;
+      await guide.retry();
+      expect(store.completed, isTrue);
+      expect(container.read(walkthroughProvider).active, isFalse);
+    },
+  );
 }
+
+ProviderContainer _container(_MemoryOnboardingStore store) => ProviderContainer(
+  overrides: [
+    onboardingServiceProvider.overrideWithValue(
+      OnboardingService(store: store, albumRepository: const _Albums()),
+    ),
+  ],
+);
 
 Widget _app(
   _MemoryOnboardingStore store, {
   bool replay = false,
-  bool reducedMotion = false,
-  bool nfc = false,
+  bool connected = false,
   double textScale = 1,
 }) {
-  final service = OnboardingService(
-    store: store,
-    albumRepository: const _Albums(),
-  );
   final router = GoRouter(
-    initialLocation: replay ? AppRoutes.settings : AppRoutes.onboarding,
+    initialLocation: AppRoutes.onboarding,
     routes: [
-      GoRoute(
-        path: AppRoutes.settings,
-        builder: (context, state) => Scaffold(
-          body: Column(
-            children: [
-              const Text('Settings test'),
-              TextButton(
-                onPressed: () => context.push(AppRoutes.onboarding),
-                child: const Text('Replay'),
-              ),
-            ],
+      ShellRoute(
+        builder: (context, state, child) =>
+            WalkthroughFrame(path: state.uri.path, child: child),
+        routes: [
+          GoRoute(
+            path: AppRoutes.onboarding,
+            builder: (context, state) => OnboardingScreen(replay: replay),
           ),
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.addAlbum,
-        builder: (context, state) => Scaffold(
-          body: Column(
-            children: [
-              const Text('Real add route'),
-              TextButton(
-                onPressed: () => context.pop(),
-                child: const Text('Return to tutorial'),
-              ),
-            ],
+          GoRoute(
+            path: AppRoutes.settings,
+            builder: (context, state) => const SettingsScreen(),
           ),
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.collection,
-        builder: (context, state) =>
-            const Scaffold(body: Center(child: Text('Collection test'))),
-      ),
-      GoRoute(
-        path: AppRoutes.onboarding,
-        builder: (context, state) => OnboardingScreen(replay: replay),
+          GoRoute(
+            path: AppRoutes.collection,
+            builder: (context, state) =>
+                const Scaffold(body: Text('Collection test')),
+          ),
+          GoRoute(
+            path: AppRoutes.discogsCollectionImport,
+            builder: (context, state) =>
+                const Scaffold(body: Text('Import route')),
+          ),
+        ],
       ),
     ],
   );
-
+  addTearDown(router.dispose);
   return ProviderScope(
     overrides: [
-      onboardingServiceProvider.overrideWithValue(service),
-      discogsAccountProvider.overrideWith((ref) async => null),
-      nfcHelpVisibleProvider.overrideWithValue(nfc),
+      onboardingServiceProvider.overrideWithValue(
+        OnboardingService(store: store, albumRepository: const _Albums()),
+      ),
+      discogsConfigProvider.overrideWithValue(
+        const DiscogsConfig(consumerKey: 'test', consumerSecret: 'test'),
+      ),
+      discogsAccountProvider.overrideWithValue(
+        AsyncData(
+          connected
+              ? const DiscogsAccount(
+                  id: 1,
+                  username: 'listener',
+                  resourceUrl: 'https://api.discogs.com/users/listener',
+                )
+              : null,
+        ),
+      ),
+      nfcHelpVisibleProvider.overrideWithValue(false),
+      developerToolsEnabledProvider.overrideWithValue(false),
     ],
     child: MaterialApp.router(
       theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
       routerConfig: router,
       builder: (context, child) => MediaQuery(
         data: MediaQuery.of(context).copyWith(
-          disableAnimations: reducedMotion,
           textScaler: TextScaler.linear(textScale),
+          disableAnimations: true,
         ),
         child: child!,
       ),
@@ -240,9 +253,11 @@ class _MemoryOnboardingStore implements OnboardingStore {
 
   @override
   Future<void> saveProgress(int step) async {
+    if (failProgress) throw StateError('storage unavailable');
     progress = step;
   }
 
+  bool failProgress = false;
   bool completed = false;
   bool failCompletion = false;
 

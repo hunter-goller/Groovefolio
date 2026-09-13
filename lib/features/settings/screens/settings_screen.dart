@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
 import 'package:vinyl_app/features/settings/widgets/discogs_connection_card.dart';
 import 'package:vinyl_app/features/settings/widgets/settings_preferences.dart';
@@ -47,24 +48,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
             SizedBox(height: tokens.space12),
-            DiscogsConnectionCard(
-              configured: config.isConfigured,
-              accountAsync: accountAsync,
-              authorization: authorization,
-              onConnect: () => ref
-                  .read(discogsAuthorizationControllerProvider.notifier)
-                  .connect(),
-              onCancel: () => ref
-                  .read(discogsAuthorizationControllerProvider.notifier)
-                  .cancelAuthorization(),
-              onDisconnect: () => ref
-                  .read(discogsAuthorizationControllerProvider.notifier)
-                  .disconnect(),
-              onImport: () => context.push(AppRoutes.discogsCollectionImport),
-              onRetryIdentity: () => ref.invalidate(discogsAccountProvider),
-              onClearFailure: () => ref
-                  .read(discogsAuthorizationControllerProvider.notifier)
-                  .clearFailure(),
+            GuideTarget(
+              steps: const [0],
+              child: DiscogsConnectionCard(
+                configured: config.isConfigured,
+                accountAsync: accountAsync,
+                authorization: authorization,
+                onConnect: () => ref
+                    .read(discogsAuthorizationControllerProvider.notifier)
+                    .connect(),
+                onCancel: () => ref
+                    .read(discogsAuthorizationControllerProvider.notifier)
+                    .cancelAuthorization(),
+                onDisconnect: () => ref
+                    .read(discogsAuthorizationControllerProvider.notifier)
+                    .disconnect(),
+                onImport: () => context.push(AppRoutes.discogsCollectionImport),
+                onRetryIdentity: () => ref.invalidate(discogsAccountProvider),
+                onClearFailure: () => ref
+                    .read(discogsAuthorizationControllerProvider.notifier)
+                    .clearFailure(),
+              ),
             ),
             SizedBox(height: tokens.space24),
             Text(

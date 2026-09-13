@@ -1,0 +1,52 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vinyl_app/services/walkthrough_controller.dart';
+
+/// Highlights the real control without intercepting taps or swipe gestures.
+class GuideTarget extends ConsumerStatefulWidget {
+  const GuideTarget({
+    super.key,
+    required this.steps,
+    required this.child,
+    this.reveal = false,
+  });
+  final List<int> steps;
+  final Widget child;
+  final bool reveal;
+
+  @override
+  ConsumerState<GuideTarget> createState() => _GuideTargetState();
+}
+
+class _GuideTargetState extends ConsumerState<GuideTarget> {
+  bool _revealed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final guide = ref.watch(walkthroughProvider);
+    final highlighted = guide.active && widget.steps.contains(guide.step);
+    if (highlighted && widget.reveal && !_revealed) {
+      _revealed = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Scrollable.ensureVisible(
+            context,
+            alignment: 0.5,
+            duration: Duration.zero,
+          );
+        }
+      });
+    }
+    if (!highlighted) _revealed = false;
+    return DecoratedBox(
+      position: DecorationPosition.foreground,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: highlighted
+            ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
+            : null,
+      ),
+      child: widget.child,
+    );
+  }
+}

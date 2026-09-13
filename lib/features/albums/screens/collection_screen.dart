@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/albums/album_delete_flow.dart';
+import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/widgets/shared/album_list_tile.dart';
@@ -234,15 +236,18 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         ),
       ),
       floatingActionButton: hasAlbums && !_showSearch
-          ? FloatingActionButton.extended(
-              onPressed: () => context.push(
-                GoRouterState.of(context).uri.queryParameters['onboarding'] ==
-                        'true'
-                    ? '${AppRoutes.addAlbum}?onboarding=true'
-                    : AppRoutes.addAlbum,
+          ? GuideTarget(
+              steps: const [1],
+              child: FloatingActionButton.extended(
+                onPressed: () => context.push(
+                  GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+                          'true'
+                      ? '${AppRoutes.addAlbum}?onboarding=true'
+                      : AppRoutes.addAlbum,
+                ),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Add record'),
               ),
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Add record'),
             )
           : null,
       bottomNavigationBar: BottomNavBar(
@@ -318,6 +323,7 @@ class _CollectionAlbumTileState extends ConsumerState<_CollectionAlbumTile> {
   void _open() {
     widget.openSwipeAlbumId.value = album.id;
     setState(() => _offset = _revealedOffset);
+    ref.read(walkthroughProvider.notifier).swipeRevealed();
   }
 
   void _close() {
@@ -327,12 +333,26 @@ class _CollectionAlbumTileState extends ConsumerState<_CollectionAlbumTile> {
     setState(() => _offset = 0);
   }
 
+  bool _practiceAction() {
+    final guide = ref.read(walkthroughProvider);
+    if (!guide.active || guide.step != 5) return false;
+    ref.read(walkthroughProvider.notifier).swipeRevealed();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Practice only — your record has not changed.'),
+      ),
+    );
+    return true;
+  }
+
   Future<void> _edit() async {
+    ref.read(walkthroughProvider.notifier).swipeRevealed();
     _close();
     await context.push(AppRoutes.editAlbumPath(album.id));
   }
 
   Future<void> _delete() async {
+    if (_practiceAction()) return;
     _close();
     await confirmAndDeleteAlbum(context, ref, album.id);
   }
@@ -430,21 +450,31 @@ class _CollectionAlbumTileState extends ConsumerState<_CollectionAlbumTile> {
                 },
                 child: ColoredBox(
                   color: context.theme.scaffoldBackgroundColor,
-                  child: AlbumListTile(
-                    title: album.title,
-                    artist: album.artistName,
-                    releaseYear: album.album.releaseYear,
-                    artworkPath: album.album.artworkPath,
-                    playCount: album.playCount,
-                    lastPlayedAt: album.lastPlayedAt,
-                    genres: genres,
-                    onTap: () {
-                      if (actionsAreVisible) {
-                        _close();
-                      } else {
-                        context.push(AppRoutes.albumDetailPath(album.id));
-                      }
-                    },
+                  child: GuideTarget(
+                    steps: const [2, 3, 4, 5],
+                    child: AlbumListTile(
+                      title: album.title,
+                      artist: album.artistName,
+                      releaseYear: album.album.releaseYear,
+                      artworkPath: album.album.artworkPath,
+                      playCount: album.playCount,
+                      lastPlayedAt: album.lastPlayedAt,
+                      genres: genres,
+                      onTap: () {
+                        if (actionsAreVisible) {
+                          _close();
+                        } else {
+                          final guide = ref.read(walkthroughProvider);
+                          if (guide.active && [2, 3, 4].contains(guide.step)) {
+                            ref
+                                .read(walkthroughProvider.notifier)
+                                .recordOpened(album.id);
+                          } else {
+                            context.push(AppRoutes.albumDetailPath(album.id));
+                          }
+                        }
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -611,18 +641,21 @@ class _CollectionBody extends StatelessWidget {
               onCtaTap: onClearSearch,
             )
           else
-            EmptyState(
-              key: const Key('collection-empty-state'),
-              icon: Icons.album_outlined,
-              title: 'Your collection is empty',
-              subtitle:
-                  'Add your first record and Groovefolio will start building your listening history.',
-              ctaLabel: 'Add your first record',
-              onCtaTap: () => context.push(
-                GoRouterState.of(context).uri.queryParameters['onboarding'] ==
-                        'true'
-                    ? '${AppRoutes.addAlbum}?onboarding=true'
-                    : AppRoutes.addAlbum,
+            GuideTarget(
+              steps: const [1],
+              child: EmptyState(
+                key: const Key('collection-empty-state'),
+                icon: Icons.album_outlined,
+                title: 'Your collection is empty',
+                subtitle:
+                    'Add your first record and Groovefolio will start building your listening history.',
+                ctaLabel: 'Add your first record',
+                onCtaTap: () => context.push(
+                  GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+                          'true'
+                      ? '${AppRoutes.addAlbum}?onboarding=true'
+                      : AppRoutes.addAlbum,
+                ),
               ),
             ),
         ],

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
+import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 
 /// Primary app navigation shared by Collection, Stats, and Discover.
-class BottomNavBar extends StatelessWidget {
+class BottomNavBar extends ConsumerWidget {
   const BottomNavBar({
     required this.currentIndex,
     required this.onTap,
@@ -13,7 +16,7 @@ class BottomNavBar extends StatelessWidget {
   final ValueChanged<int> onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
 
     return NavigationBarTheme(
@@ -42,21 +45,37 @@ class BottomNavBar extends StatelessWidget {
       ),
       child: NavigationBar(
         selectedIndex: currentIndex,
-        onDestinationSelected: onTap,
-        destinations: const [
-          NavigationDestination(
+        onDestinationSelected: (index) {
+          final guide = ref.read(walkthroughProvider);
+          if (guide.active &&
+              guide.step == 6 &&
+              currentIndex == 1 &&
+              index == 2) {
+            ref.read(walkthroughProvider.notifier).move(7);
+          } else {
+            onTap(index);
+          }
+        },
+        destinations: [
+          const NavigationDestination(
             icon: Icon(Icons.album_outlined),
             selectedIcon: Icon(Icons.album_rounded),
             label: 'Collection',
           ),
           NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart_rounded),
+            icon: GuideTarget(
+              steps: currentIndex == 0 ? const [6] : const [],
+              child: const Icon(Icons.bar_chart_outlined),
+            ),
+            selectedIcon: const Icon(Icons.bar_chart_rounded),
             label: 'Stats',
           ),
           NavigationDestination(
-            icon: Icon(Icons.explore_outlined),
-            selectedIcon: Icon(Icons.explore_rounded),
+            icon: GuideTarget(
+              steps: currentIndex == 1 ? const [6] : const [],
+              child: const Icon(Icons.explore_outlined),
+            ),
+            selectedIcon: const Icon(Icons.explore_rounded),
             label: 'Discover',
           ),
         ],

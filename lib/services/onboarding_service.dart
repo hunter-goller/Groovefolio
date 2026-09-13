@@ -17,7 +17,7 @@ class SecureOnboardingStore implements OnboardingStore {
 
   static const _completionKey = 'groovefolio.onboarding.completed.v1';
 
-  static const _progressKey = 'groovefolio.onboarding.progress.v2';
+  static const _progressKey = 'groovefolio.onboarding.progress.v3';
 
   final FlutterSecureStorage _storage;
 

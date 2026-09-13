@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -18,6 +17,7 @@ import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/notifications/nfc_play_notification_service.dart';
 import 'package:vinyl_app/services/onboarding_service.dart';
 import 'package:vinyl_app/services/recommendation_service.dart';
+import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/theme/theme_provider.dart';
 
@@ -252,7 +252,13 @@ class MyApp extends ConsumerWidget {
           if (!context.mounted) return;
           if (router.routeInformationProvider.value.uri.path !=
               AppRoutes.onboarding) {
-            router.go(pending ? AppRoutes.collection : AppRoutes.settings);
+            router.go(
+              ref.read(walkthroughProvider).active
+                  ? AppRoutes.settings
+                  : pending
+                  ? AppRoutes.collection
+                  : AppRoutes.settings,
+            );
           }
           await controller.handleCallback(uri);
         });
