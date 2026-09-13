@@ -250,15 +250,13 @@ class MyApp extends ConsumerWidget {
             // Storage failure must not block the existing OAuth flow.
           }
           if (!context.mounted) return;
-          if (router.routeInformationProvider.value.uri.path !=
+          final guide = ref.read(walkthroughProvider);
+          if (guide.active) {
+            // A late callback must not pull the user out of a later form.
+            if (guide.step == 0) router.go(AppRoutes.settings);
+          } else if (router.routeInformationProvider.value.uri.path !=
               AppRoutes.onboarding) {
-            router.go(
-              ref.read(walkthroughProvider).active
-                  ? AppRoutes.settings
-                  : pending
-                  ? AppRoutes.collection
-                  : AppRoutes.settings,
-            );
+            router.go(pending ? AppRoutes.collection : AppRoutes.settings);
           }
           await controller.handleCallback(uri);
         });

@@ -45,6 +45,8 @@ class WalkthroughController extends Notifier<WalkthroughState> {
 
   Future<bool> start({bool replay = false}) async {
     if (state.busy) return false;
+    _pending = null;
+    _pendingFinish = false;
     state = WalkthroughState(busy: true, replay: replay);
     try {
       final service = ref.read(onboardingServiceProvider);
@@ -60,6 +62,7 @@ class WalkthroughController extends Notifier<WalkthroughState> {
 
   Future<void> move(int step, {String? albumId}) async {
     if (!state.active || state.busy || state.error) return;
+    if (step < 0 || step > 7) return;
     await _persist(
       WalkthroughState(
         active: true,

@@ -178,7 +178,17 @@ class _GuidePanel extends ConsumerWidget {
                     if (guide.error)
                       TextButton(
                         key: const Key('guide-retry'),
-                        onPressed: controller.retry,
+                        onPressed: () async {
+                          await controller.retry();
+                          if (context.mounted &&
+                              !ref.read(walkthroughProvider).active) {
+                            context.go(
+                              guide.replay
+                                  ? AppRoutes.settings
+                                  : AppRoutes.collection,
+                            );
+                          }
+                        },
                         child: const Text('Retry saving progress'),
                       )
                     else if (!intended)
