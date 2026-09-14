@@ -27,7 +27,7 @@ class _GuideCueOverlayState extends State<GuideCueOverlay>
   void didChangeDependencies() {
     super.didChangeDependencies();
     final reduced = MediaQuery.disableAnimationsOf(context);
-    if (reduced || !TickerMode.of(context)) {
+    if (reduced || !TickerMode.valuesOf(context).enabled) {
       _controller.stop();
     } else if (widget.cue != GuideCue.field && !_controller.isCompleted) {
       if (!_started) {
