@@ -144,6 +144,6 @@ void main() {
     );
     expect(find.byKey(const Key('guide-cue-symbol')), findsNothing);
     expect(tester.getSize(find.byKey(const Key('real-control'))).width, 280);
-    expect(tester.binding.hasScheduledFrame, isFalse);
+    expect(tester.binding.transientCallbackCount, 0);
   });
 }
