@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:vinyl_app/db/app_database.dart';
+import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
@@ -17,6 +17,7 @@ import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/record_write_service.dart';
+import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
 import 'package:vinyl_app/widgets/shared/discogs_banner.dart';
@@ -309,7 +310,19 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
 
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
-      context.go(AppRoutes.collection);
+      if (ref.read(walkthroughProvider).active) {
+        await ref
+            .read(walkthroughProvider.notifier)
+            .recordSaved(createdAlbum.id);
+        if (!mounted) return;
+        context.go(AppRoutes.collection);
+      } else if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+              'true' &&
+          context.canPop()) {
+        context.pop();
+      } else {
+        context.go(AppRoutes.collection);
+      }
       if (nfcOutcome == NfcWriteOutcome.written) {
         messenger.showSnackBar(
           const SnackBar(content: Text('Record added and NFC tag linked.')),
@@ -350,9 +363,16 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
       appBar: AppBar(
         title: const Text('Add a record'),
         actions: [
-          TextButton(
-            onPressed: isSaving ? null : _save,
-            child: const Text('Save'),
+          GuideTarget(
+            steps:
+                _titleController.text.trim().isNotEmpty &&
+                    _artistController.text.trim().isNotEmpty
+                ? const [1, 2]
+                : const [],
+            child: TextButton(
+              onPressed: isSaving ? null : _save,
+              child: const Text('Save'),
+            ),
           ),
           const SizedBox(width: 8),
         ],
@@ -386,24 +406,38 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
                     Expanded(
                       child: Column(
                         children: [
-                          LabeledTextField(
-                            key: const Key('add-record-title'),
-                            label: 'TITLE *',
-                            controller: _titleController,
-                            hint: 'Blue Train',
-                            enabled: !isSaving,
-                            textInputAction: TextInputAction.next,
-                            validator: _requiredValidator('Title'),
+                          GuideTarget(
+                            steps: _titleController.text.trim().isEmpty
+                                ? const [1, 2]
+                                : const [],
+                            cue: GuideCue.field,
+                            child: LabeledTextField(
+                              key: const Key('add-record-title'),
+                              label: 'TITLE *',
+                              controller: _titleController,
+                              hint: 'Blue Train',
+                              enabled: !isSaving,
+                              textInputAction: TextInputAction.next,
+                              validator: _requiredValidator('Title'),
+                            ),
                           ),
                           SizedBox(height: tokens.space12),
-                          LabeledTextField(
-                            key: const Key('add-record-artist'),
-                            label: 'ARTIST *',
-                            controller: _artistController,
-                            hint: 'John Coltrane',
-                            enabled: !isSaving,
-                            textInputAction: TextInputAction.next,
-                            validator: _requiredValidator('Artist'),
+                          GuideTarget(
+                            steps:
+                                _titleController.text.trim().isNotEmpty &&
+                                    _artistController.text.trim().isEmpty
+                                ? const [1, 2]
+                                : const [],
+                            cue: GuideCue.field,
+                            child: LabeledTextField(
+                              key: const Key('add-record-artist'),
+                              label: 'ARTIST *',
+                              controller: _artistController,
+                              hint: 'John Coltrane',
+                              enabled: !isSaving,
+                              textInputAction: TextInputAction.next,
+                              validator: _requiredValidator('Artist'),
+                            ),
                           ),
                         ],
                       ),

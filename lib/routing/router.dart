@@ -8,6 +8,7 @@ import 'package:vinyl_app/features/albums/screens/edit_album_screen.dart';
 import 'package:vinyl_app/features/discover/screens/discover_screen.dart';
 import 'package:vinyl_app/features/onboarding/screens/onboarding_screen.dart';
 import 'package:vinyl_app/features/onboarding/widgets/onboarding_gate.dart';
+import 'package:vinyl_app/features/onboarding/widgets/walkthrough_frame.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/features/settings/screens/discogs_collection_import_screen.dart';
 import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
@@ -34,60 +35,68 @@ GoRouter router(Ref ref) {
   return GoRouter(
     initialLocation: AppRoutes.collection,
     routes: [
-      GoRoute(
-        path: AppRoutes.collection,
-        builder: (context, state) =>
-            const OnboardingGate(child: CollectionScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.stats,
-        builder: (context, state) => const StatsScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.discover,
-        builder: (context, state) => const DiscoverScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.addAlbum,
-        builder: (context, state) => const AddRecordScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.barcodeScan,
-        builder: (context, state) => const BarcodeScannerScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.albumDetail,
-        builder: (context, state) {
-          final albumId = state.pathParameters['id']!;
-          return AlbumDetailScreen(albumId: albumId);
-        },
-      ),
-      GoRoute(
-        path: AppRoutes.editAlbum,
-        builder: (context, state) {
-          final albumId = state.pathParameters['id']!;
-          return EditAlbumScreen(albumId: albumId);
-        },
-      ),
-      GoRoute(
-        path: AppRoutes.logPlay,
-        builder: (context, state) => const LogPlayScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.nfcHelp,
-        builder: (context, state) => const NfcHelpScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.settings,
-        builder: (context, state) => const SettingsScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.onboarding,
-        builder: (context, state) => const OnboardingScreen(replay: true),
-      ),
-      GoRoute(
-        path: AppRoutes.discogsCollectionImport,
-        builder: (context, state) => const DiscogsCollectionImportScreen(),
+      ShellRoute(
+        builder: (context, state, child) =>
+            WalkthroughFrame(path: state.uri.path, child: child),
+        routes: [
+          GoRoute(
+            path: AppRoutes.collection,
+            builder: (context, state) =>
+                state.uri.queryParameters['onboarding'] == 'true'
+                ? const CollectionScreen()
+                : const OnboardingGate(child: CollectionScreen()),
+          ),
+          GoRoute(
+            path: AppRoutes.stats,
+            builder: (context, state) => const StatsScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.discover,
+            builder: (context, state) => const DiscoverScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.addAlbum,
+            builder: (context, state) => const AddRecordScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.barcodeScan,
+            builder: (context, state) => const BarcodeScannerScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.albumDetail,
+            builder: (context, state) {
+              final albumId = state.pathParameters['id']!;
+              return AlbumDetailScreen(albumId: albumId);
+            },
+          ),
+          GoRoute(
+            path: AppRoutes.editAlbum,
+            builder: (context, state) {
+              final albumId = state.pathParameters['id']!;
+              return EditAlbumScreen(albumId: albumId);
+            },
+          ),
+          GoRoute(
+            path: AppRoutes.logPlay,
+            builder: (context, state) => const LogPlayScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.nfcHelp,
+            builder: (context, state) => const NfcHelpScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.settings,
+            builder: (context, state) => const SettingsScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.onboarding,
+            builder: (context, state) => const OnboardingScreen(replay: true),
+          ),
+          GoRoute(
+            path: AppRoutes.discogsCollectionImport,
+            builder: (context, state) => const DiscogsCollectionImportScreen(),
+          ),
+        ],
       ),
     ],
   );

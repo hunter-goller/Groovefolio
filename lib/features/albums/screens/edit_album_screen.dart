@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +10,7 @@ import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/artwork_storage_service.dart';
 import 'package:vinyl_app/services/record_write_service.dart';
+import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
 import 'package:vinyl_app/widgets/shared/genre_chip_input.dart';
@@ -139,7 +139,12 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
       ref.invalidate(albumsProvider);
 
       if (!mounted) return;
-      context.go(AppRoutes.albumDetailPath(existing.id));
+      final guide = ref.read(walkthroughProvider);
+      context.go(
+        guide.active && guide.step == 5
+            ? AppRoutes.collection
+            : AppRoutes.albumDetailPath(existing.id),
+      );
     } catch (error) {
       if (wroteArtwork && writtenArtworkPath != null) {
         final artworkStorage = ref.read(artworkStorageServiceProvider);

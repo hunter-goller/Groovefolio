@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +8,7 @@ import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/discogs/discogs_collection_import_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
+import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 
 class DiscogsCollectionImportScreen extends ConsumerStatefulWidget {
@@ -143,7 +143,23 @@ class _DiscogsCollectionImportScreenState
           (false, true, _, _, _) => _ImportProgressState(progress: _progress),
           (false, false, final result?, _, _) => _ImportResultState(
             result: result,
-            onViewCollection: () => context.go(AppRoutes.collection),
+            onViewCollection: () async {
+              if (ref.read(walkthroughProvider).active) {
+                await ref
+                    .read(walkthroughProvider.notifier)
+                    .move(result.imported > 0 ? 2 : 1);
+                if (!context.mounted) return;
+                context.go(AppRoutes.collection);
+                return;
+              }
+              if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+                      'true' &&
+                  context.canPop()) {
+                context.pop();
+              } else {
+                context.go(AppRoutes.collection);
+              }
+            },
             onImportMore: _loadPreview,
           ),
           (false, false, _, final error?, _) => _ImportErrorState(

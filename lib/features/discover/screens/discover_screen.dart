@@ -42,7 +42,12 @@ class DiscoverScreen extends ConsumerWidget {
             AppRoutes.stats,
             AppRoutes.discover,
           ];
-          context.go(routes[index]);
+          if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+              'true') {
+            context.push('${routes[index]}?onboarding=true');
+          } else {
+            context.go(routes[index]);
+          }
         },
       ),
     );
@@ -703,7 +708,14 @@ class _LowDataCard extends StatelessWidget {
                   SizedBox(height: tokens.space12),
                   FilledButton.icon(
                     key: const Key('discover-log-play'),
-                    onPressed: () => context.push(AppRoutes.logPlay),
+                    onPressed: () => context.push(
+                      GoRouterState.of(
+                                context,
+                              ).uri.queryParameters['onboarding'] ==
+                              'true'
+                          ? '${AppRoutes.logPlay}?onboarding=true'
+                          : AppRoutes.logPlay,
+                    ),
                     icon: const Icon(Icons.add_rounded),
                     label: const Text('Log a play'),
                   ),
@@ -792,7 +804,12 @@ class _EmptyCollectionCard extends StatelessWidget {
             SizedBox(height: tokens.space16),
             FilledButton.icon(
               key: const Key('discover-add-record'),
-              onPressed: () => context.push(AppRoutes.addAlbum),
+              onPressed: () => context.push(
+                GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+                        'true'
+                    ? '${AppRoutes.addAlbum}?onboarding=true'
+                    : AppRoutes.addAlbum,
+              ),
               icon: const Icon(Icons.add_rounded),
               label: const Text('Add record'),
             ),

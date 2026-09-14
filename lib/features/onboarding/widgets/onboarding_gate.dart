@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/features/onboarding/screens/onboarding_screen.dart';
 import 'package:vinyl_app/services/onboarding_service.dart';
+import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 
 class OnboardingGate extends ConsumerWidget {
@@ -11,6 +12,7 @@ class OnboardingGate extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(walkthroughProvider).active) return child;
     return ref
         .watch(onboardingRequiredProvider)
         .when(
