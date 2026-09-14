@@ -74,6 +74,8 @@ void main() {
     );
     expect(saveButtonFinder, findsOneWidget);
     expect(tester.widget<FilledButton>(saveButtonFinder).onPressed, isNotNull);
+    await tester.drag(find.byType(ListView).last, const Offset(0, 1500));
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.byTooltip('Close'));
     await tester.tap(find.byTooltip('Close'));
     await tester.pumpAndSettle();

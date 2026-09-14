@@ -108,7 +108,7 @@ class _GuidePanel extends ConsumerWidget {
       _ =>
         'Discover uses your collection and listening history to suggest records. With little history, suggestions may be limited. Your walkthrough is complete.',
     };
-    final intended = switch (guide.step) {
+    final bool intended = switch (guide.step) {
       0 =>
         path == AppRoutes.settings || path == AppRoutes.discogsCollectionImport,
       1 =>
@@ -120,11 +120,10 @@ class _GuidePanel extends ConsumerWidget {
             (guide.step == 2 && path == AppRoutes.addAlbum) ||
             (guide.step == 5 && path.endsWith('/edit')),
       3 =>
-        playFormOpen
-            ? 'Choose the record, date and side in the form below, then tap Save play. Saving adds a real listen and continues to optional NFC.'
-            : onCollection ||
-                  path.startsWith('/album/') ||
-                  path == AppRoutes.logPlay,
+        playFormOpen ||
+            onCollection ||
+            path.startsWith('/album/') ||
+            path == AppRoutes.logPlay,
       4 =>
         onCollection || path.startsWith('/album/') || path == AppRoutes.nfcHelp,
       6 => onCollection || onStats,
