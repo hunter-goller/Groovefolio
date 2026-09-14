@@ -76,35 +76,34 @@ class _GuidePanel extends ConsumerWidget {
             ? 'Choose the records you want and tap Import. After reviewing the result, tap View collection.'
             : connected
             ? 'Tap Import Discogs collection in Settings, or choose Add manually below.'
-            : 'In Settings below, tap Connect Discogs. Your browser will open; approve access and return here. Not now takes you to manual entry.',
+            : 'Tap Connect Discogs, then approve in your browser. Or choose Not now.',
       1 =>
         path == AppRoutes.addAlbum
-            ? 'Enter a title and artist, or use Discogs search or Scan barcode. Tap Save when ready; this adds a real record.'
-            : 'Tap the outlined Add record control below. Already have a record? Choose Use existing record.',
-      2 =>
-        'Tap a record below to open Album Details. If your shelf is empty, add one first or skip this step.',
+            ? 'Enter a title, then an artist. Tap Save to add this record.'
+            : 'Tap Add record, or choose Use existing record.',
+      2 => 'Tap a record to open Album Details. Empty shelf? Add one or skip.',
       3 =>
         playFormOpen
-            ? 'Choose the record, date and side in the form below, then tap Save play. Saving adds a real listen and continues to optional NFC.'
+            ? 'Choose a date and side, then tap Save play. This saves a real listen.'
             : onCollection
             ? 'Choose a record below to continue with logging a listen.'
-            : 'Tap the outlined Log play button. Choose a full album or side and save. This records a real listen.',
+            : 'Tap Log first play (or Log another play) to record a listen.',
       4 =>
         !nfcVisible
             ? 'NFC is optional. If this phone supports it, enable NFC in Android settings; otherwise choose Not now.'
             : onCollection
             ? 'Choose a record below, then use its Record actions menu to link a tag.'
-            : 'Open the outlined Record actions menu and choose Link NFC tag. Hold a writable tag to your phone. You can skip this.',
+            : 'Tap the record menu, then Link NFC tag. Hold a writable tag to your phone.',
       5 =>
         path.endsWith('/edit')
             ? 'This is the real edit form. Change any details you want and save, or go Back to keep them unchanged.'
             : guide.practiced
-            ? 'Tap Edit to open the real edit form. Delete is a safe practice tap in this step; it will not remove a record. Choose Continue when ready.'
-            : 'Swipe left on an outlined record to reveal Edit and Delete. You can try editing; Delete is a safe practice tap during this step.',
+            ? 'Try Edit, or safely tap Delete. No record is deleted in this step. Choose Continue when ready.'
+            : 'Swipe a record left to reveal Edit and Delete. Delete is practice-only in this step.',
       6 =>
         onStats
-            ? 'This is your real play history. Explore the trends, then tap the outlined Discover tab.'
-            : 'Tap the outlined Stats tab at the bottom. If you skipped logging, you’ll see its empty state.',
+            ? 'Explore your play history, then tap Discover.'
+            : 'Tap Stats to see your listening history.',
       _ =>
         'Discover uses your collection and listening history to suggest records. With little history, suggestions may be limited. Your walkthrough is complete.',
     };

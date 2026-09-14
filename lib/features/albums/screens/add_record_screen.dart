@@ -364,7 +364,11 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
         title: const Text('Add a record'),
         actions: [
           GuideTarget(
-            steps: const [1, 2],
+            steps:
+                _titleController.text.trim().isNotEmpty &&
+                    _artistController.text.trim().isNotEmpty
+                ? const [1, 2]
+                : const [],
             child: TextButton(
               onPressed: isSaving ? null : _save,
               child: const Text('Save'),
@@ -403,7 +407,10 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
                       child: Column(
                         children: [
                           GuideTarget(
-                            steps: const [1, 2],
+                            steps: _titleController.text.trim().isEmpty
+                                ? const [1, 2]
+                                : const [],
+                            cue: GuideCue.field,
                             child: LabeledTextField(
                               key: const Key('add-record-title'),
                               label: 'TITLE *',
@@ -416,7 +423,12 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
                           ),
                           SizedBox(height: tokens.space12),
                           GuideTarget(
-                            steps: const [1, 2],
+                            steps:
+                                _titleController.text.trim().isNotEmpty &&
+                                    _artistController.text.trim().isEmpty
+                                ? const [1, 2]
+                                : const [],
+                            cue: GuideCue.field,
                             child: LabeledTextField(
                               key: const Key('add-record-artist'),
                               label: 'ARTIST *',

@@ -280,8 +280,10 @@ class _CollectionAlbumTile extends ConsumerStatefulWidget {
   const _CollectionAlbumTile({
     required this.album,
     required this.openSwipeAlbumId,
+    this.guideExample = false,
   });
 
+  final bool guideExample;
   final CollectionAlbum album;
   final ValueNotifier<String?> openSwipeAlbumId;
 
@@ -458,6 +460,14 @@ class _CollectionAlbumTileState extends ConsumerState<_CollectionAlbumTile> {
                   color: context.theme.scaffoldBackgroundColor,
                   child: GuideTarget(
                     steps: const [2, 3, 4, 5],
+                    cue: !widget.guideExample
+                        ? GuideCue.none
+                        : ref.watch(walkthroughProvider).step == 5
+                        ? ref.watch(walkthroughProvider).practiced
+                              ? GuideCue.none
+                              : GuideCue.swipe
+                        : GuideCue.tap,
+                    reveal: widget.guideExample,
                     child: AlbumListTile(
                       title: album.title,
                       artist: album.artistName,
@@ -619,6 +629,7 @@ class _CollectionBody extends StatelessWidget {
             for (var index = 0; index < albums.length; index++) ...[
               _CollectionAlbumTile(
                 album: albums[index],
+                guideExample: index == 0,
                 openSwipeAlbumId: openSwipeAlbumId,
               ),
               if (index != albums.length - 1)
@@ -649,8 +660,10 @@ class _CollectionBody extends StatelessWidget {
           else
             GuideTarget(
               steps: const [1],
+              cue: GuideCue.none,
               child: EmptyState(
                 key: const Key('collection-empty-state'),
+                guideSteps: const [1],
                 icon: Icons.album_outlined,
                 title: 'Your collection is empty',
                 subtitle:

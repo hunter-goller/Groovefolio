@@ -50,6 +50,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             SizedBox(height: tokens.space12),
             GuideTarget(
               steps: const [0],
+              cue: GuideCue.none,
               child: DiscogsConnectionCard(
                 configured: config.isConfigured,
                 accountAsync: accountAsync,

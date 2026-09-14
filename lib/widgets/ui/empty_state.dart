@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 
@@ -10,6 +11,7 @@ class EmptyState extends StatelessWidget {
     required this.subtitle,
     this.ctaLabel,
     this.onCtaTap,
+    this.guideSteps = const [],
     super.key,
   }) : assert(
          (ctaLabel == null) == (onCtaTap == null),
@@ -21,6 +23,7 @@ class EmptyState extends StatelessWidget {
   final String subtitle;
   final String? ctaLabel;
   final VoidCallback? onCtaTap;
+  final List<int> guideSteps;
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +67,14 @@ class EmptyState extends StatelessWidget {
           ),
           if (ctaLabel != null) ...[
             SizedBox(height: tokens.space24),
-            PrimaryButton(label: ctaLabel!, onPressed: onCtaTap),
+            if (guideSteps.isEmpty)
+              PrimaryButton(label: ctaLabel!, onPressed: onCtaTap)
+            else
+              GuideTarget(
+                steps: guideSteps,
+                outlineGap: true,
+                child: PrimaryButton(label: ctaLabel!, onPressed: onCtaTap),
+              ),
           ],
         ],
       ),

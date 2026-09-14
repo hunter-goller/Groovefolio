@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
@@ -219,11 +220,15 @@ class _ConnectionBody extends StatelessWidget {
           SizedBox(height: tokens.space8),
           _DiscogsDataLink(account: account!),
           SizedBox(height: tokens.space12),
-          FilledButton.icon(
-            key: const Key('discogs-import-collection-button'),
-            onPressed: onImport,
-            icon: const Icon(Icons.download_rounded),
-            label: const Text('Import Discogs collection'),
+          GuideTarget(
+            steps: const [0],
+            outlineGap: true,
+            child: FilledButton.icon(
+              key: const Key('discogs-import-collection-button'),
+              onPressed: onImport,
+              icon: const Icon(Icons.download_rounded),
+              label: const Text('Import Discogs collection'),
+            ),
           ),
           SizedBox(height: tokens.space8),
           OutlinedButton.icon(
@@ -235,11 +240,15 @@ class _ConnectionBody extends StatelessWidget {
       );
     }
 
-    return FilledButton.icon(
-      key: const Key('connect-discogs-button'),
-      onPressed: () => onConnect(),
-      icon: const Icon(Icons.link_rounded),
-      label: const Text('Connect Discogs'),
+    return GuideTarget(
+      steps: const [0],
+      outlineGap: true,
+      child: FilledButton.icon(
+        key: const Key('connect-discogs-button'),
+        onPressed: () => onConnect(),
+        icon: const Icon(Icons.link_rounded),
+        label: const Text('Connect Discogs'),
+      ),
     );
   }
 }
