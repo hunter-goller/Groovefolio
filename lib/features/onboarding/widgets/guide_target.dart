@@ -9,10 +9,12 @@ class GuideTarget extends ConsumerStatefulWidget {
     required this.steps,
     required this.child,
     this.reveal = false,
+    this.outlineGap = false,
   });
   final List<int> steps;
   final Widget child;
   final bool reveal;
+  final bool outlineGap;
 
   @override
   ConsumerState<GuideTarget> createState() => _GuideTargetState();
@@ -41,12 +43,18 @@ class _GuideTargetState extends ConsumerState<GuideTarget> {
     return DecoratedBox(
       position: DecorationPosition.foreground,
       decoration: BoxDecoration(
+        color: highlighted && widget.outlineGap
+            ? Theme.of(context).scaffoldBackgroundColor
+            : null,
         borderRadius: BorderRadius.circular(12),
         border: highlighted
             ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
             : null,
       ),
-      child: widget.child,
+      child: Padding(
+        padding: EdgeInsets.all(highlighted && widget.outlineGap ? 6 : 0),
+        child: widget.child,
+      ),
     );
   }
 }

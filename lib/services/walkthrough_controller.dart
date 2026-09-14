@@ -176,3 +176,15 @@ class WalkthroughController extends Notifier<WalkthroughState> {
     }
   }
 }
+
+/// Transient modal visibility, separate from saved walkthrough progress.
+final walkthroughPlayFormProvider = NotifierProvider<WalkthroughPlayForm, bool>(
+  WalkthroughPlayForm.new,
+);
+
+class WalkthroughPlayForm extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void setOpen(bool open) => state = open;
+}

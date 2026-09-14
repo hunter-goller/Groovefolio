@@ -163,25 +163,31 @@ class AlbumDetailScreen extends ConsumerWidget {
     AlbumDetailData detail,
   ) async {
     final tokens = context.tokens;
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: tokens.background,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
-        ),
-        child: FractionallySizedBox(
-          heightFactor: 0.92,
-          child: LogPlayScreen(
-            isBottomSheet: true,
-            initialAlbum: detail.collectionAlbum,
+    final playForm = ref.read(walkthroughPlayFormProvider.notifier);
+    playForm.setOpen(true);
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: tokens.background,
+        builder: (sheetContext) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+          ),
+          child: FractionallySizedBox(
+            heightFactor: 0.92,
+            child: LogPlayScreen(
+              isBottomSheet: true,
+              initialAlbum: detail.collectionAlbum,
+            ),
           ),
         ),
-      ),
-    );
-    ref.invalidate(albumDetailProvider(detail.album.id));
+      );
+    } finally {
+      playForm.setOpen(false);
+    }
+    if (context.mounted) ref.invalidate(albumDetailProvider(detail.album.id));
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
@@ -257,6 +263,7 @@ class _AlbumDetailBody extends StatelessWidget {
         GuideTarget(
           steps: const [3],
           reveal: true,
+          outlineGap: true,
           child: PrimaryButton(
             label: detail.playCount == 0
                 ? 'Log first play'

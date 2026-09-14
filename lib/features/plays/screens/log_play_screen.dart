@@ -314,6 +314,7 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
           SizedBox(height: tokens.space32),
           GuideTarget(
             steps: const [3],
+            outlineGap: true,
             child: PrimaryButton(
               label: 'Save play',
               icon: Icons.play_arrow_rounded,

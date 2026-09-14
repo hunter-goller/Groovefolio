@@ -40,6 +40,29 @@ void main() {
     },
   );
 
+  testWidgets(
+    'play form visibility changes guidance without advancing the step',
+    (tester) async {
+      final store = _MemoryOnboardingStore()..progress = 3;
+      await tester.pumpWidget(_app(store));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('guide-start')));
+      await tester.pumpAndSettle();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(WalkthroughFrame)),
+      );
+      final form = container.read(walkthroughPlayFormProvider.notifier);
+      form.setOpen(true);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('then tap Save play'), findsOneWidget);
+      expect(store.progress, 3);
+      form.setOpen(false);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Choose a record below'), findsOneWidget);
+      expect(store.progress, 3);
+    },
+  );
+
   testWidgets('connected Settings offers import or manual entry', (
     tester,
   ) async {

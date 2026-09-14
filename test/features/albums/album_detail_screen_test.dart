@@ -6,6 +6,7 @@ import 'package:vinyl_app/features/albums/screens/album_detail_screen.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
+import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
@@ -57,6 +58,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Log a play'), findsOneWidget);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AlbumDetailScreen)),
+    );
+    expect(container.read(walkthroughPlayFormProvider), isTrue);
     expect(find.text('Scan an NFC tag'), findsNothing);
     expect(find.text('Blue Train'), findsAtLeastNWidgets(1));
 
@@ -69,6 +74,10 @@ void main() {
     );
     expect(saveButtonFinder, findsOneWidget);
     expect(tester.widget<FilledButton>(saveButtonFinder).onPressed, isNotNull);
+    await tester.ensureVisible(find.byTooltip('Close'));
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    expect(container.read(walkthroughPlayFormProvider), isFalse);
   });
 
   testWidgets('shows assigned genres', (tester) async {

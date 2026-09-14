@@ -142,23 +142,29 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         .setGenre(selected.isEmpty ? null : selected);
   }
 
-  void _openLogPlaySheet(BuildContext context) {
+  Future<void> _openLogPlaySheet(BuildContext context) async {
     final tokens = context.tokens;
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: tokens.background,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+    final playForm = ref.read(walkthroughPlayFormProvider.notifier);
+    playForm.setOpen(true);
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: tokens.background,
+        builder: (sheetContext) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+          ),
+          child: const FractionallySizedBox(
+            heightFactor: 0.92,
+            child: LogPlayScreen(isBottomSheet: true),
+          ),
         ),
-        child: const FractionallySizedBox(
-          heightFactor: 0.92,
-          child: LogPlayScreen(isBottomSheet: true),
-        ),
-      ),
-    );
+      );
+    } finally {
+      playForm.setOpen(false);
+    }
   }
 
   @override

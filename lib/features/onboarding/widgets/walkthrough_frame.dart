@@ -53,6 +53,8 @@ class _GuidePanel extends ConsumerWidget {
     final nfcVisible = guide.step == 4 && ref.watch(nfcHelpVisibleProvider);
     final onCollection = path == AppRoutes.collection;
     final onStats = path == AppRoutes.stats;
+    final playFormOpen =
+        ref.watch(walkthroughPlayFormProvider) || path == AppRoutes.logPlay;
     final title = switch (guide.step) {
       0 =>
         connected ? 'Discogs connected' : 'Connect Discogs, or start offline',
@@ -82,7 +84,9 @@ class _GuidePanel extends ConsumerWidget {
       2 =>
         'Tap a record below to open Album Details. If your shelf is empty, add one first or skip this step.',
       3 =>
-        onCollection
+        playFormOpen
+            ? 'Choose the record, date and side in the form below, then tap Save play. Saving adds a real listen and continues to optional NFC.'
+            : onCollection
             ? 'Choose a record below to continue with logging a listen.'
             : 'Tap the outlined Log play button. Choose a full album or side and save. This records a real listen.',
       4 =>
@@ -116,7 +120,11 @@ class _GuidePanel extends ConsumerWidget {
             (guide.step == 2 && path == AppRoutes.addAlbum) ||
             (guide.step == 5 && path.endsWith('/edit')),
       3 =>
-        onCollection || path.startsWith('/album/') || path == AppRoutes.logPlay,
+        playFormOpen
+            ? 'Choose the record, date and side in the form below, then tap Save play. Saving adds a real listen and continues to optional NFC.'
+            : onCollection ||
+                  path.startsWith('/album/') ||
+                  path == AppRoutes.logPlay,
       4 =>
         onCollection || path.startsWith('/album/') || path == AppRoutes.nfcHelp,
       6 => onCollection || onStats,
