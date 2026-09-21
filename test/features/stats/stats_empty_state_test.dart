@@ -37,6 +37,7 @@ void main() {
             return StatsDashboardData(
               summary: const CollectionSummary(
                 totalAlbums: 2,
+                playedAlbums: 0,
                 totalPlays: 0,
                 averagePlaysPerWeek: 0,
               ),
@@ -47,6 +48,7 @@ void main() {
               years: const [],
               genres: const [],
               mostPlayed: const [],
+              topArtists: const [],
               firstVinyl: null,
               firstVinylArtistName: null,
             );
@@ -67,5 +69,61 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Log Play test'), findsOneWidget);
+  });
+
+  testWidgets('shows collection coverage and top artists', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final currentYear = DateTime.now().year;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          statsDashboardProvider.overrideWith((ref, range) async {
+            return StatsDashboardData(
+              summary: const CollectionSummary(
+                totalAlbums: 3,
+                playedAlbums: 2,
+                totalPlays: 3,
+                averagePlaysPerWeek: 1.5,
+              ),
+              months: [
+                for (var month = 1; month <= 12; month++)
+                  MonthlyPlays(
+                    year: currentYear,
+                    month: month,
+                    playCount: month == DateTime.now().month ? 3 : 0,
+                  ),
+              ],
+              years: [YearlyPlays(year: currentYear, playCount: 3)],
+              genres: const [],
+              mostPlayed: const [],
+              topArtists: const [
+                StatsRankedArtist(
+                  artistName: 'Miles Davis',
+                  playCount: 3,
+                  albumCount: 2,
+                ),
+              ],
+              firstVinyl: null,
+              firstVinylArtistName: null,
+            );
+          }),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          home: const StatsScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 / 3'), findsOneWidget);
+    expect(find.text('played in $currentYear'), findsOneWidget);
+    await tester.ensureVisible(find.text('Top artists'));
+    expect(find.text('Miles Davis'), findsOneWidget);
+    expect(find.text('2 records played'), findsOneWidget);
+    expect(find.text('3 plays'), findsAtLeastNWidgets(1));
   });
 }
