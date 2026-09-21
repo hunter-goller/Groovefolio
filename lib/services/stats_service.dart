@@ -221,18 +221,19 @@ class StatsService {
       albumsByArtist.putIfAbsent(artistId, () => <String>{}).add(play.albumId);
     }
 
-    final ranked = [
-      for (final entry in playCounts.entries)
-        RankedArtist(
-          artistId: entry.key,
-          playCount: entry.value,
-          albumCount: albumsByArtist[entry.key]!.length,
-        ),
-    ]..sort((left, right) {
-      final byPlays = right.playCount.compareTo(left.playCount);
-      if (byPlays != 0) return byPlays;
-      return left.artistId.compareTo(right.artistId);
-    });
+    final ranked =
+        [
+          for (final entry in playCounts.entries)
+            RankedArtist(
+              artistId: entry.key,
+              playCount: entry.value,
+              albumCount: albumsByArtist[entry.key]!.length,
+            ),
+        ]..sort((left, right) {
+          final byPlays = right.playCount.compareTo(left.playCount);
+          if (byPlays != 0) return byPlays;
+          return left.artistId.compareTo(right.artistId);
+        });
 
     return List.unmodifiable(ranked);
   }

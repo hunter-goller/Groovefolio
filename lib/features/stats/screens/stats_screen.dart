@@ -87,20 +87,21 @@ final statsDashboardProvider = FutureProvider.autoDispose
       final artistsById = {
         for (final artist in artists) artist.id: artist.name,
       };
-      final topArtists = [
-        for (final item in artistStats)
-          StatsRankedArtist(
-            artistName: artistsById[item.artistId] ?? 'Unknown artist',
-            playCount: item.playCount,
-            albumCount: item.albumCount,
-          ),
-      ]..sort((left, right) {
-        final byPlays = right.playCount.compareTo(left.playCount);
-        if (byPlays != 0) return byPlays;
-        return left.artistName.toLowerCase().compareTo(
-          right.artistName.toLowerCase(),
-        );
-      });
+      final topArtists =
+          [
+            for (final item in artistStats)
+              StatsRankedArtist(
+                artistName: artistsById[item.artistId] ?? 'Unknown artist',
+                playCount: item.playCount,
+                albumCount: item.albumCount,
+              ),
+          ]..sort((left, right) {
+            final byPlays = right.playCount.compareTo(left.playCount);
+            if (byPlays != 0) return byPlays;
+            return left.artistName.toLowerCase().compareTo(
+              right.artistName.toLowerCase(),
+            );
+          });
 
       return StatsDashboardData(
         summary: summary,
@@ -307,10 +308,7 @@ class _StatsBody extends StatelessWidget {
               child: Column(
                 children: [
                   for (var i = 0; i < data.topArtists.length; i++) ...[
-                    _RankedArtistRow(
-                      rank: i + 1,
-                      item: data.topArtists[i],
-                    ),
+                    _RankedArtistRow(rank: i + 1, item: data.topArtists[i]),
                     if (i != data.topArtists.length - 1)
                       Divider(
                         height: tokens.space24,
