@@ -37,9 +37,7 @@ class AndroidNfcDeliveryContextService implements INfcDeliveryContextService {
            isAndroid ??
            (!kIsWeb && defaultTargetPlatform == TargetPlatform.android);
 
-  static const _channel = MethodChannel(
-    'com.huntergoller.vinyl_app/nfc_delivery',
-  );
+  static const _channel = MethodChannel('app.groovefolio/nfc_delivery');
 
   final NfcDeliveryMethodInvoker _invoke;
   final bool _isAndroid;

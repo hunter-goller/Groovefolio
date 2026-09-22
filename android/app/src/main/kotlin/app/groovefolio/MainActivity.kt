@@ -1,4 +1,4 @@
-package com.huntergoller.vinyl_app
+package app.groovefolio
 
 import android.Manifest
 import android.app.Notification
@@ -26,14 +26,14 @@ import java.lang.ref.WeakReference
 
 open class MainActivity : FlutterActivity() {
     companion object {
-        private const val METHOD_CHANNEL = "com.huntergoller.vinyl_app/nfc_notifications"
+        private const val METHOD_CHANNEL = "app.groovefolio/nfc_notifications"
         private const val SHOW_NFC_PLAY_LOGGED = "showNfcPlayLogged"
         private const val REQUEST_NFC_NOTIFICATION_PERMISSION =
             "requestNfcNotificationPermission"
         private const val FOREGROUND_INTENT_CHANNEL =
-            "com.huntergoller.vinyl_app/nfc_foreground_intents"
+            "app.groovefolio/nfc_foreground_intents"
         private const val DELIVERY_CHANNEL =
-            "com.huntergoller.vinyl_app/nfc_delivery"
+            "app.groovefolio/nfc_delivery"
         private const val SET_FOREGROUND_NFC_OPERATION_ACTIVE =
             "setForegroundNfcOperationActive"
         private const val NOTIFICATION_CHANNEL_ID = "nfc_play_logging"
@@ -90,7 +90,7 @@ open class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         retainedEngine = flutterEngine
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
-            "com.huntergoller.vinyl_app/app_info")
+            "app.groovefolio/app_info")
             .setMethodCallHandler { call, result ->
                 if (call.method != "getVersion") {
                     result.notImplemented()

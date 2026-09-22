@@ -1,4 +1,4 @@
-package com.huntergoller.vinyl_app
+package app.groovefolio
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

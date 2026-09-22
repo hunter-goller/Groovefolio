@@ -24,7 +24,7 @@ The product and repository are **Groovefolio**:
 Several technical/historical identifiers intentionally remain unchanged:
 
 - Dart package/import namespace: `vinyl_app`
-- Android application ID: `com.huntergoller.vinyl_app`
+- Android application ID: `app.groovefolio`
 - SQLite filename: `vinyl_app_db.sqlite`
 - verification script: `tools/verify_vinylapp_012.ps1`
 - Trello/history IDs: `VinylApp-###`

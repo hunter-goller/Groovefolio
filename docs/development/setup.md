@@ -47,5 +47,10 @@ The app can build/test without real values. Live OAuth requests require a regist
 
 The product/repository is Groovefolio, while these remain intentionally unchanged:
 - Dart package `vinyl_app`
-- Android application ID `com.huntergoller.vinyl_app`
+- Android application ID `app.groovefolio`
 - SQLite file `vinyl_app_db.sqlite`
+
+Android builds created before the permanent application ID was selected used
+`com.huntergoller.vinyl_app`. Android treats `app.groovefolio` as a separate
+application, so those development installs are not upgraded and their local
+collection is not migrated. This is intentional before the first public release.

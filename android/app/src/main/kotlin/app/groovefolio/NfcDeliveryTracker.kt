@@ -1,4 +1,4 @@
-package com.huntergoller.vinyl_app
+package app.groovefolio
 
 /**
  * Records whether an album-tag intent arrived while Groovefolio was already

@@ -5,7 +5,7 @@ import 'package:vinyl_app/services/app_info_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  const channel = MethodChannel('com.huntergoller.vinyl_app/app_info');
+  const channel = MethodChannel('app.groovefolio/app_info');
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
   tearDown(() => messenger.setMockMethodCallHandler(channel, null));

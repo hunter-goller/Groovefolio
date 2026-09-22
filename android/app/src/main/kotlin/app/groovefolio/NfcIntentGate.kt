@@ -1,4 +1,4 @@
-package com.huntergoller.vinyl_app
+package app.groovefolio
 
 /** Process-wide policy shared by cold and warm activity entry points.
  * Each activity owns its gate, so destroying one cannot release another's.

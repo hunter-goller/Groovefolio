@@ -42,7 +42,7 @@ class FlutterNfcPlatformAdapter
   const FlutterNfcPlatformAdapter();
 
   static const _foregroundIntentChannel = MethodChannel(
-    'com.huntergoller.vinyl_app/nfc_foreground_intents',
+    'app.groovefolio/nfc_foreground_intents',
   );
 
   @override

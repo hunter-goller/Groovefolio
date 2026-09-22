@@ -47,7 +47,7 @@ void main() {
 
   test('cold launch guards the payload before Flutter attaches', () {
     final activity = File(
-      'android/app/src/main/kotlin/com/huntergoller/vinyl_app/MainActivity.kt',
+      'android/app/src/main/kotlin/app/groovefolio/MainActivity.kt',
     ).readAsStringSync();
 
     expect(activity, contains('override fun onNewIntent(intent: Intent)'));

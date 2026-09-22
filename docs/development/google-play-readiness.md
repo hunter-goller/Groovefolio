@@ -8,7 +8,7 @@
 - app-level product name: Groovefolio
 
 ## Before release
-- final package/application ID decision
+- permanent Android application ID `app.groovefolio`
 - keystore + signing
 - target/compile SDK review
 - app icon/adaptive icon
