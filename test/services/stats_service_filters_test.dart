@@ -29,11 +29,14 @@ void main() {
 
       final summary = await service.getCollectionSummary(year: 2026);
       final ranked = await service.getMostPlayedAlbums(5, year: 2026);
+      final artists = await service.getMostPlayedArtists(year: 2026);
       final breakdown = await service.getGenreBreakdown(year: 2026);
 
       expect(summary.totalAlbums, 1);
+      expect(summary.playedAlbums, 1);
       expect(summary.totalPlays, 1);
       expect(ranked.single.playCount, 1);
+      expect(artists.single.playCount, 1);
       expect(breakdown.single.playCount, 1);
     },
   );

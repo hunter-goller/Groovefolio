@@ -61,6 +61,7 @@ void main() {
         final summary = await service.getCollectionSummary();
 
         expect(summary.totalAlbums, 3);
+        expect(summary.playedAlbums, 2);
         expect(summary.totalPlays, 4);
         expect(summary.averagePlaysPerWeek, closeTo(2, 0.0001));
       },
@@ -87,7 +88,9 @@ void main() {
         final freshSummary = await fresh.getCollectionSummary();
 
         expect(emptySummary.averagePlaysPerWeek, 0);
+        expect(emptySummary.playedAlbums, 0);
         expect(freshSummary.averagePlaysPerWeek, 2);
+        expect(freshSummary.playedAlbums, 1);
       },
     );
 
@@ -116,6 +119,30 @@ void main() {
         expect(await service.getMostPlayedAlbums(0), isEmpty);
       },
     );
+
+    test('top artists aggregate plays and distinct records', () async {
+      final service = _service(
+        albums: [kindOfBlue, blueTrain, abbeyRoad],
+        plays: [
+          _play('play-1', kindOfBlue.id, '2026-08-01T12:00:00.000Z'),
+          _play('play-2', kindOfBlue.id, '2026-08-02T12:00:00.000Z'),
+          _play('play-3', blueTrain.id, '2026-08-03T12:00:00.000Z'),
+          _play('play-4', blueTrain.id, '2026-08-04T12:00:00.000Z'),
+          _play('play-5', abbeyRoad.id, '2026-08-05T12:00:00.000Z'),
+        ],
+      );
+
+      final artists = await service.getMostPlayedArtists();
+
+      expect(artists, hasLength(3));
+      expect(artists[0].artistId, 'artist-coltrane');
+      expect(artists[0].playCount, 2);
+      expect(artists[0].albumCount, 1);
+      expect(artists[1].artistId, 'artist-miles');
+      expect(artists[1].playCount, 2);
+      expect(artists[2].artistId, 'artist-beatles');
+      expect(artists[2].playCount, 1);
+    });
 
     test('plays by month returns all 12 buckets including zeros', () async {
       final service = _service(

@@ -9,11 +9,13 @@ part 'stats_service.g.dart';
 class CollectionSummary {
   const CollectionSummary({
     required this.totalAlbums,
+    required this.playedAlbums,
     required this.totalPlays,
     required this.averagePlaysPerWeek,
   });
 
   final int totalAlbums;
+  final int playedAlbums;
   final int totalPlays;
   final double averagePlaysPerWeek;
 }
@@ -24,6 +26,19 @@ class RankedAlbum {
 
   final Album album;
   final int playCount;
+}
+
+/// Artist identifier plus aggregate listening totals for ranked lists.
+class RankedArtist {
+  const RankedArtist({
+    required this.artistId,
+    required this.playCount,
+    required this.albumCount,
+  });
+
+  final String artistId;
+  final int playCount;
+  final int albumCount;
 }
 
 /// One month in a calendar-year listening series.
@@ -119,10 +134,18 @@ class StatsService {
     if (plays.isEmpty) {
       return CollectionSummary(
         totalAlbums: albums.length,
+        playedAlbums: 0,
         totalPlays: 0,
         averagePlaysPerWeek: 0,
       );
     }
+
+    final albumIds = albums.map((album) => album.id).toSet();
+    final playedAlbums = plays
+        .map((play) => play.albumId)
+        .where(albumIds.contains)
+        .toSet()
+        .length;
 
     final parsedPlays = plays.map(_parsedPlayedAt).toList()..sort();
     final firstPlay = parsedPlays.first;
@@ -136,6 +159,7 @@ class StatsService {
 
     return CollectionSummary(
       totalAlbums: albums.length,
+      playedAlbums: playedAlbums,
       totalPlays: plays.length,
       averagePlaysPerWeek: plays.length / activityWeeks,
     );
@@ -172,6 +196,46 @@ class StatsService {
         });
 
     return List.unmodifiable(ranked.take(limit));
+  }
+
+  /// Returns artists ranked by plays across every record by that artist.
+  ///
+  /// The screen resolves artist names and uses them to break equal-play ties.
+  /// Returning every played artist lets that final ordering happen before the
+  /// visible list is limited.
+  Future<List<RankedArtist>> getMostPlayedArtists({int? year}) async {
+    final albums = await _albumRepository.findAll();
+    final plays = _filterPlaysByYear(await _playRepository.findAll(), year);
+    if (plays.isEmpty) return const [];
+
+    final artistByAlbum = {
+      for (final album in albums) album.id: album.artistId,
+    };
+    final playCounts = <String, int>{};
+    final albumsByArtist = <String, Set<String>>{};
+
+    for (final play in plays) {
+      final artistId = artistByAlbum[play.albumId];
+      if (artistId == null) continue;
+      playCounts.update(artistId, (count) => count + 1, ifAbsent: () => 1);
+      albumsByArtist.putIfAbsent(artistId, () => <String>{}).add(play.albumId);
+    }
+
+    final ranked =
+        [
+          for (final entry in playCounts.entries)
+            RankedArtist(
+              artistId: entry.key,
+              playCount: entry.value,
+              albumCount: albumsByArtist[entry.key]!.length,
+            ),
+        ]..sort((left, right) {
+          final byPlays = right.playCount.compareTo(left.playCount);
+          if (byPlays != 0) return byPlays;
+          return left.artistId.compareTo(right.artistId);
+        });
+
+    return List.unmodifiable(ranked);
   }
 
   /// Returns all twelve months for [year], including months with zero plays.
