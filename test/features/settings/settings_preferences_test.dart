@@ -24,6 +24,46 @@ class MemoryThemeStore implements ThemePreferenceStore {
 }
 
 void main() {
+  testWidgets('privacy and support open the release destinations', (
+    tester,
+  ) async {
+    final opened = <Uri>[];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          themePreferenceStoreProvider.overrideWithValue(MemoryThemeStore()),
+          appBuildInfoProvider.overrideWith(
+            (ref) async => const AppBuildInfo('1.0.0', '1'),
+          ),
+          settingsLinkLauncherProvider.overrideWithValue((uri) async {
+            opened.add(uri);
+            return true;
+          }),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(child: SettingsPreferences()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Privacy policy'));
+    await tester.tap(find.text('Privacy policy'));
+    await tester.pumpAndSettle();
+    expect(opened, [Uri.https('groovefolio.app', '/privacy/')]);
+    await tester.ensureVisible(find.text('Support'));
+    await tester.tap(find.text('Support'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Email support'));
+    await tester.pumpAndSettle();
+    expect(
+      opened.last,
+      Uri(scheme: 'mailto', path: 'support.groovefolio@gmail.com'),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   test(
     'theme persists across containers and late reads cannot undo selection',
     () async {
@@ -79,6 +119,7 @@ void main() {
               (ref) async => const AppBuildInfo('2.3.4', '56'),
             ),
             supportEmailProvider.overrideWithValue(null),
+            privacyPolicyUrlProvider.overrideWithValue(null),
             settingsLinkLauncherProvider.overrideWithValue(
               (uri) async => false,
             ),
