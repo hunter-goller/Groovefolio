@@ -11,16 +11,20 @@ final settingsLinkLauncherProvider = Provider<Future<bool> Function(Uri)>((
   return (uri) => launchUrl(uri, mode: LaunchMode.externalApplication);
 });
 
-// Configure only after these destinations are published and reviewed.
 final supportEmailProvider = Provider<String?>((ref) {
-  const email = String.fromEnvironment('GROOVEFOLIO_SUPPORT_EMAIL');
+  const email = String.fromEnvironment(
+    'GROOVEFOLIO_SUPPORT_EMAIL',
+    defaultValue: 'support.groovefolio@gmail.com',
+  );
   return RegExp(
         r'^[A-Za-z0-9._+%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
       ).hasMatch(email)
       ? email
       : null;
 });
-final privacyPolicyUrlProvider = Provider<Uri?>((ref) => null);
+final privacyPolicyUrlProvider = Provider<Uri?>(
+  (ref) => Uri.https('groovefolio.app', '/privacy/'),
+);
 
 class SettingsPreferences extends ConsumerWidget {
   const SettingsPreferences({super.key});
