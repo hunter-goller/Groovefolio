@@ -127,9 +127,7 @@ void main() {
     'notification permission is requested only through its explicit flow',
     () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
-      const channel = MethodChannel(
-        'com.huntergoller.vinyl_app/nfc_notifications',
-      );
+      const channel = MethodChannel('app.groovefolio/nfc_notifications');
       String? method;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {

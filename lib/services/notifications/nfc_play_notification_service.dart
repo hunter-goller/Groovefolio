@@ -40,9 +40,7 @@ class AndroidNfcPlayNotificationService implements INfcPlayNotificationService {
            isAndroid ??
            (!kIsWeb && defaultTargetPlatform == TargetPlatform.android);
 
-  static const _channel = MethodChannel(
-    'com.huntergoller.vinyl_app/nfc_notifications',
-  );
+  static const _channel = MethodChannel('app.groovefolio/nfc_notifications');
 
   final NotificationMethodInvoker _invoke;
   final bool _isAndroid;
@@ -88,7 +86,7 @@ Future<bool> requestNfcPlayNotificationPermission() async {
   if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return false;
   try {
     return await const MethodChannel(
-          'com.huntergoller.vinyl_app/nfc_notifications',
+          'app.groovefolio/nfc_notifications',
         ).invokeMethod<bool>('requestNfcNotificationPermission') ??
         false;
   } on Object {

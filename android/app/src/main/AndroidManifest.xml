@@ -68,7 +68,7 @@
             android:name=".NfcProcessingActivity"
             android:exported="false"
             android:launchMode="singleTask"
-            android:taskAffinity="com.huntergoller.vinyl_app.nfc"
+            android:taskAffinity="app.groovefolio.nfc"
             android:excludeFromRecents="true"
             android:theme="@style/NfcTransparentTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"

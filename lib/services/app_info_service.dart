@@ -11,7 +11,7 @@ class AppBuildInfo {
 final appBuildInfoProvider = FutureProvider<AppBuildInfo?>((ref) async {
   try {
     final result = await const MethodChannel(
-      'com.huntergoller.vinyl_app/app_info',
+      'app.groovefolio/app_info',
     ).invokeMapMethod<String, Object?>('getVersion');
     if (result case {
       'version': final String version,
