@@ -9,7 +9,8 @@
 
 ## Before release
 - permanent Android application ID `app.groovefolio`
-- keystore + signing
+- create and back up the upload key on the developer's machine using
+  [Android release signing](android-release-signing.md); configure a signed AAB
 - target/compile SDK review
 - app icon/adaptive icon
 - splash/bootstrap
