@@ -266,6 +266,8 @@ class DefaultDiscogsCollectionImportService
         ),
       );
 
+      // Stop on systemic failures; only a particular release's content or
+      // write failure should be isolated and counted in the final summary.
       try {
         final alreadyLinked = await _releaseLinkRepository
             .findAlbumIdForRelease(candidate.item.releaseId);
@@ -276,8 +278,6 @@ class DefaultDiscogsCollectionImportService
           if (warning != null) warnings.add(warning);
           imported += 1;
         }
-      // Stop on systemic failures; only a particular release's content or
-      // write failure should be isolated and counted in the final summary.
       } on DiscogsAuthenticationFailure {
         rethrow;
       } on DiscogsRateLimitFailure {
