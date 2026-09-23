@@ -20,16 +20,9 @@ part 'router.g.dart';
 
 /// Exposes the app's GoRouter instance via Riverpod.
 ///
-/// This is the codegen pattern (VinylApp-006) — the @riverpod annotation
-/// generates `routerProvider` and the boilerplate in router.g.dart for you.
-/// Any time you edit this file, re-run:
-///   dart run build_runner build
-///
-/// TEMPLATE FOR FUTURE PROVIDERS YOU WRITE YOURSELF:
-///   @riverpod
-///   ReturnType functionName(Ref ref) { ... }
-/// generates `functionNameProvider` automatically — no manual
-/// `Provider<ReturnType>((ref) => ...)` boilerplate needed.
+/// The generated `routerProvider` is rebuilt with build_runner. A ShellRoute
+/// keeps walkthrough cues mounted across screens, while OnboardingGate runs
+/// only on the ordinary Collection entry route.
 @riverpod
 GoRouter router(Ref ref) {
   return GoRouter(

@@ -4,6 +4,8 @@ import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_play_logging_service.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 
+/// Outcome of an Android album intent; null from handle means the URI was
+/// ignored or suppressed before any play was written.
 class NfcIntentPlayResult {
   const NfcIntentPlayResult.logged({required this.album, required this.play})
     : suppressed = false;
@@ -34,6 +36,8 @@ class NfcIntentPlayHandler {
   final IAlbumRepository _albumRepository;
   final bool Function() _shouldSuppressAutomaticIntent;
 
+  /// Validates the album URI, rechecks foreground-link suppression after an
+  /// awaited lookup, then reuses the normal NFC play logging service.
   Future<NfcIntentPlayResult?> handle(Uri uri) async {
     if (_shouldSuppressAutomaticIntent()) return null;
 

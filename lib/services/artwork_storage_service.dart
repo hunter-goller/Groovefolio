@@ -30,6 +30,9 @@ class ArtworkStorageService {
     return saveArtworkBytes(await source.readAsBytes(), albumId);
   }
 
+  /// Writes the album-owned artwork file and returns its durable path.
+  /// Callers update the Album row separately because filesystem writes cannot
+  /// join a SQLite transaction.
   Future<String> saveArtworkBytes(Uint8List bytes, String albumId) async {
     final normalizedId = albumId.trim();
     if (normalizedId.isEmpty) {

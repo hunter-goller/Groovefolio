@@ -4,6 +4,8 @@ import 'package:vinyl_app/services/discogs/discogs_api_client.dart';
 import 'package:vinyl_app/services/discogs/discogs_credential_store.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 
+/// Discogs catalog operations used by Add Record and collection import.
+/// Calls require the current app-side OAuth credentials.
 abstract interface class DiscogsCatalogService {
   Future<List<DiscogsReleaseSearchResult>> searchReleases({
     required String artist,
@@ -16,6 +18,8 @@ abstract interface class DiscogsCatalogService {
 
   Future<DiscogsReleaseDetails> release(int releaseId);
 
+  /// Reads one page of folder zero; the importer owns pagination and local
+  /// duplicate review. This interface does not write to the collection.
   Future<DiscogsCollectionPage> collectionPage({
     required String username,
     required int page,

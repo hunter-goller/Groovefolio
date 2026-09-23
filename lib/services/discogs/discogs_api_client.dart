@@ -10,6 +10,8 @@ import 'package:vinyl_app/services/discogs/discogs_config.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_oauth_signer.dart';
 
+/// Normalizes a scanned barcode and returns its UPC/EAN leading-zero
+/// alternate, if applicable. The original form is tried first.
 List<String> discogsBarcodeSearchCandidates(String barcode) {
   final normalized = barcode.replaceAll(RegExp(r'[^0-9]'), '');
   if (normalized.isEmpty) {
@@ -30,6 +32,8 @@ List<String> discogsBarcodeSearchCandidates(String barcode) {
   return List<String>.unmodifiable(candidates.toSet());
 }
 
+/// Minimal HTTP response used to inject deterministic transport behavior in
+/// client tests without opening a real connection.
 class DiscogsHttpResponse {
   const DiscogsHttpResponse({
     required this.statusCode,
@@ -52,6 +56,11 @@ typedef DiscogsRequestSender =
 
 typedef DiscogsDelay = Future<void> Function(Duration duration);
 
+/// Current direct-to-Discogs OAuth and catalog transport.
+///
+/// GET requests have bounded retries and response sizes. Artwork accepts
+/// only approved HTTPS hosts and is fetched without an OAuth header. This
+/// client is not the proposed Java backend's HTTP client.
 class DiscogsApiClient {
   DiscogsApiClient({
     required DiscogsConfig config,
@@ -192,6 +201,8 @@ class DiscogsApiClient {
         .toList(growable: false);
   }
 
+  /// Searches the original barcode, then at most one UPC/EAN alternate if
+  /// the previous candidate produced no usable vinyl result.
   Future<List<DiscogsReleaseSearchResult>> searchReleasesByBarcode({
     required DiscogsOAuthCredentials credentials,
     required String barcode,
@@ -225,6 +236,8 @@ class DiscogsApiClient {
     return const [];
   }
 
+  /// Reads one page from the connected user's default Discogs folder.
+  /// Import selection and persistence remain in the app's import service.
   Future<DiscogsCollectionPage> collectionFolderReleases({
     required DiscogsOAuthCredentials credentials,
     required String username,
@@ -269,6 +282,8 @@ class DiscogsApiClient {
     return discogsReleaseDetailsFromJson(json, releaseId: releaseId);
   }
 
+  /// Downloads artwork only from approved Discogs CDN hosts. The caller
+  /// supplies credentials for configuration checks, not for the CDN request.
   Future<Uint8List> downloadImage({
     required DiscogsOAuthCredentials credentials,
     required String url,
@@ -345,6 +360,8 @@ class DiscogsApiClient {
     }
   }
 
+  // Only idempotent GETs are retried. OAuth token exchanges use POST and
+  // must not be replayed after an ambiguous provider response.
   Future<Uint8List> _sendBytes(
     String method,
     Uri uri,

@@ -11,6 +11,9 @@ import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 
+/// Reviews Discogs collection candidates before local import.
+/// Only clearly new releases are preselected; possible local matches require
+/// an explicit selection and exact duplicates cannot be imported.
 class DiscogsCollectionImportScreen extends ConsumerStatefulWidget {
   const DiscogsCollectionImportScreen({super.key});
 

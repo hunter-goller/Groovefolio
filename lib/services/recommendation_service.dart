@@ -4,8 +4,10 @@ import 'package:vinyl_app/providers/repository_providers.dart';
 
 part 'recommendation_service.g.dart';
 
+/// The four mutually exclusive shelves used by local Discover.
 enum RecommendationKind { rediscover, genre, era, underplayed }
 
+/// Human-readable local signals shown by “Why this record?”.
 class RecommendationEvidence {
   const RecommendationEvidence({required this.title, required this.detail});
 
@@ -39,6 +41,8 @@ class TasteArtist {
   final int recentPlayCount;
 }
 
+/// Aggregated listening signals computed only from local logged plays.
+/// A null profile means no plays have been logged yet.
 class TasteProfile {
   const TasteProfile({
     required this.totalPlays,
@@ -63,6 +67,7 @@ class TasteProfile {
   final List<TasteArtist> topArtists;
 }
 
+/// One owned record with its reason, rank and supporting evidence.
 class AlbumRecommendation {
   const AlbumRecommendation({
     required this.album,
@@ -87,6 +92,7 @@ class AlbumRecommendation {
   final List<RecommendationEvidence> evidence;
 }
 
+/// Discover shelves; a record appears in at most one section.
 class DiscoverRecommendations {
   const DiscoverRecommendations({
     required this.collectionSize,
@@ -111,6 +117,8 @@ class DiscoverRecommendations {
       underplayed.isNotEmpty;
 }
 
+/// Produces explainable, deterministic suggestions for records already owned.
+/// No network or external recommendation model participates.
 abstract interface class IRecommendationService {
   Future<DiscoverRecommendations> getRecommendations({
     Duration rediscoverThreshold = const Duration(days: 90),
@@ -120,6 +128,8 @@ abstract interface class IRecommendationService {
   });
 }
 
+/// Ranks local records from play recency, genres, artists and release era.
+/// An injected clock makes recency rules stable in tests.
 class RecommendationService implements IRecommendationService {
   RecommendationService({
     required this._albumRepository,
@@ -135,6 +145,8 @@ class RecommendationService implements IRecommendationService {
   final IGenreRepository _genreRepository;
   final DateTime Function() _now;
 
+  /// Builds shelves in priority order: rediscovery, taste, era, then
+  /// underplayed. Earlier sections exclude their albums from later ones.
   @override
   Future<DiscoverRecommendations> getRecommendations({
     Duration rediscoverThreshold = const Duration(days: 90),
@@ -216,6 +228,8 @@ class RecommendationService implements IRecommendationService {
       recentTasteWindow,
     );
 
+    // Build each shelf before the next so the first applicable explanation
+    // wins and a record never appears twice on the same Discover screen.
     final rediscover = _buildRediscover(
       albums: albums,
       artistsById: artistsById,
@@ -551,6 +565,8 @@ class RecommendationService implements IRecommendationService {
       for (final genre in albumGenres) {
         final allTime = allTimeGenres[genre.id];
         final recent = recentGenres[genre.id];
+        // Remove this candidate's own plays from its supporting evidence;
+        // a record cannot justify recommending itself.
         final remainingAllTime = (allTime?.playCount ?? 0) - count;
         final remainingRecent = (recent?.playCount ?? 0) - recentCount;
         final supportingAllTime = remainingAllTime > 0 ? remainingAllTime : 0;

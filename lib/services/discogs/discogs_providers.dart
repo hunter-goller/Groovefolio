@@ -78,6 +78,7 @@ enum DiscogsAuthorizationStatus {
   failed,
 }
 
+/// UI state for the direct-to-Discogs browser authorization flow.
 class DiscogsAuthorizationState {
   const DiscogsAuthorizationState._({required this.status, this.failure});
 
@@ -108,6 +109,9 @@ class DiscogsAuthorizationState {
       status == DiscogsAuthorizationStatus.awaitingCallback;
 }
 
+/// Opens the browser, validates return URIs, and refreshes account state.
+/// NFC album URIs share the incoming app-link stream but are not OAuth
+/// callbacks; the root widget routes them to a different handler.
 class DiscogsAuthorizationController
     extends Notifier<DiscogsAuthorizationState> {
   @override

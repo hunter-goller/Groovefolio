@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 
+/// Persists first-run completion and the resumable walkthrough step.
 abstract interface class OnboardingStore {
   Future<bool> hasCompletedOnboarding();
 
@@ -12,6 +13,8 @@ abstract interface class OnboardingStore {
   Future<void> saveProgress(int step);
 }
 
+/// Versioned progress keys allow the walkthrough to change without
+/// interpreting an older sequence of steps as the current one.
 class SecureOnboardingStore implements OnboardingStore {
   const SecureOnboardingStore(this._storage);
 
@@ -44,6 +47,8 @@ class SecureOnboardingStore implements OnboardingStore {
   }
 }
 
+/// Decides whether to start, resume or skip the real-app walkthrough.
+/// Existing collections are treated as upgraded installs, not fresh users.
 class OnboardingService {
   const OnboardingService({
     required this._store,
@@ -53,6 +58,9 @@ class OnboardingService {
   final OnboardingStore _store;
   final IAlbumRepository _albumRepository;
 
+  /// Returns true for an unfinished first run or saved walkthrough.
+  /// Marks a populated, previously unmarked install complete instead of
+  /// forcing its owner through newly introduced onboarding.
   Future<bool> shouldShowOnboarding() async {
     if (await _store.hasCompletedOnboarding()) return false;
 

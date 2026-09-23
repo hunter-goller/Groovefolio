@@ -26,7 +26,9 @@ import 'package:vinyl_app/widgets/shared/nfc_write_dialog.dart';
 import 'package:vinyl_app/widgets/ui/labeled_text_field.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 
-/// Manual record creation flow aligned with the approved compact mockup.
+/// Creates a local record from manual fields or editable Discogs autofill.
+/// Database metadata is written through RecordWriteService; artwork and an
+/// optional NFC tag are handled afterward without discarding the saved record.
 class AddRecordScreen extends ConsumerStatefulWidget {
   const AddRecordScreen({super.key});
 

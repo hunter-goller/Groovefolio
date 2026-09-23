@@ -21,6 +21,8 @@ import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/theme/theme_provider.dart';
 
+/// Bootstraps app links and opens/migrates the local database before the
+/// first frame, keeping the native splash visible during that work.
 Future<void> main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
@@ -51,6 +53,9 @@ Future<void> main() async {
   });
 }
 
+/// Root integration point for app-link OAuth callbacks and Android NFC
+/// deliveries. NFC play persistence, feedback, and navigation stay separate
+/// so a notification tap never logs the same play again.
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 

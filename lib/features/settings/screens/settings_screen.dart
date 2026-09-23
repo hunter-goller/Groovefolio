@@ -16,6 +16,8 @@ import 'package:vinyl_app/theme/theme_helpers.dart';
 
 final developerToolsEnabledProvider = Provider<bool>((ref) => kDebugMode);
 
+/// Hosts optional Discogs connection, walkthrough replay, app preferences,
+/// help links, and debug-only local data tools.
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 

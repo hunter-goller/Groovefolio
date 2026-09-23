@@ -36,6 +36,8 @@ final walkthroughProvider =
       WalkthroughController.new,
     );
 
+/// Advances the walkthrough in response to actual app actions.
+/// Only first-run progress is persisted; Settings replay stays transient.
 class WalkthroughController extends Notifier<WalkthroughState> {
   WalkthroughState? _pending;
   bool _pendingFinish = false;
@@ -43,6 +45,7 @@ class WalkthroughController extends Notifier<WalkthroughState> {
   @override
   WalkthroughState build() => const WalkthroughState();
 
+  /// Starts from saved progress, or step zero for a Settings replay.
   Future<bool> start({bool replay = false}) async {
     if (state.busy) return false;
     _pending = null;
@@ -73,6 +76,8 @@ class WalkthroughController extends Notifier<WalkthroughState> {
     );
   }
 
+  // Keep the previous step on screen while storage is pending. On failure
+  // retain it with an error and allow retry of the requested transition.
   Future<void> _persist(WalkthroughState next) async {
     final before = state;
     _pending = next;
@@ -134,6 +139,7 @@ class WalkthroughController extends Notifier<WalkthroughState> {
 
   Future<void> skipStep() => move(state.step == 2 ? 5 : state.step + 1);
 
+  /// Marks first-run complete, or closes replay without changing its flag.
   Future<bool> finish() async {
     if (state.busy) return false;
     final before = state;

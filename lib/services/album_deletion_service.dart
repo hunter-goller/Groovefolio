@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/services/artwork_storage_service.dart';
 
+/// Counts captured before deleting the album; related rows are removed by
+/// database cascades rather than one delete call per association.
 class AlbumDeletionResult {
   const AlbumDeletionResult({
     required this.deletedPlayCount,
@@ -32,6 +34,8 @@ class AlbumDeletionService {
   final INfcTagRepository _nfcTagRepository;
   final ArtworkStorageService _artworkStorageService;
 
+  /// Deletes one local album and its dependent rows, then best-effort artwork.
+  /// A failed database delete leaves the artwork intact.
   Future<AlbumDeletionResult> deleteAlbum(String albumId) async {
     final normalizedId = albumId.trim();
     if (normalizedId.isEmpty) {

@@ -148,9 +148,8 @@ final albumSearchProvider = FutureProvider.autoDispose
       final artistRepository = ref.watch(artistRepositoryProvider);
       final playRepository = ref.watch(playRepositoryProvider);
 
-      // Load once and filter after artists are joined so selection flows can
-      // match both album titles and artist names. AlbumRepository.search()
-      // intentionally only understands album fields.
+      // Keep Log Play search independent of Collection filters and join
+      // artists once before its own title/artist filtering and recency sort.
       final albumRows = await albumRepository.findAll();
 
       if (albumRows.isEmpty) {
@@ -248,7 +247,7 @@ class AlbumDetailData {
   );
 }
 
-/// Complete data required by the MVP Album Detail screen.
+/// Joined album, artist, and newest-first play history for Album Detail.
 final albumDetailProvider = FutureProvider.autoDispose
     .family<AlbumDetailData?, String>((ref, id) async {
       final normalizedId = id.trim();
@@ -312,8 +311,8 @@ final playCountProvider = FutureProvider.autoDispose.family<int, String>((
 /// Album deletion intentionally lives only in AlbumDeletionService so callers
 /// cannot bypass cascade/artwork cleanup through a generic mutation API.
 ///
-/// This also gives VinylApp-019 a mutation entry point without making screens
-/// call repositories directly.
+/// Screens can report loading/errors and invalidate dependent album views
+/// without calling a repository directly.
 class AlbumMutations extends Notifier<AsyncValue<void>> {
   @override
   AsyncValue<void> build() => const AsyncData<void>(null);

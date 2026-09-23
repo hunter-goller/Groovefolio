@@ -23,6 +23,11 @@ import 'package:vinyl_app/types/side_played.dart';
 
 part 'app_database.g.dart';
 
+/// The on-device source of truth for records, plays, and related metadata.
+///
+/// Fresh databases replay each frozen migration, and upgrades commit both
+/// schema changes and SQLite's `user_version` in one transaction. Call
+/// [initialize] during bootstrap so failures surface before the UI opens.
 @DriftDatabase(
   tables: [
     Artists,
