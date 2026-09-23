@@ -12,3 +12,5 @@
 
 - [Album Wrapped](album-wrapped.md)
 - External discovery of releases outside the local collection
+
+- [Errors and recovery](error-recovery.md) — retry behavior, saved-operation boundaries, and phone review.

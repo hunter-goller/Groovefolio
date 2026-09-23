@@ -116,9 +116,10 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
     var wroteArtwork = false;
     var metadataSaved = false;
     var restoreFailed = false;
-    final artworkStorage = ref.read(artworkStorageServiceProvider);
+    late final ArtworkStorageService artworkStorage;
 
     try {
+      artworkStorage = ref.read(artworkStorageServiceProvider);
       final yearText = _yearController.text.trim();
       final labelText = _labelController.text.trim();
 

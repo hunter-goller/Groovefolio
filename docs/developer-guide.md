@@ -34,7 +34,7 @@ Start with the question you are trying to answer. You do not need to read the wh
 
 Use your editor's **Go to definition** on the symbol names in this guide. Use `Ctrl+F` for the screen, service, or error you recognize. Links point to files rather than line numbers because lines move as code evolves.
 
-**Source checkpoint:** app documentation baseline at `35d753e` (with the error-recovery changes documented in this PR), website `main` at `2a70c02`, and the backend draft stack at `c39dbbf`. This guide describes that code, not unseen Play Console settings or a verified production backend. The backend branch is currently `VinylApp-125-staging-setup`; once that stack merges, update its links and setup instructions here. Commands are intended for your own checkout. This documentation review did not run a live Discogs login, create a real upload key, or deploy a server.
+**Source checkpoint:** app documentation baseline at `35d753e` (plus the error-recovery workflow update documented here), website `main` at `2a70c02`, and the backend draft stack at `c39dbbf`. This guide describes that code, not unseen Play Console settings or a verified production backend. The backend branch is currently `VinylApp-125-staging-setup`; once that stack merges, update its links and setup instructions here. Commands are intended for your own checkout. This documentation review did not run a live Discogs login, create a real upload key, or deploy a server.
 
 ## 1. Overview
 
