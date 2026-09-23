@@ -11,6 +11,7 @@ import 'package:vinyl_app/widgets/shared/bottom_nav_bar.dart';
 import 'package:vinyl_app/widgets/shared/genre_breakdown_list.dart';
 import 'package:vinyl_app/widgets/ui/app_error_state.dart';
 
+/// Calendar-year or full-history range for play-derived aggregates.
 enum StatsRange { currentYear, allTime }
 
 class StatsRankedAlbum {
@@ -25,6 +26,19 @@ class StatsRankedAlbum {
   final int playCount;
 }
 
+class StatsRankedArtist {
+  const StatsRankedArtist({
+    required this.artistName,
+    required this.playCount,
+    required this.albumCount,
+  });
+
+  final String artistName;
+  final int playCount;
+  final int albumCount;
+}
+
+/// Joined snapshot of service aggregates and display names for one range.
 class StatsDashboardData {
   const StatsDashboardData({
     required this.summary,
@@ -32,6 +46,7 @@ class StatsDashboardData {
     required this.years,
     required this.genres,
     required this.mostPlayed,
+    required this.topArtists,
     required this.firstVinyl,
     required this.firstVinylArtistName,
   });
@@ -41,10 +56,17 @@ class StatsDashboardData {
   final List<YearlyPlays> years;
   final List<GenreStat> genres;
   final List<StatsRankedAlbum> mostPlayed;
+  final List<StatsRankedArtist> topArtists;
   final Album? firstVinyl;
   final String? firstVinylArtistName;
 }
 
+/// Loads the range-specific dashboard, resolving artist IDs once for
+/// rankings rather than mixing repository lookups into the widget tree.
+/// Service reads run independently, not inside one database snapshot. Monthly
+/// data always covers the current year; yearly data is loaded for all-time UI.
+/// This FutureProvider does not watch table changes; callers must invalidate
+/// it when a write should refresh a dashboard that remains mounted.
 final statsDashboardProvider = FutureProvider.autoDispose
     .family<StatsDashboardData, StatsRange>((ref, range) async {
       final service = ref.watch(statsServiceProvider);
@@ -57,6 +79,9 @@ final statsDashboardProvider = FutureProvider.autoDispose
       final yearsFuture = service.getPlaysByYear();
       final genresFuture = service.getGenreBreakdown(year: filteredYear);
       final rankedFuture = service.getMostPlayedAlbums(5, year: filteredYear);
+      final artistStatsFuture = service.getMostPlayedArtists(
+        year: filteredYear,
+      );
       final firstVinylFuture = service.getFirstVinyl();
       final artistsFuture = artistRepository.findAll();
 
@@ -65,11 +90,27 @@ final statsDashboardProvider = FutureProvider.autoDispose
       final years = await yearsFuture;
       final genres = await genresFuture;
       final ranked = await rankedFuture;
+      final artistStats = await artistStatsFuture;
       final firstVinyl = await firstVinylFuture;
       final artists = await artistsFuture;
       final artistsById = {
         for (final artist in artists) artist.id: artist.name,
       };
+      final topArtists =
+          [
+            for (final item in artistStats)
+              StatsRankedArtist(
+                artistName: artistsById[item.artistId] ?? 'Unknown artist',
+                playCount: item.playCount,
+                albumCount: item.albumCount,
+              ),
+          ]..sort((left, right) {
+            final byPlays = right.playCount.compareTo(left.playCount);
+            if (byPlays != 0) return byPlays;
+            return left.artistName.toLowerCase().compareTo(
+              right.artistName.toLowerCase(),
+            );
+          });
 
       return StatsDashboardData(
         summary: summary,
@@ -84,6 +125,7 @@ final statsDashboardProvider = FutureProvider.autoDispose
               playCount: item.playCount,
             ),
         ],
+        topArtists: List.unmodifiable(topArtists.take(5)),
         firstVinyl: firstVinyl,
         firstVinylArtistName: firstVinyl == null
             ? null
@@ -91,6 +133,7 @@ final statsDashboardProvider = FutureProvider.autoDispose
       );
     });
 
+/// Displays local listening statistics, charts, and rankings by range.
 class StatsScreen extends ConsumerStatefulWidget {
   const StatsScreen({super.key});
 
@@ -192,7 +235,12 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
             AppRoutes.stats,
             AppRoutes.discover,
           ];
-          context.go(routes[index]);
+          if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+              'true') {
+            context.push('${routes[index]}?onboarding=true');
+          } else {
+            context.go(routes[index]);
+          }
         },
       ),
     );
@@ -273,6 +321,23 @@ class _StatsBody extends StatelessWidget {
               ),
             ),
           if (data.genres.isNotEmpty) SizedBox(height: tokens.space16),
+          if (data.topArtists.isNotEmpty)
+            _StatsSectionCard(
+              title: 'Top artists',
+              child: Column(
+                children: [
+                  for (var i = 0; i < data.topArtists.length; i++) ...[
+                    _RankedArtistRow(rank: i + 1, item: data.topArtists[i]),
+                    if (i != data.topArtists.length - 1)
+                      Divider(
+                        height: tokens.space24,
+                        color: tokens.textMuted.withValues(alpha: 0.16),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+          if (data.topArtists.isNotEmpty) SizedBox(height: tokens.space16),
           if (data.mostPlayed.isNotEmpty)
             _StatsSectionCard(
               title: 'Most played',
@@ -320,8 +385,10 @@ class _SummaryGrid extends StatelessWidget {
       children: [
         _StatTile(
           label: 'COLLECTION',
-          value: '${summary.totalAlbums}',
-          detail: summary.totalAlbums == 1 ? 'record' : 'records',
+          value: '${summary.playedAlbums} / ${summary.totalAlbums}',
+          detail: range == StatsRange.currentYear
+              ? 'played in $currentYear'
+              : 'played all time',
         ),
         _StatTile(
           label: 'TOTAL PLAYS',
@@ -817,6 +884,75 @@ class _RankedAlbumRow extends StatelessWidget {
   }
 }
 
+class _RankedArtistRow extends StatelessWidget {
+  const _RankedArtistRow({required this.rank, required this.item});
+
+  final int rank;
+  final StatsRankedArtist item;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final recordLabel = item.albumCount == 1 ? 'record' : 'records';
+    return Row(
+      children: [
+        SizedBox(
+          width: 28,
+          child: Text(
+            '$rank',
+            style: context.theme.textTheme.titleMedium?.copyWith(
+              color: AppThemeTokens.accent,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: tokens.surfaceElevated,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.person_rounded,
+            color: AppThemeTokens.accent,
+            size: 24,
+          ),
+        ),
+        SizedBox(width: tokens.space12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.artistName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                '${item.albumCount} $recordLabel played',
+                style: context.theme.textTheme.bodySmall?.copyWith(
+                  color: tokens.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(width: tokens.space8),
+        Text(
+          '${item.playCount} ${item.playCount == 1 ? 'play' : 'plays'}',
+          style: context.theme.textTheme.labelMedium?.copyWith(
+            color: tokens.textMuted,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _NoPlaysCard extends StatelessWidget {
   const _NoPlaysCard();
 
@@ -846,7 +982,12 @@ class _NoPlaysCard extends StatelessWidget {
           SizedBox(height: tokens.space16),
           FilledButton.icon(
             key: const Key('stats-log-play'),
-            onPressed: () => context.push(AppRoutes.logPlay),
+            onPressed: () => context.push(
+              GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+                      'true'
+                  ? '${AppRoutes.logPlay}?onboarding=true'
+                  : AppRoutes.logPlay,
+            ),
             icon: const Icon(Icons.add_rounded),
             label: const Text('Log a play'),
           ),

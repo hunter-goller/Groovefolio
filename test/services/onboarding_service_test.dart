@@ -4,6 +4,40 @@ import 'package:vinyl_app/repositories/album_repository.dart';
 import 'package:vinyl_app/services/onboarding_service.dart';
 
 void main() {
+  test(
+    'a first-run user who added a record still resumes after restart',
+    () async {
+      final store = _MemoryOnboardingStore()..progress = 2;
+      final service = OnboardingService(
+        store: store,
+        albumRepository: const _Albums([
+          Album(
+            id: 'new',
+            title: 'First record',
+            artistId: 'artist',
+            createdAt: '2026-09-11T00:00:00Z',
+          ),
+        ]),
+      );
+      expect(await service.shouldShowOnboarding(), isTrue);
+      expect(await service.resumeStep(), 2);
+      expect(await service.hasPendingWalkthrough(), isTrue);
+      await service.completeOnboarding();
+      expect(await service.hasPendingWalkthrough(), isFalse);
+      expect(await service.shouldShowOnboarding(), isFalse);
+    },
+  );
+
+  test('progress is versioned separately from legacy completion', () async {
+    final store = _MemoryOnboardingStore(completed: true)..progress = 1;
+    final service = OnboardingService(
+      store: store,
+      albumRepository: const _Albums([]),
+    );
+    expect(await service.shouldShowOnboarding(), isFalse);
+    expect(() => service.saveStep(8), throwsRangeError);
+  });
+
   test('new empty install requires onboarding', () async {
     final store = _MemoryOnboardingStore();
     final service = OnboardingService(
@@ -48,6 +82,16 @@ void main() {
 
 class _MemoryOnboardingStore implements OnboardingStore {
   _MemoryOnboardingStore({this.completed = false});
+
+  int? progress;
+
+  @override
+  Future<int?> readProgress() async => progress;
+
+  @override
+  Future<void> saveProgress(int step) async {
+    progress = step;
+  }
 
   bool completed;
 

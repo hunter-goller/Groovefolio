@@ -18,3 +18,7 @@ The verification script runs formatting, generated-source regeneration, analyzer
 ## Android SDK note
 
 The current project compiles against Android SDK 36. `flutter_secure_storage` is pinned to stable `10.3.1`; the 11 beta requires SDK 37 and is intentionally not used on this baseline.
+
+## Release compilation
+
+CI creates a disposable upload key for the release APK compilation check and discards both key and APK. It does not produce a Play upload artifact or use the developer's actual upload key. See [Android upload signing](../development/android-release-signing.md).

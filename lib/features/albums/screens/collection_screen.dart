@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/albums/album_delete_flow.dart';
+import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/widgets/shared/album_list_tile.dart';
@@ -23,7 +25,9 @@ const List<FilterChipOption<CollectionSort>> _sortOptions = [
   FilterChipOption(value: CollectionSort.mostPlayed, label: 'Most played'),
 ];
 
-/// Main collection view aligned with the approved compact dark-mode mockup.
+/// Main local collection view. Search/sort filters live in Riverpod so they
+/// survive widget rebuilds; swipe actions reuse the canonical edit/delete
+/// flows rather than writing directly from a list row.
 class CollectionScreen extends ConsumerStatefulWidget {
   const CollectionScreen({super.key});
 
@@ -141,23 +145,29 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         .setGenre(selected.isEmpty ? null : selected);
   }
 
-  void _openLogPlaySheet(BuildContext context) {
+  Future<void> _openLogPlaySheet(BuildContext context) async {
     final tokens = context.tokens;
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: tokens.background,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+    final playForm = ref.read(walkthroughPlayFormProvider.notifier);
+    playForm.setOpen(true);
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: tokens.background,
+        builder: (sheetContext) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+          ),
+          child: const FractionallySizedBox(
+            heightFactor: 0.92,
+            child: LogPlayScreen(isBottomSheet: true),
+          ),
         ),
-        child: const FractionallySizedBox(
-          heightFactor: 0.92,
-          child: LogPlayScreen(isBottomSheet: true),
-        ),
-      ),
-    );
+      );
+    } finally {
+      playForm.setOpen(false);
+    }
   }
 
   @override
@@ -200,7 +210,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
             title: 'Couldn’t load your collection',
             message:
                 'Something went wrong while reading your local collection. '
-                'Your records are still safe.',
+                'Try loading it again.',
             error: error,
             stackTrace: stackTrace,
             operation: 'load collection',
@@ -244,10 +254,18 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         ),
       ),
       floatingActionButton: hasAlbums && !_showSearch
-          ? FloatingActionButton.extended(
-              onPressed: () => context.push(AppRoutes.addAlbum),
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Add record'),
+          ? GuideTarget(
+              steps: const [1],
+              child: FloatingActionButton.extended(
+                onPressed: () => context.push(
+                  GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+                          'true'
+                      ? '${AppRoutes.addAlbum}?onboarding=true'
+                      : AppRoutes.addAlbum,
+                ),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Add record'),
+              ),
             )
           : null,
       bottomNavigationBar: BottomNavBar(
@@ -258,7 +276,12 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
             AppRoutes.stats,
             AppRoutes.discover,
           ];
-          context.go(routes[index]);
+          if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+              'true') {
+            context.push('${routes[index]}?onboarding=true');
+          } else {
+            context.go(routes[index]);
+          }
         },
       ),
     );
@@ -269,8 +292,10 @@ class _CollectionAlbumTile extends ConsumerStatefulWidget {
   const _CollectionAlbumTile({
     required this.album,
     required this.openSwipeAlbumId,
+    this.guideExample = false,
   });
 
+  final bool guideExample;
   final CollectionAlbum album;
   final ValueNotifier<String?> openSwipeAlbumId;
 
@@ -318,6 +343,7 @@ class _CollectionAlbumTileState extends ConsumerState<_CollectionAlbumTile> {
   void _open() {
     widget.openSwipeAlbumId.value = album.id;
     setState(() => _offset = _revealedOffset);
+    ref.read(walkthroughProvider.notifier).swipeRevealed();
   }
 
   void _close() {
@@ -327,12 +353,26 @@ class _CollectionAlbumTileState extends ConsumerState<_CollectionAlbumTile> {
     setState(() => _offset = 0);
   }
 
+  bool _practiceAction() {
+    final guide = ref.read(walkthroughProvider);
+    if (!guide.active || guide.step != 5) return false;
+    ref.read(walkthroughProvider.notifier).swipeRevealed();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Practice only — your record has not changed.'),
+      ),
+    );
+    return true;
+  }
+
   Future<void> _edit() async {
+    ref.read(walkthroughProvider.notifier).swipeRevealed();
     _close();
     await context.push(AppRoutes.editAlbumPath(album.id));
   }
 
   Future<void> _delete() async {
+    if (_practiceAction()) return;
     _close();
     await confirmAndDeleteAlbum(context, ref, album.id);
   }
@@ -430,21 +470,39 @@ class _CollectionAlbumTileState extends ConsumerState<_CollectionAlbumTile> {
                 },
                 child: ColoredBox(
                   color: context.theme.scaffoldBackgroundColor,
-                  child: AlbumListTile(
-                    title: album.title,
-                    artist: album.artistName,
-                    releaseYear: album.album.releaseYear,
-                    artworkPath: album.album.artworkPath,
-                    playCount: album.playCount,
-                    lastPlayedAt: album.lastPlayedAt,
-                    genres: genres,
-                    onTap: () {
-                      if (actionsAreVisible) {
-                        _close();
-                      } else {
-                        context.push(AppRoutes.albumDetailPath(album.id));
-                      }
-                    },
+                  child: GuideTarget(
+                    steps: const [2, 3, 4, 5],
+                    cue: !widget.guideExample
+                        ? GuideCue.none
+                        : ref.watch(walkthroughProvider).step == 5
+                        ? ref.watch(walkthroughProvider).practiced
+                              ? GuideCue.none
+                              : GuideCue.swipe
+                        : GuideCue.tap,
+                    reveal: widget.guideExample,
+                    child: AlbumListTile(
+                      title: album.title,
+                      artist: album.artistName,
+                      releaseYear: album.album.releaseYear,
+                      artworkPath: album.album.artworkPath,
+                      playCount: album.playCount,
+                      lastPlayedAt: album.lastPlayedAt,
+                      genres: genres,
+                      onTap: () {
+                        if (actionsAreVisible) {
+                          _close();
+                        } else {
+                          final guide = ref.read(walkthroughProvider);
+                          if (guide.active && [2, 3, 4].contains(guide.step)) {
+                            ref
+                                .read(walkthroughProvider.notifier)
+                                .recordOpened(album.id);
+                          } else {
+                            context.push(AppRoutes.albumDetailPath(album.id));
+                          }
+                        }
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -583,6 +641,7 @@ class _CollectionBody extends StatelessWidget {
             for (var index = 0; index < albums.length; index++) ...[
               _CollectionAlbumTile(
                 album: albums[index],
+                guideExample: index == 0,
                 openSwipeAlbumId: openSwipeAlbumId,
               ),
               if (index != albums.length - 1)
@@ -611,14 +670,24 @@ class _CollectionBody extends StatelessWidget {
               onCtaTap: onClearSearch,
             )
           else
-            EmptyState(
-              key: const Key('collection-empty-state'),
-              icon: Icons.album_outlined,
-              title: 'Your collection is empty',
-              subtitle:
-                  'Add your first record and Groovefolio will start building your listening history.',
-              ctaLabel: 'Add your first record',
-              onCtaTap: () => context.push(AppRoutes.addAlbum),
+            GuideTarget(
+              steps: const [1],
+              cue: GuideCue.none,
+              child: EmptyState(
+                key: const Key('collection-empty-state'),
+                guideSteps: const [1],
+                icon: Icons.album_outlined,
+                title: 'Your collection is empty',
+                subtitle:
+                    'Add your first record and Groovefolio will start building your listening history.',
+                ctaLabel: 'Add your first record',
+                onCtaTap: () => context.push(
+                  GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+                          'true'
+                      ? '${AppRoutes.addAlbum}?onboarding=true'
+                      : AppRoutes.addAlbum,
+                ),
+              ),
             ),
         ],
       ),

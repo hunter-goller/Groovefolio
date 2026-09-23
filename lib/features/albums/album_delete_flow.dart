@@ -67,7 +67,7 @@ Future<bool> confirmAndDeleteAlbum(
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-          'Couldn’t delete this record. Your collection was not changed.',
+          'Couldn’t finish deleting this record. Check your collection before trying again.',
         ),
       ),
     );

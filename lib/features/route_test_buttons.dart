@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 
-/// TEMPORARY — nav-testing helper only, delete once real Screens-epic
-/// cards replace each placeholder. Not part of the app's real widget set.
+/// Legacy manual navigation helper. It is not mounted by the production
+/// router; current screens have their own navigation.
 class RouteTestButtons extends StatelessWidget {
   const RouteTestButtons({super.key});
 

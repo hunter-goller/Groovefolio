@@ -6,10 +6,40 @@ import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/albums/screens/collection_screen.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
 void main() {
+  testWidgets('guided swipe Delete is practice only and keeps the record', (
+    tester,
+  ) async {
+    final albums = _Albums();
+    await tester.binding.setSurfaceSize(const Size(430, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      _providerScope(
+        MaterialApp(theme: AppTheme.light, home: const CollectionScreen()),
+        albums: albums,
+      ),
+    );
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(CollectionScreen)),
+    );
+    final guide = container.read(walkthroughProvider.notifier);
+    await guide.start(replay: true);
+    await guide.move(5);
+    await tester.pumpAndSettle();
+    await _revealActions(tester);
+    expect(container.read(walkthroughProvider).practiced, isTrue);
+    await tester.tap(find.byKey(const Key('collection-swipe-delete')));
+    await tester.pumpAndSettle();
+    expect(albums.deletedIds, isEmpty);
+    expect(find.byKey(const Key('delete-record-confirm')), findsNothing);
+    expect(find.text('Blue Train'), findsOneWidget);
+  });
+
   testWidgets('swipe left reveals Edit/Delete and delete can be cancelled', (
     tester,
   ) async {
@@ -356,6 +386,13 @@ class _Plays implements IPlayRepository {
 class _NfcTags implements INfcTagRepository {
   @override
   Future<NfcTag> create({
+    required String albumId,
+    required String nfcTagId,
+    DateTime? writtenAt,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<NfcTag> replaceForAlbum({
     required String albumId,
     required String nfcTagId,
     DateTime? writtenAt,

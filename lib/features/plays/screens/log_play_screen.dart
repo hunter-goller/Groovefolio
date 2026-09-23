@@ -1,11 +1,13 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
+import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/play_logging_service.dart';
+import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/types/side_played.dart';
 import 'package:vinyl_app/utils/error_reporting.dart';
@@ -15,10 +17,7 @@ import 'package:vinyl_app/widgets/ui/app_error_state.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 import 'package:vinyl_app/widgets/ui/search_field.dart';
 
-/// Play logging flow with manual album selection.
-///
-/// NFC controls stay hidden while the hardware feature is marked Coming soon.
-/// The held NFC tickets can later set [_selectedAlbum] and reuse this save path.
+/// Manual play-logging flow with searchable album selection.
 class LogPlayScreen extends ConsumerStatefulWidget {
   const LogPlayScreen({
     this.isBottomSheet = false,
@@ -45,6 +44,7 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
   late TimeOfDay _selectedTime;
   SidePlayed _side = SidePlayed.full;
   bool _isSaving = false;
+  bool _playSaved = false;
 
   @override
   void initState() {
@@ -125,7 +125,18 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
     }
   }
 
+  /// Combines the local date/time selection; the repository stores it in UTC.
+  /// Only advance the walkthrough and refresh cached reads after persistence.
   Future<void> _save() async {
+    if (_isSaving) return;
+    if (_playSaved) {
+      if (widget.isBottomSheet) {
+        Navigator.of(context).pop();
+      } else {
+        context.go(AppRoutes.collection);
+      }
+      return;
+    }
     final album = _selectedAlbum;
     if (album == null) {
       ScaffoldMessenger.of(
@@ -149,6 +160,8 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
           .read(playLoggingServiceProvider)
           .logPlay(album.id, playedAt, _side);
 
+      _playSaved = true;
+      if (!mounted) return;
       ref.invalidate(albumsProvider);
       ref.invalidate(recentlyPlayedProvider);
       ref.invalidate(playCountProvider(album.id));
@@ -156,19 +169,39 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
       ref.invalidate(albumSearchProvider(_query));
 
       if (!mounted) return;
+      final guideController = ref.read(walkthroughProvider.notifier);
+      final guided =
+          ref.read(walkthroughProvider).active &&
+          ref.read(walkthroughProvider).step == 3;
+      final messenger = ScaffoldMessenger.of(context);
+      final confirmation = 'Play logged: ${album.title} • ${_sideLabel(_side)}';
       if (widget.isBottomSheet) {
         Navigator.of(context).pop();
+      } else if (guided) {
+        context.go(AppRoutes.albumDetailPath(album.id));
       } else {
-        context.go(AppRoutes.collection);
+        if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+                'true' &&
+            context.canPop()) {
+          context.pop();
+        } else {
+          context.go(AppRoutes.collection);
+        }
       }
+      if (guided) await guideController.playSaved(album.id);
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(confirmation)));
     } catch (error, stackTrace) {
       logAppError('log play', error, stackTrace);
       if (!mounted) return;
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Couldn’t log this play. Your listening history was not changed.',
+            _playSaved
+                ? 'Play logged, but a follow-up step failed. Check the record’s history before logging again.'
+                : 'Couldn’t log this play. Try again.',
           ),
         ),
       );
@@ -190,6 +223,14 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
           tokens.space32,
         ),
         children: [
+          if (ref.watch(walkthroughProvider).active &&
+              ref.watch(walkthroughProvider).step == 3)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: Text(
+                'Choose the side and date, then tap Save play below. This adds a real listen.',
+              ),
+            ),
           if (widget.isBottomSheet) ...[
             Row(
               children: [
@@ -257,6 +298,7 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
             ),
           ],
           SizedBox(height: tokens.space24),
+          const NfcHelpButton(),
           Text(
             'When',
             style: context.theme.textTheme.titleMedium?.copyWith(
@@ -300,11 +342,15 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
             onChanged: (value) => setState(() => _side = value),
           ),
           SizedBox(height: tokens.space32),
-          PrimaryButton(
-            label: 'Save play',
-            icon: Icons.play_arrow_rounded,
-            isLoading: _isSaving,
-            onPressed: _isSaving || _selectedAlbum == null ? null : _save,
+          GuideTarget(
+            steps: const [3],
+            outlineGap: true,
+            child: PrimaryButton(
+              label: _playSaved ? 'Done' : 'Save play',
+              icon: Icons.play_arrow_rounded,
+              isLoading: _isSaving,
+              onPressed: _isSaving || _selectedAlbum == null ? null : _save,
+            ),
           ),
         ],
       ),
@@ -329,6 +375,12 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
     return MaterialLocalizations.of(context).formatMediumDate(_selectedDate);
   }
 }
+
+String _sideLabel(SidePlayed side) => switch (side) {
+  SidePlayed.full => 'Full album',
+  SidePlayed.sideA => 'Side A',
+  SidePlayed.sideB => 'Side B',
+};
 
 class _AlbumResults extends StatelessWidget {
   const _AlbumResults({

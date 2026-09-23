@@ -6,8 +6,65 @@ import 'package:vinyl_app/services/discogs/discogs_collection_import_service.dar
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
+import 'package:vinyl_app/providers/album_providers.dart';
 
 void main() {
+  testWidgets(
+    'interrupted import refreshes cached collection and retry reloads preview',
+    (tester) async {
+      final service = _InterruptedImportService();
+      var reads = 0;
+      var identities = 0;
+      final container = ProviderContainer(
+        overrides: [
+          albumsProvider.overrideWith((ref) async {
+            reads++;
+            return [];
+          }),
+          discogsAccountProvider.overrideWith((ref) async {
+            identities++;
+            return const DiscogsAccount(id: 7, username: 'hunter');
+          }),
+          discogsCollectionImportServiceProvider.overrideWithValue(service),
+        ],
+      );
+      addTearDown(container.dispose);
+      final subscription = container.listen(
+        albumsProvider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      addTearDown(subscription.close);
+      await container.read(albumsProvider.future);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: const DiscogsCollectionImportScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(
+        find.byKey(const Key('discogs-import-selected-button')),
+      );
+      await tester.tap(find.byKey(const Key('discogs-import-selected-button')));
+      await tester.pumpAndSettle();
+      expect(reads, 2);
+      expect(
+        find.textContaining('Records already imported are kept'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('private interrupted import'), findsNothing);
+      await tester.tap(find.text('Try again'));
+      await tester.pumpAndSettle();
+      expect(service.previews, 2);
+      expect(identities, 2);
+      expect(service.importedReleaseIds, {1});
+    },
+  );
+
   testWidgets('reviews duplicates before starting Discogs collection import', (
     tester,
   ) async {
@@ -114,4 +171,22 @@ DiscogsCollectionItem _item(int releaseId, int instanceId, String title) {
     artist: 'Artist',
     formats: const ['Vinyl', 'LP'],
   );
+}
+
+class _InterruptedImportService extends _FakeImportService {
+  int previews = 0;
+  @override
+  Future<DiscogsCollectionPreview> prepare(String username) {
+    previews++;
+    return super.prepare(username);
+  }
+
+  @override
+  Future<DiscogsCollectionImportResult> importCandidates(
+    Iterable<DiscogsCollectionCandidate> candidates, {
+    void Function(DiscogsImportProgress progress)? onProgress,
+  }) async {
+    importedReleaseIds.add(candidates.first.item.releaseId);
+    throw StateError('private interrupted import');
+  }
 }

@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +10,7 @@ import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/artwork_storage_service.dart';
 import 'package:vinyl_app/services/record_write_service.dart';
+import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/utils/error_reporting.dart';
 import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
@@ -20,6 +20,9 @@ import 'package:vinyl_app/widgets/ui/empty_state.dart';
 import 'package:vinyl_app/widgets/ui/labeled_text_field.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 
+/// Edits a saved local record while preserving its identity and purchase
+/// history. Artwork replacement and optional NFC rewrite are separate steps
+/// from the transactional metadata/genre update.
 class EditAlbumScreen extends ConsumerStatefulWidget {
   const EditAlbumScreen({required this.albumId, super.key});
 
@@ -94,7 +97,11 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
     }
   }
 
+  /// Stages artwork before the metadata transaction and restores old bytes
+  /// if the metadata write fails. A later UI failure must not undo artwork. The image path is reused, so keeping only its string
+  /// would not be enough to undo replacement of the file itself.
   Future<void> _save() async {
+    if (_isSubmitting) return;
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
@@ -106,6 +113,9 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
     List<int>? previousArtworkBytes;
     String? writtenArtworkPath;
     var wroteArtwork = false;
+    var metadataSaved = false;
+    var restoreFailed = false;
+    final artworkStorage = ref.read(artworkStorageServiceProvider);
 
     try {
       final yearText = _yearController.text.trim();
@@ -113,7 +123,6 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
 
       var artworkPath = existing.artworkPath;
       if (_selectedArtwork != null) {
-        final artworkStorage = ref.read(artworkStorageServiceProvider);
         previousArtworkFile = artworkStorage.artworkFile(existing.artworkPath);
         if (previousArtworkFile != null) {
           previousArtworkBytes = await previousArtworkFile.readAsBytes();
@@ -139,6 +148,8 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
             genreNames: _selectedGenres,
           );
 
+      metadataSaved = true;
+      if (!mounted) return;
       ref.invalidate(genresProvider);
       ref.invalidate(albumGenresProvider(existing.id));
       ref.invalidate(albumDetailProvider(existing.id));
@@ -146,12 +157,16 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
       ref.invalidate(albumsProvider);
 
       if (!mounted) return;
-      context.go(AppRoutes.albumDetailPath(existing.id));
+      final guide = ref.read(walkthroughProvider);
+      context.go(
+        guide.active && guide.step == 5
+            ? AppRoutes.collection
+            : AppRoutes.albumDetailPath(existing.id),
+      );
     } catch (error, stackTrace) {
       logAppError('save record changes', error, stackTrace);
-      if (wroteArtwork && writtenArtworkPath != null) {
+      if (!metadataSaved && wroteArtwork && writtenArtworkPath != null) {
         try {
-          final artworkStorage = ref.read(artworkStorageServiceProvider);
           if (previousArtworkFile != null &&
               previousArtworkBytes != null &&
               previousArtworkFile.path == writtenArtworkPath) {
@@ -163,6 +178,7 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
             await artworkStorage.deleteArtwork(writtenArtworkPath);
           }
         } catch (rollbackError, rollbackStackTrace) {
+          restoreFailed = true;
           logAppError(
             'restore artwork after failed record update',
             rollbackError,
@@ -173,9 +189,13 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Couldn’t save these changes. Your record was not updated.',
+            metadataSaved
+                ? 'Changes saved, but the next screen could not open. Reopen the record from your collection.'
+                : restoreFailed
+                ? 'Couldn’t save these changes or restore the artwork. Reopen the record and check its cover before retrying.'
+                : 'Couldn’t save these changes. Check the details and try again.',
           ),
         ),
       );

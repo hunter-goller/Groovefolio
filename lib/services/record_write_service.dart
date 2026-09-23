@@ -14,6 +14,7 @@ abstract interface class DatabaseTransactionRunner {
   Future<T> run<T>(Future<T> Function() operation);
 }
 
+/// Drift-backed implementation of the transaction boundary.
 class DriftDatabaseTransactionRunner implements DatabaseTransactionRunner {
   const DriftDatabaseTransactionRunner(this._db);
 
@@ -28,9 +29,14 @@ class DriftDatabaseTransactionRunner implements DatabaseTransactionRunner {
 /// Coordinates record writes that span multiple repositories.
 ///
 /// Add/Edit/Discogs import all use this service so artist, album, Discogs link,
-/// tracklist, and genre mappings commit as one database transaction. Artwork is
-/// intentionally handled after the DB commit because filesystem writes cannot
-/// participate in a SQLite transaction.
+/// tracklist, and genre mappings commit as one database transaction. Repositories
+/// must share the runner's database connection for this guarantee to hold.
+///
+/// Artwork bytes cannot join a SQLite transaction. Add/import save their files
+/// after creating the record; Edit stages replacement bytes before updating and
+/// attempts to restore the previous file only if the metadata did not commit. Those
+/// policies belong to the callers, not this service. Callers also refresh UI
+/// providers after a successful write.
 class RecordWriteService {
   const RecordWriteService({
     required DatabaseTransactionRunner transactionRunner,
@@ -53,6 +59,9 @@ class RecordWriteService {
   final ITrackRepository _trackRepository;
   final IDiscogsReleaseLinkRepository _releaseLinkRepository;
 
+  /// Creates one record and its optional release link, tracks, and genres
+  /// atomically. Rejects an exact Discogs release already linked locally.
+  /// Artwork is saved separately by the caller after this transaction.
   Future<Album> createRecord({
     required String title,
     required String artistName,
@@ -108,6 +117,12 @@ class RecordWriteService {
     });
   }
 
+  /// Updates editable fields and replaces genre assignments atomically.
+  /// Preserves the existing purchase metadata, release link, and tracklist.
+  ///
+  /// Nullable field arguments are replacement values: passing null clears
+  /// them. Pass the existing artwork path when no replacement was selected.
+  /// An empty [genreNames] removes all genre assignments for this album.
   Future<Album> updateRecord({
     required Album existing,
     required String title,

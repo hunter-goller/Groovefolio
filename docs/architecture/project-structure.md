@@ -16,7 +16,9 @@ lib/
 │  ├─ albums/screens/
 │  ├─ plays/screens/
 │  ├─ stats/screens/
-│  └─ discover/screens/
+│  ├─ discover/screens/
+│  ├─ onboarding/screens/
+│  └─ settings/screens/
 ├─ providers/
 ├─ repositories/
 ├─ routing/
@@ -40,7 +42,8 @@ lib/
 - `widgets/`: reusable presentation components
 - `theme/`: app-wide tokens/theme state
 - `dev/`: debug-only seed/reset tooling
-- `services/discogs/`: external Discogs auth/API foundation
+- `services/discogs/`: current on-device Discogs auth/API integration
+- `services/nfc/`: tag handling and automatic play logic
 
 ## Naming note
 

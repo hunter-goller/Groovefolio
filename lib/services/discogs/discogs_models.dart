@@ -1,3 +1,4 @@
+/// Connected user's access token and secret; never persist in SQLite or logs.
 class DiscogsOAuthCredentials {
   const DiscogsOAuthCredentials({
     required this.token,
@@ -7,6 +8,7 @@ class DiscogsOAuthCredentials {
   final String tokenSecret;
 }
 
+/// Temporary credentials kept only while browser authorization is pending.
 class DiscogsRequestToken {
   const DiscogsRequestToken({required this.token, required this.tokenSecret});
   final String token;
@@ -24,6 +26,8 @@ class DiscogsAccount {
   final String? resourceUrl;
 }
 
+/// One candidate pressing; selecting it still requires fetching exact
+/// release details before a local record is created.
 class DiscogsReleaseSearchResult {
   const DiscogsReleaseSearchResult({
     required this.releaseId,
@@ -72,6 +76,7 @@ class DiscogsTrack {
   final int? durationSeconds;
 }
 
+/// Normalized metadata for one exact Discogs release, including track order.
 class DiscogsReleaseDetails {
   const DiscogsReleaseDetails({
     required this.releaseId,
@@ -95,6 +100,8 @@ class DiscogsReleaseDetails {
   final String? artworkUrl;
   final List<DiscogsTrack> tracks;
 
+  /// Combines Discogs genres and styles, keeping the first spelling of each
+  /// case-insensitive name for the local genre repository.
   List<String> get genreNames {
     final seen = <String>{};
     final values = <String>[];
@@ -127,6 +134,7 @@ DiscogsReleaseSearchResult? discogsReleaseSearchResultFromJson(
   );
 }
 
+/// Maps one release payload into editable local metadata and a flat tracklist.
 DiscogsReleaseDetails discogsReleaseDetailsFromJson(
   Map<String, dynamic> json, {
   required int releaseId,

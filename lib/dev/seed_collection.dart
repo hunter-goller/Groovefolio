@@ -251,8 +251,8 @@ Future<DevSeedResult> resetAndSeedCollectionForDev(
   }
 
   await db.transaction(() async {
-    // Delete dependents first because Plays and NfcTags intentionally do not
-    // rely on database-level cascading.
+    // Keep the development reset order explicit. Schema v6 also cascades
+    // Plays, NfcTags, release links and tracks when Albums are deleted.
     await db.delete(db.albumGenres).go();
     await db.delete(db.plays).go();
     await db.delete(db.nfcTags).go();

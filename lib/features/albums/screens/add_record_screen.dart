@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:vinyl_app/db/app_database.dart';
+import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
@@ -14,17 +14,23 @@ import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/artwork_storage_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
+import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
+import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/record_write_service.dart';
+import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/utils/error_reporting.dart';
 import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
 import 'package:vinyl_app/widgets/shared/discogs_banner.dart';
 import 'package:vinyl_app/widgets/shared/genre_chip_input.dart';
 import 'package:vinyl_app/widgets/shared/resilient_image.dart';
+import 'package:vinyl_app/widgets/shared/nfc_write_dialog.dart';
 import 'package:vinyl_app/widgets/ui/labeled_text_field.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 
-/// Manual record creation flow aligned with the approved compact mockup.
+/// Creates a local record from manual fields or editable Discogs autofill.
+/// Database metadata is written through RecordWriteService; artwork and an
+/// optional NFC tag are handled afterward without discarding the saved record.
 class AddRecordScreen extends ConsumerStatefulWidget {
   const AddRecordScreen({super.key});
 
@@ -44,6 +50,8 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
   int? _selectedDiscogsReleaseId;
   List<DiscogsTrack> _selectedDiscogsTracks = const [];
   bool _isSubmitting = false;
+  bool _writeNfcAfterSave = false;
+  String? _savedAlbumId;
 
   @override
   void initState() {
@@ -219,9 +227,23 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
     }
   }
 
+  /// Commits record metadata first, then attaches artwork and optionally NFC.
+  /// A later integration failure does not roll back the saved record; inspect
+  /// its ID before retrying the whole create operation after an error.
   Future<void> _save() async {
+    if (_isSubmitting) return;
+    final savedId = _savedAlbumId;
+    if (savedId != null) {
+      context.go(AppRoutes.albumDetailPath(savedId));
+      return;
+    }
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
+
+    final shouldWriteNfc =
+        _writeNfcAfterSave &&
+        ref.read(nfcAvailabilityProvider).value ==
+            NfcAvailabilityState.available;
 
     setState(() => _isSubmitting = true);
     try {
@@ -247,6 +269,9 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
             ),
           );
 
+      _savedAlbumId = createdAlbum.id;
+      if (!mounted) return;
+
       String? artworkWarning;
       if (_selectedArtwork != null) {
         String? storedArtworkPath;
@@ -271,11 +296,20 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
           if (!updated) {
             throw StateError('Artwork could not be linked to the record.');
           }
-        } catch (_) {
-          if (storedArtworkPath != null) {
-            await ref
-                .read(artworkStorageServiceProvider)
-                .deleteArtwork(storedArtworkPath);
+        } catch (error, stackTrace) {
+          logAppError('attach record artwork', error, stackTrace);
+          if (storedArtworkPath != null && mounted) {
+            try {
+              await ref
+                  .read(artworkStorageServiceProvider)
+                  .deleteArtwork(storedArtworkPath);
+            } catch (cleanupError, cleanupStack) {
+              logAppError(
+                'clean up unattached artwork',
+                cleanupError,
+                cleanupStack,
+              );
+            }
           }
           artworkWarning =
               'Record added, but its artwork could not be saved. You can add it again from Edit record.';
@@ -298,19 +332,52 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
       }
 
       if (!mounted) return;
-      context.go(AppRoutes.collection);
-      if (artworkWarning != null) {
-        ScaffoldMessenger.of(
+      NfcWriteOutcome? nfcOutcome;
+      if (shouldWriteNfc) {
+        nfcOutcome = await showNfcWriteDialog(
           context,
-        ).showSnackBar(SnackBar(content: Text(artworkWarning)));
+          albumId: createdAlbum.id,
+        );
+      }
+
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      if (ref.read(walkthroughProvider).active) {
+        await ref
+            .read(walkthroughProvider.notifier)
+            .recordSaved(createdAlbum.id);
+        if (!mounted) return;
+        context.go(AppRoutes.collection);
+      } else if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+              'true' &&
+          context.canPop()) {
+        context.pop();
+      } else {
+        context.go(AppRoutes.collection);
+      }
+      if (nfcOutcome == NfcWriteOutcome.written) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Record added and NFC tag linked.')),
+        );
+      } else if (nfcOutcome == NfcWriteOutcome.skipped) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Record added. You can link an NFC tag later.'),
+          ),
+        );
+      }
+      if (artworkWarning != null) {
+        messenger.showSnackBar(SnackBar(content: Text(artworkWarning)));
       }
     } catch (error, stackTrace) {
       logAppError('add record', error, stackTrace);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Couldn’t add this record. Your collection was not changed.',
+            _savedAlbumId == null
+                ? 'Couldn’t add this record. Check the details and try again.'
+                : 'Record added, but a follow-up step failed. View the record before making more changes.',
           ),
         ),
       );
@@ -324,7 +391,9 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
     final tokens = context.tokens;
     final mutationState = ref.watch(albumMutationsProvider);
     final genresState = ref.watch(genresProvider);
+    final nfcAvailability = ref.watch(nfcAvailabilityProvider);
     final isSaving = mutationState.isLoading || _isSubmitting;
+    final canWriteNfc = nfcAvailability.value == NfcAvailabilityState.available;
     final genreSuggestions =
         genresState.value?.map((genre) => genre.name).toList(growable: false) ??
         const <String>[];
@@ -333,9 +402,16 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
       appBar: AppBar(
         title: const Text('Add a record'),
         actions: [
-          TextButton(
-            onPressed: isSaving ? null : _save,
-            child: const Text('Save'),
+          GuideTarget(
+            steps:
+                _titleController.text.trim().isNotEmpty &&
+                    _artistController.text.trim().isNotEmpty
+                ? const [1, 2]
+                : const [],
+            child: TextButton(
+              onPressed: isSaving ? null : _save,
+              child: Text(_savedAlbumId == null ? 'Save' : 'View record'),
+            ),
           ),
           const SizedBox(width: 8),
         ],
@@ -369,24 +445,38 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
                     Expanded(
                       child: Column(
                         children: [
-                          LabeledTextField(
-                            key: const Key('add-record-title'),
-                            label: 'TITLE *',
-                            controller: _titleController,
-                            hint: 'Blue Train',
-                            enabled: !isSaving,
-                            textInputAction: TextInputAction.next,
-                            validator: _requiredValidator('Title'),
+                          GuideTarget(
+                            steps: _titleController.text.trim().isEmpty
+                                ? const [1, 2]
+                                : const [],
+                            cue: GuideCue.field,
+                            child: LabeledTextField(
+                              key: const Key('add-record-title'),
+                              label: 'TITLE *',
+                              controller: _titleController,
+                              hint: 'Blue Train',
+                              enabled: !isSaving,
+                              textInputAction: TextInputAction.next,
+                              validator: _requiredValidator('Title'),
+                            ),
                           ),
                           SizedBox(height: tokens.space12),
-                          LabeledTextField(
-                            key: const Key('add-record-artist'),
-                            label: 'ARTIST *',
-                            controller: _artistController,
-                            hint: 'John Coltrane',
-                            enabled: !isSaving,
-                            textInputAction: TextInputAction.next,
-                            validator: _requiredValidator('Artist'),
+                          GuideTarget(
+                            steps:
+                                _titleController.text.trim().isNotEmpty &&
+                                    _artistController.text.trim().isEmpty
+                                ? const [1, 2]
+                                : const [],
+                            cue: GuideCue.field,
+                            child: LabeledTextField(
+                              key: const Key('add-record-artist'),
+                              label: 'ARTIST *',
+                              controller: _artistController,
+                              hint: 'John Coltrane',
+                              enabled: !isSaving,
+                              textInputAction: TextInputAction.next,
+                              validator: _requiredValidator('Artist'),
+                            ),
                           ),
                         ],
                       ),
@@ -467,9 +557,31 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
                     ],
                   ),
                 ),
+                if (canWriteNfc) ...[
+                  SizedBox(height: tokens.space16),
+                  _SectionCard(
+                    child: SwitchListTile.adaptive(
+                      key: const Key('add-record-write-nfc'),
+                      contentPadding: EdgeInsets.zero,
+                      secondary: const Icon(Icons.nfc_rounded),
+                      title: const Text('Write NFC tag after saving'),
+                      subtitle: const Text(
+                        'After the record is saved, hold your phone near a '
+                        'writable NFC tag.',
+                      ),
+                      value: _writeNfcAfterSave,
+                      onChanged: isSaving
+                          ? null
+                          : (value) =>
+                                setState(() => _writeNfcAfterSave = value),
+                    ),
+                  ),
+                ],
                 SizedBox(height: tokens.space24),
                 PrimaryButton(
-                  label: 'Add to collection',
+                  label: _savedAlbumId == null
+                      ? 'Add to collection'
+                      : 'View record',
                   icon: Icons.add_rounded,
                   isLoading: isSaving,
                   onPressed: isSaving ? null : _save,
@@ -999,12 +1111,13 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: tokens.surface,
+    return Material(
+      color: tokens.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(tokens.radiusMedium),
-        border: Border.all(color: tokens.textMuted.withValues(alpha: 0.16)),
+        side: BorderSide(color: tokens.textMuted.withValues(alpha: 0.16)),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Padding(padding: EdgeInsets.all(tokens.space12), child: child),
     );
   }

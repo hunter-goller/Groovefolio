@@ -23,6 +23,8 @@ class TrackDraft {
   final int? durationSeconds;
 }
 
+/// Complete tracklist persistence; callers supply domain drafts rather than
+/// Drift companions and never update individual rows out of sequence.
 abstract interface class ITrackRepository {
   /// Returns one album's tracks in deterministic release order.
   Future<List<Track>> findByAlbum(String albumId);
@@ -37,6 +39,8 @@ abstract interface class ITrackRepository {
   );
 }
 
+/// Drift implementation that validates drafts and swaps a whole album's
+/// tracklist inside one transaction.
 class TrackRepository implements ITrackRepository {
   TrackRepository(this._db);
 

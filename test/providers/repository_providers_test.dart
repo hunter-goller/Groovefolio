@@ -152,6 +152,13 @@ class _FakeNfcTagRepository implements INfcTagRepository {
   }) => throw UnimplementedError();
 
   @override
+  Future<NfcTag> replaceForAlbum({
+    required String albumId,
+    required String nfcTagId,
+    DateTime? writtenAt,
+  }) => throw UnimplementedError();
+
+  @override
   Future<int> delete(String id) => throw UnimplementedError();
 
   @override

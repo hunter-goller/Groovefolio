@@ -9,6 +9,8 @@ Repositories are Groovefolio's persistence boundary.
 - `IPlayRepository`
 - `INfcTagRepository`
 - `IGenreRepository`
+- `IDiscogsReleaseLinkRepository`
+- `ITrackRepository`
 
 ## Core rule
 
@@ -31,4 +33,4 @@ This keeps UI and services independent of Drift-specific companion types and mak
 
 ## Multi-repository workflows
 
-When an operation spans several repositories, put it in a service rather than bloating one repository. `AlbumDeletionService` is the current example: it coordinates plays, NFC, artwork, and album removal.
+When an operation spans several repositories, put it in a service rather than bloating one repository. `RecordWriteService` coordinates add/edit/import writes in one transaction. `AlbumDeletionService` deletes an album and lets database cascades remove associated rows, then cleans up artwork.

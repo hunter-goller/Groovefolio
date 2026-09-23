@@ -11,6 +11,8 @@ part 'play_repository.g.dart';
 abstract interface class IPlayRepository {
   /// Creates a play while keeping generated IDs, timestamps, and Drift
   /// companion construction inside the repository boundary.
+  /// [playedAt] is converted to UTC ISO-8601 text. One row counts as one play,
+  /// including side-only plays; the NFC duplicate guard lives above this layer.
   Future<Play> create({
     required String albumId,
     required DateTime playedAt,
@@ -22,6 +24,8 @@ abstract interface class IPlayRepository {
 
   Future<List<Play>> findAll();
 
+  /// Returns zero if already absent. NFC Undo uses this count to distinguish
+  /// a removed play from an action that no longer has a row to remove.
   Future<int> deleteById(String id);
 
   Future<int> getPlayCountByAlbum(String albumId);

@@ -6,6 +6,8 @@ import 'package:crypto/crypto.dart';
 typedef DiscogsClock = DateTime Function();
 typedef DiscogsNonceFactory = String Function();
 
+/// Signs the app's direct Discogs requests using OAuth 1.0a HMAC-SHA1.
+/// Injected time and nonce sources keep signature fixtures deterministic.
 class DiscogsOAuthSigner {
   DiscogsOAuthSigner({
     required this.consumerKey,
@@ -20,6 +22,9 @@ class DiscogsOAuthSigner {
   final DiscogsClock _clock;
   final DiscogsNonceFactory _nonceFactory;
 
+  /// Returns OAuth header fields including the signature. Query parameters
+  /// and [additionalParameters] affect the signature but are not copied into
+  /// the returned Authorization header fields.
   Map<String, String> authorizationParameters({
     required String method,
     required Uri uri,
@@ -80,6 +85,7 @@ class DiscogsOAuthSigner {
     return oauth;
   }
 
+  /// Formats signed protocol fields as an OAuth Authorization header.
   String authorizationHeader(Map<String, String> oauth) {
     final entries = oauth.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));

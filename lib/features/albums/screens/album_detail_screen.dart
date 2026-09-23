@@ -3,17 +3,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/albums/album_delete_flow.dart';
+import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/providers/track_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
+import 'package:vinyl_app/services/nfc/nfc_service.dart';
+import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/types/side_played.dart';
 import 'package:vinyl_app/widgets/shared/genre_chip.dart';
 import 'package:vinyl_app/widgets/shared/resilient_image.dart';
 import 'package:vinyl_app/widgets/ui/app_error_state.dart';
+import 'package:vinyl_app/widgets/shared/nfc_write_dialog.dart';
 import 'package:vinyl_app/widgets/ui/empty_state.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 import 'package:vinyl_app/widgets/ui/section_header.dart';
@@ -30,6 +35,15 @@ class AlbumDetailScreen extends ConsumerWidget {
     final detailAsync = ref.watch(albumDetailProvider(albumId));
     final genresAsync = ref.watch(albumGenresProvider(albumId));
     final tracksAsync = ref.watch(albumTracksProvider(albumId));
+    final canWriteNfc =
+        ref.watch(nfcAvailabilityProvider).value ==
+        NfcAvailabilityState.available;
+    final nfcTagData = canWriteNfc
+        ? ref.watch(albumNfcTagProvider(albumId)).asData
+        : null;
+    final linkedNfcTag = nfcTagData?.value;
+    final canManageNfc =
+        canWriteNfc && nfcTagData != null && detailAsync.value != null;
     final canPop = Navigator.of(context).canPop();
 
     return PopScope(
@@ -42,34 +56,57 @@ class AlbumDetailScreen extends ConsumerWidget {
           leading: BackButton(onPressed: () => _goBack(context)),
           title: const Text('Album Details'),
           actions: [
-            PopupMenuButton<_AlbumMenuAction>(
-              tooltip: 'Record actions',
-              onSelected: (action) {
-                switch (action) {
-                  case _AlbumMenuAction.edit:
-                    context.push(AppRoutes.editAlbumPath(albumId));
-                  case _AlbumMenuAction.delete:
-                    _confirmDelete(context, ref);
-                }
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem(
-                  value: _AlbumMenuAction.edit,
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.edit_outlined),
-                    title: Text('Edit record'),
+            GuideTarget(
+              steps: const [4],
+              child: PopupMenuButton<_AlbumMenuAction>(
+                tooltip: 'Record actions',
+                onSelected: (action) {
+                  switch (action) {
+                    case _AlbumMenuAction.edit:
+                      context.push(AppRoutes.editAlbumPath(albumId));
+                    case _AlbumMenuAction.nfc:
+                      _manageNfc(
+                        context,
+                        ref,
+                        replaceExisting: linkedNfcTag != null,
+                      );
+                    case _AlbumMenuAction.delete:
+                      _confirmDelete(context, ref);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: _AlbumMenuAction.edit,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.edit_outlined),
+                      title: Text('Edit record'),
+                    ),
                   ),
-                ),
-                PopupMenuItem(
-                  value: _AlbumMenuAction.delete,
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.delete_outline_rounded),
-                    title: Text('Delete record'),
+                  if (canManageNfc)
+                    PopupMenuItem(
+                      key: const Key('album-nfc-action'),
+                      value: _AlbumMenuAction.nfc,
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.nfc_rounded),
+                        title: Text(
+                          linkedNfcTag == null
+                              ? 'Link NFC tag'
+                              : 'Rewrite or replace NFC tag',
+                        ),
+                      ),
+                    ),
+                  const PopupMenuItem(
+                    value: _AlbumMenuAction.delete,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.delete_outline_rounded),
+                      title: Text('Delete record'),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -82,7 +119,7 @@ class AlbumDetailScreen extends ConsumerWidget {
               title: 'Couldn’t load this record',
               message:
                   'Something went wrong while reading your local collection. '
-                  'Your record is still safe.',
+                  'Try loading it again.',
               error: error,
               stackTrace: stackTrace,
               operation: 'load album details',
@@ -136,25 +173,31 @@ class AlbumDetailScreen extends ConsumerWidget {
     AlbumDetailData detail,
   ) async {
     final tokens = context.tokens;
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: tokens.background,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
-        ),
-        child: FractionallySizedBox(
-          heightFactor: 0.92,
-          child: LogPlayScreen(
-            isBottomSheet: true,
-            initialAlbum: detail.collectionAlbum,
+    final playForm = ref.read(walkthroughPlayFormProvider.notifier);
+    playForm.setOpen(true);
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: tokens.background,
+        builder: (sheetContext) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+          ),
+          child: FractionallySizedBox(
+            heightFactor: 0.92,
+            child: LogPlayScreen(
+              isBottomSheet: true,
+              initialAlbum: detail.collectionAlbum,
+            ),
           ),
         ),
-      ),
-    );
-    ref.invalidate(albumDetailProvider(detail.album.id));
+      );
+    } finally {
+      playForm.setOpen(false);
+    }
+    if (context.mounted) ref.invalidate(albumDetailProvider(detail.album.id));
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
@@ -162,9 +205,35 @@ class AlbumDetailScreen extends ConsumerWidget {
     if (!deleted || !context.mounted) return;
     context.go(AppRoutes.collection);
   }
+
+  Future<void> _manageNfc(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool replaceExisting,
+  }) async {
+    final outcome = await showNfcWriteDialog(
+      context,
+      albumId: albumId,
+      replaceExisting: replaceExisting,
+    );
+    if (!context.mounted || outcome != NfcWriteOutcome.written) return;
+
+    await ref.read(walkthroughProvider.notifier).nfcLinked();
+    if (!context.mounted) return;
+    ref.invalidate(albumNfcTagProvider(albumId));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          replaceExisting
+              ? 'NFC tag updated for this record.'
+              : 'NFC tag linked to this record.',
+        ),
+      ),
+    );
+  }
 }
 
-enum _AlbumMenuAction { edit, delete }
+enum _AlbumMenuAction { edit, nfc, delete }
 
 class _AlbumDetailBody extends StatelessWidget {
   const _AlbumDetailBody({
@@ -201,10 +270,17 @@ class _AlbumDetailBody extends StatelessWidget {
         SizedBox(height: tokens.space16),
         _ListeningSummary(detail: detail),
         SizedBox(height: tokens.space16),
-        PrimaryButton(
-          label: detail.playCount == 0 ? 'Log first play' : 'Log another play',
-          icon: Icons.play_arrow_rounded,
-          onPressed: () async => onLogPlay(),
+        GuideTarget(
+          steps: const [3],
+          reveal: true,
+          outlineGap: true,
+          child: PrimaryButton(
+            label: detail.playCount == 0
+                ? 'Log first play'
+                : 'Log another play',
+            icon: Icons.play_arrow_rounded,
+            onPressed: () async => onLogPlay(),
+          ),
         ),
         SizedBox(height: tokens.space24),
         SectionHeader(

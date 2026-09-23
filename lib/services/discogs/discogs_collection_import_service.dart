@@ -10,8 +10,10 @@ import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/record_write_service.dart';
 
+/// Review state of a Discogs item relative to the local collection.
 enum DiscogsCollectionCandidateStatus { newRecord, exactDuplicate, needsReview }
 
+/// A vinyl item plus duplicate classification for the import review screen.
 class DiscogsCollectionCandidate {
   const DiscogsCollectionCandidate({
     required this.item,
@@ -115,9 +117,21 @@ class DiscogsCollectionImportResult {
   int get failed => failures.length;
 }
 
+/// Previews the complete collection before any write, then imports only the
+/// caller-selected candidates into the phone's local database.
 abstract interface class DiscogsCollectionImportService {
+  /// Fetches every collection page and classifies exact and possible local
+  /// duplicates. Similar title/artist matches require explicit review.
+  /// The preview does not reserve releases: import rechecks exact links before
+  /// each write because the local collection may have changed since preview.
   Future<DiscogsCollectionPreview> prepare(String username);
 
+  /// Imports eligible selected candidates one by one. Per-release failures
+  /// are reported; authentication, throttling, or network failure stops the
+  /// batch so a systemic outage is not mistaken for individual bad records.
+  /// Earlier successful records stay committed if a later candidate throws.
+  /// Artwork download/save failures can instead produce a warning for a
+  /// successfully imported record; the entire batch is not one transaction.
   Future<DiscogsCollectionImportResult> importCandidates(
     Iterable<DiscogsCollectionCandidate> candidates, {
     void Function(DiscogsImportProgress progress)? onProgress,
@@ -186,6 +200,8 @@ class DefaultDiscogsCollectionImportService
           '${artistName.trim()} — ${album.title.trim()}';
     }
 
+    // Two physical Discogs collection instances can share a release ID,
+    // while the local release link is unique. Offer only the first instance.
     final seenReleaseIds = <int>{};
     final candidates = <DiscogsCollectionCandidate>[];
     for (final item in vinylItems) {
@@ -255,6 +271,8 @@ class DefaultDiscogsCollectionImportService
         ),
       );
 
+      // Stop on systemic failures; only a particular release's content or
+      // write failure should be isolated and counted in the final summary.
       try {
         final alreadyLinked = await _releaseLinkRepository
             .findAlbumIdForRelease(candidate.item.releaseId);

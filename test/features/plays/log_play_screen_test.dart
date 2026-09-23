@@ -11,13 +11,34 @@ import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
 void main() {
+  testWidgets('failed play save keeps form usable and retry writes once', (
+    tester,
+  ) async {
+    final fixture = _Fixture.single();
+    fixture.playRepository.failCreate = true;
+    await _pumpLogPlay(tester, fixture: fixture);
+    await tester.tap(find.text('Blue Train'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Save play'));
+    await tester.tap(find.text('Save play'));
+    await tester.pumpAndSettle();
+    expect(find.text('Couldn’t log this play. Try again.'), findsOneWidget);
+    expect(find.textContaining('private insert failure'), findsNothing);
+    expect(fixture.playRepository.plays, isEmpty);
+    fixture.playRepository.failCreate = false;
+    await tester.tap(find.text('Save play'));
+    await tester.pumpAndSettle();
+    expect(fixture.playRepository.plays, hasLength(1));
+    expect(find.text('Collection test'), findsOneWidget);
+  });
+
   testWidgets('manual selection logs a play and returns to Collection', (
     tester,
   ) async {
     final fixture = _Fixture.single();
     await _pumpLogPlay(tester, fixture: fixture);
 
-    expect(find.textContaining('NFC'), findsNothing);
+    expect(find.byKey(const Key('log-play-nfc-prompt')), findsNothing);
     expect(find.text('Blue Train'), findsOneWidget);
     await tester.tap(find.text('Blue Train'));
     await tester.pump();
@@ -35,6 +56,7 @@ void main() {
     expect(fixture.playRepository.plays.single.albumId, 'album-1');
     expect(fixture.playRepository.plays.single.sidePlayed, SidePlayed.sideA);
     expect(find.text('Collection test'), findsOneWidget);
+    expect(find.text('Play logged: Blue Train • Side A'), findsOneWidget);
   });
 
   testWidgets('default picker limits recent records until Browse all', (
@@ -118,12 +140,24 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('manual picker stays independent from NFC availability', (
+    tester,
+  ) async {
+    final fixture = _Fixture.single();
+    await _pumpLogPlay(tester, fixture: fixture);
+
+    expect(find.textContaining('NFC'), findsNothing);
+    expect(find.byKey(const Key('log-play-search')), findsOneWidget);
+    expect(find.text('Blue Train'), findsOneWidget);
+  });
 }
 
 Future<void> _pumpLogPlay(
   WidgetTester tester, {
   required _Fixture fixture,
   CollectionAlbum? initialAlbum,
+  bool settle = true,
 }) async {
   final router = GoRouter(
     initialLocation: AppRoutes.logPlay,
@@ -163,7 +197,9 @@ Future<void> _pumpLogPlay(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  }
 }
 
 class _Fixture {
@@ -314,6 +350,7 @@ class _FakePlayRepository implements IPlayRepository {
   _FakePlayRepository(List<Play> plays) : plays = List.of(plays);
 
   final List<Play> plays;
+  bool failCreate = false;
 
   @override
   Future<Play> create({
@@ -321,6 +358,7 @@ class _FakePlayRepository implements IPlayRepository {
     required DateTime playedAt,
     required SidePlayed sidePlayed,
   }) async {
+    if (failCreate) throw StateError('private insert failure');
     final play = Play(
       id: 'play-${plays.length + 1}',
       albumId: albumId,

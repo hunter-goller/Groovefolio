@@ -8,12 +8,16 @@ Current routes:
 |---|---|---|
 | `collection` | `/` | Collection |
 | `stats` | `/stats` | Stats |
-| `discover` | `/discover` | Discover placeholder |
+| `discover` | `/discover` | Discover |
 | `addAlbum` | `/album/new` | Add Record |
+| `barcodeScan` | `/album/barcode-scan` | Barcode scanner |
 | `albumDetail` | `/album/:id` | Album Detail |
 | `editAlbum` | `/album/:id/edit` | Edit Record |
 | `logPlay` | `/play/log` | Log Play |
-| `settings` | `/settings` | Settings / Discogs connection |
+| `settings` | `/settings` | Settings |
+| `nfcHelp` | `/settings/nfc-help` | NFC help |
+| `onboarding` | `/onboarding` | Interactive walkthrough |
+| `discogsCollectionImport` | `/settings/discogs/import` | Discogs import |
 
 Use `AppRoutes` constants/helpers instead of hard-coded route strings.
 

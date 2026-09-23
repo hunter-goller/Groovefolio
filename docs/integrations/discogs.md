@@ -2,7 +2,7 @@
 
 Discogs is an optional enhancement; Groovefolio's local collection remains usable without connecting an account.
 
-## Roadmap split
+## Implemented integration
 
 ### VinylApp-106 — account connection + shared API foundation
 Implemented across Parts 1 and 2:
@@ -47,7 +47,7 @@ Implemented:
 - continue after per-release failures and summarize failures/warnings at the end
 
 ### VinylApp-105 — tracklist persistence/import
-Implemented in the 105 overlay:
+Implemented on `main`:
 - schema v5 `Tracks` table with album cascade cleanup
 - ordered `TrackRepository` reads and transactional complete-tracklist replacement
 - release JSON parsing for track title, Discogs position, inferred vinyl side, duration, and original order
@@ -56,8 +56,8 @@ Implemented in the 105 overlay:
 - Album Detail groups side-aware positions such as A1/A2/B1/B2 and falls back to ordered rows when side data is absent
 - manual/local records remain valid with an empty tracklist
 
-### VinylApp-091
-Barcode → exact release will build on the same client/release-detail foundation.
+### VinylApp-091 — barcode lookup
+Implemented on `main`: camera scanning normalizes UPC/EAN barcodes, searches Discogs vinyl releases, and asks the user to select the exact pressing before editable autofill.
 
 ## Development credentials
 
@@ -83,4 +83,4 @@ After OAuth authorization, the user's access token + token secret are stored thr
 
 ## Production security note
 
-A Consumer Secret compiled into a distributed mobile application cannot be assumed to remain secret. Before Play Store release, review whether Groovefolio should use a backend/proxy or another production-safe credential strategy.
+A Consumer Secret compiled into a distributed mobile application cannot be assumed to remain secret. Before Play Store release, choose and verify a production credential strategy. A Java/Spring Boot backend is proposed in a separate, unmerged repository; the current app still calls Discogs directly.

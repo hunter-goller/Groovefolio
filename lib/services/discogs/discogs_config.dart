@@ -1,3 +1,8 @@
+/// Configuration for the app's current direct Discogs integration.
+///
+/// [fromEnvironment] is compiled into a mobile build. A consumer secret in
+/// an APK is extractable, so this is development configuration until the
+/// production credential strategy and Flutter cutover are complete.
 class DiscogsConfig {
   const DiscogsConfig({
     required this.consumerKey,
@@ -16,6 +21,8 @@ class DiscogsConfig {
 
   Uri get callback => Uri.parse(callbackUri);
 
+  /// Accepts only the registered scheme, host, and path; OAuth parameters
+  /// in the query are validated separately by the authorization controller.
   bool matchesCallback(Uri uri) {
     final expected = callback;
     return uri.scheme == expected.scheme &&
