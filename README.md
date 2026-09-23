@@ -25,8 +25,8 @@ git clone https://github.com/hunter-goller/Groovefolio.git
 cd Groovefolio
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs
-flutter run
 .\tools\verify_vinylapp_012.ps1
+flutter run
 ```
 
 See [development setup](docs/development/setup.md) for Discogs development configuration, [testing](docs/development/testing.md), and [Android upload signing](docs/development/android-release-signing.md). Keep real Discogs secrets and signing credentials outside the repository. The current client embeds development Discogs app credentials at build time; the production credential strategy remains open before public distribution.
