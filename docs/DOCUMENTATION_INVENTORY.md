@@ -1,53 +1,14 @@
 # Documentation inventory
 
-## Living product docs
-- `README.md` — repository overview and quick start
-- `ROADMAP.md` — current roadmap
-- `CHANGELOG.md` — high-level change history
-- `docs/implementation-status.md` — current implementation snapshot
+The navigable starting point is [README.md](README.md).
 
-## Architecture
-- `architecture/overview.md`
-- `architecture/database.md`
-- `architecture/dependency-graph.md`
-- `architecture/project-structure.md`
-- `architecture/repository-pattern.md`
-- `architecture/routing.md`
-- `architecture/services.md`
-- `architecture/state-management.md`
-- `architecture/ci-cd.md`
+- **Living product status:** root [README](../README.md), [roadmap](../ROADMAP.md), [changelog](../CHANGELOG.md), and [implementation status](implementation-status.md).
+- **Architecture:** [overview](architecture/overview.md), database, dependencies, project structure, repository pattern, routing, services, state management, and CI.
+- **Development:** setup, testing, code generation, seed data, standards, Git/PR workflow, release process, Play readiness, signing, and documentation maintenance under [development/](development/).
+- **Features:** collection, add/detail/edit, play logging, statistics, NFC, Discover, recommendations, and planned Wrapped under [features/](features/).
+- **Integrations:** [Discogs](integrations/discogs.md).
+- **Decisions:** [ADRs](decisions/README.md).
+- **Historical snapshots:** [archived ticket notes](archive/README.md) and [patch notes](Patch_Notes/). They are retained for context, not current setup instructions.
+- **Design assets:** [design/](../design/README.md).
 
-## Development
-- `development/setup.md`
-- `development/testing.md`
-- `development/code-generation.md`
-- `development/dev-seed.md`
-- `development/coding-standards.md`
-- `development/git-workflow.md`
-- `development/pull-requests.md`
-- `development/release-process.md`
-- `development/google-play-readiness.md`
-- `development/documentation-maintenance.md`
-
-## Features
-- `features/collection.md`
-- `features/add-album.md`
-- `features/album-details.md`
-- `features/play-logging.md`
-- `features/statistics.md`
-- `features/nfc.md`
-- `features/discover.md`
-- `features/recommendations.md`
-- `features/album-wrapped.md`
-
-## Integrations
-- `integrations/discogs.md`
-
-## Decisions
-ADR files under `decisions/` capture durable architectural decisions.
-
-## Historical
-Files under `Patch_Notes/` are historical snapshots. They retain the `VinylApp-###` naming that existed when the work was done.
-
-## Design assets
-See `../design/README.md`. The current dark mockup reference is `docs/groovefolio_mockup_dark.png`.
+The current dark mockup reference is `groovefolio_mockup_dark.png` in this directory.

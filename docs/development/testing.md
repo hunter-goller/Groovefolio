@@ -19,7 +19,7 @@ flutter test -r expanded test/services/stats_service_test.dart
 
 ## Current coverage areas
 - Drift table/schema behavior
-- v1→v2→v3 migration preservation
+- v1→v6 migration preservation and recovery
 - album/artist/play/NFC/genre repositories
 - provider overrides and collection providers
 - play logging business rules
@@ -28,7 +28,7 @@ flutter test -r expanded test/services/stats_service_test.dart
 - coordinated album deletion
 - Add/Edit/Detail/Collection/Log Play screens
 - genre/artwork/shared widgets
-- OAuth signer behavior
+- OAuth signer, Discogs catalog/import, NFC intent handling, onboarding, and local recommendations
 
 ## Filesystem-test note
 A previous Windows Flutter widget test hung on `Directory.systemTemp.createTemp()`. ArtworkPicker tests avoid that pattern and inject deterministic rendering instead.

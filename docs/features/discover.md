@@ -22,7 +22,7 @@ recommendation server was involved.
 
 External suggestions for records the user does not own remain separate work in
 VinylApp-117.
-# VinylApp-129: shelf discovery polish
+## Shelf discovery polish
 
 The **Give these a spin** section supplies owned-album suggestions even with no
 play history or genre/year metadata. Existing rediscover, genre, and era picks
