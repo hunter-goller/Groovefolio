@@ -18,6 +18,9 @@ class DiscogsAuthService {
   final DiscogsApiClient _apiClient;
   final DiscogsCredentialStore _credentialStore;
 
+  /// Returns null when disconnected; otherwise verifies identity over HTTP.
+  /// An offline/provider failure throws and does not by itself erase the saved
+  /// credentials. A failed account lookup is not proof of a disconnected user.
   Future<DiscogsAccount?> currentAccount() async {
     final credentials = await _credentialStore.readCredentials();
     return credentials == null ? null : _apiClient.identity(credentials);

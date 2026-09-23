@@ -17,6 +17,9 @@ class NfcPlayUndo {
   late final Duration _started;
   bool _used = false;
 
+  /// Removes only the play captured by this capability. False means expired,
+  /// already used, or no row remained. A thrown delete permits retry within
+  /// the original window; it does not extend expiry or reset the NFC cooldown.
   Future<bool> undo() async {
     if (_used || _elapsed() - _started >= window) return false;
     // Consume before awaiting so concurrent taps cannot issue two deletes.

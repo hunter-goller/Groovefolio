@@ -18,6 +18,10 @@ class LocalDataResetService {
   final ILocalDataResetRepository _resetRepository;
   final ArtworkStorageService _artworkStorageService;
 
+  /// Clears collection rows, then files. If artwork cleanup throws, database
+  /// deletion has already committed. Secure credentials/preferences are kept.
+  /// The caller owns the debug-only UI gate; this service has no build-mode
+  /// check and must not be exposed as an ordinary production recovery action.
   Future<void> reset() async {
     // Database state is authoritative. Commit that reset first; if filesystem
     // cleanup ever fails, orphaned artwork is safer than live rows pointing to

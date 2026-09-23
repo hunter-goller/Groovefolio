@@ -62,6 +62,10 @@ class StatsDashboardData {
 
 /// Loads the range-specific dashboard, resolving artist IDs once for
 /// rankings rather than mixing repository lookups into the widget tree.
+/// Service reads run independently, not inside one database snapshot. Monthly
+/// data always covers the current year; yearly data is loaded for all-time UI.
+/// This FutureProvider does not watch table changes; callers must invalidate
+/// it when a write should refresh a dashboard that remains mounted.
 final statsDashboardProvider = FutureProvider.autoDispose
     .family<StatsDashboardData, StatsRange>((ref, range) async {
       final service = ref.watch(statsServiceProvider);

@@ -219,6 +219,9 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
     }
   }
 
+  /// Commits record metadata first, then attaches artwork and optionally NFC.
+  /// A later integration failure does not roll back the saved record; inspect
+  /// its ID before retrying the whole create operation after an error.
   Future<void> _save() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;

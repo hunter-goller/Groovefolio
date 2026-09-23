@@ -167,6 +167,9 @@ class NfcService implements INfcAlbumScanner {
   ///
   /// [replaceExisting] allows an album's current association to move to the
   /// presented tag. A tag linked to a different album is never reassigned.
+  /// The physical URI is written before the DB mapping; a persistence failure
+  /// cannot undo that tag write. Replacement changes the local association,
+  /// not bytes on an old tag that is no longer present.
   Future<NfcTag> writeTag(
     String albumId, {
     Duration timeout = _defaultNfcTimeout,

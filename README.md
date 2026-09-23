@@ -33,4 +33,4 @@ See [development setup](docs/development/setup.md) for Discogs development confi
 
 ## Documentation
 
-Start at the [documentation index](docs/README.md). It separates living guidance from [historical ticket notes](docs/archive/README.md). Source of truth for current routes and schema is [`AppRoutes`](lib/routing/app_routes.dart) and [`SchemaVersions`](lib/db/migrations/schema_versions.dart).
+Start with the [developer guide](docs/developer-guide.md) for the app, website, and backend: it includes a source/test map, debugging procedures, and recipes for adding features. Use the [documentation index](docs/README.md) for focused references and [historical ticket notes](docs/archive/README.md) for past context. Source of truth for current routes and schema is [`AppRoutes`](lib/routing/app_routes.dart) and [`SchemaVersions`](lib/db/migrations/schema_versions.dart).

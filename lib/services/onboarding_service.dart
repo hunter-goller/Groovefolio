@@ -58,9 +58,11 @@ class OnboardingService {
   final OnboardingStore _store;
   final IAlbumRepository _albumRepository;
 
-  /// Returns true for an unfinished first run or saved walkthrough.
+  /// Returns true for an unfinished first run, honoring saved step progress.
   /// Marks a populated, previously unmarked install complete instead of
   /// forcing its owner through newly introduced onboarding.
+  /// The completion flag takes precedence over saved progress; Settings replay
+  /// uses WalkthroughController directly and does not clear that flag.
   Future<bool> shouldShowOnboarding() async {
     if (await _store.hasCompletedOnboarding()) return false;
 
