@@ -4,7 +4,7 @@ Use these pages for the current `main` branch:
 
 | Need | Read |
 |---|---|
-| Start development | [Setup](development/setup.md), [testing](development/testing.md), [code generation](development/code-generation.md) |
+| Start development | [Cross-repo developer guide](developer-guide.md), [setup](development/setup.md), [testing](development/testing.md), [code generation](development/code-generation.md) |
 | Understand the app | [Implementation status](implementation-status.md), [architecture](architecture/overview.md), [database](architecture/database.md), [routing](architecture/routing.md) |
 | Explore behavior | [Feature index](features/README.md), [Discogs integration](integrations/discogs.md) |
 | Prepare a release | [Release process](development/release-process.md), [Play readiness](development/google-play-readiness.md), [upload signing](development/android-release-signing.md) |
