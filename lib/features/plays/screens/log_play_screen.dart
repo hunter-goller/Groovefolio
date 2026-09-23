@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,8 +11,10 @@ import 'package:vinyl_app/services/play_logging_service.dart';
 import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/types/side_played.dart';
+import 'package:vinyl_app/utils/error_reporting.dart';
 import 'package:vinyl_app/widgets/shared/album_select_tile.dart';
 import 'package:vinyl_app/widgets/shared/side_selector.dart';
+import 'package:vinyl_app/widgets/ui/app_error_state.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 import 'package:vinyl_app/widgets/ui/search_field.dart';
 
@@ -42,6 +45,7 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
   late TimeOfDay _selectedTime;
   SidePlayed _side = SidePlayed.full;
   bool _isSaving = false;
+  bool _playSaved = false;
 
   @override
   void initState() {
@@ -125,6 +129,15 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
   /// Combines the local date/time selection; the repository stores it in UTC.
   /// Only advance the walkthrough and refresh cached reads after persistence.
   Future<void> _save() async {
+    if (_isSaving) return;
+    if (_playSaved) {
+      if (widget.isBottomSheet) {
+        Navigator.of(context).pop();
+      } else {
+        context.go(AppRoutes.collection);
+      }
+      return;
+    }
     final album = _selectedAlbum;
     if (album == null) {
       ScaffoldMessenger.of(
@@ -148,6 +161,8 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
           .read(playLoggingServiceProvider)
           .logPlay(album.id, playedAt, _side);
 
+      _playSaved = true;
+      if (!mounted) return;
       ref.invalidate(albumsProvider);
       ref.invalidate(recentlyPlayedProvider);
       ref.invalidate(playCountProvider(album.id));
@@ -178,12 +193,19 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
       messenger
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(confirmation)));
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logAppError('log play', error, stackTrace);
       if (!mounted) return;
       setState(() => _isSaving = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Couldn’t log play: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _playSaved
+                ? 'Play logged, but a follow-up step failed. Check the record’s history before logging again.'
+                : 'Couldn’t log this play. Try again.',
+          ),
+        ),
+      );
     }
   }
 
@@ -255,8 +277,15 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(child: CircularProgressIndicator()),
               ),
-              error: (error, stackTrace) => _SearchError(
+              error: (error, stackTrace) => AppErrorState.inline(
+                key: const Key('log-play-search-error'),
+                title: 'Couldn’t load your collection',
+                message: 'Try loading your records again.',
+                error: error,
+                stackTrace: stackTrace,
+                operation: 'load Log Play record picker',
                 onRetry: () => ref.invalidate(albumSearchProvider(_query)),
+                retryButtonKey: const Key('log-play-search-retry'),
               ),
               data: (albums) => _AlbumResults(
                 albums: albums,
@@ -318,7 +347,7 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
             steps: const [3],
             outlineGap: true,
             child: PrimaryButton(
-              label: 'Save play',
+              label: _playSaved ? 'Done' : 'Save play',
               icon: Icons.play_arrow_rounded,
               isLoading: _isSaving,
               onPressed: _isSaving || _selectedAlbum == null ? null : _save,
@@ -497,34 +526,6 @@ class _SelectedAlbum extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _SearchError extends StatelessWidget {
-  const _SearchError({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: tokens.space12),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Couldn’t load your collection.',
-              style: context.theme.textTheme.bodyMedium?.copyWith(
-                color: tokens.textMuted,
-              ),
-            ),
-          ),
-          TextButton(onPressed: onRetry, child: const Text('Try again')),
-        ],
-      ),
     );
   }
 }

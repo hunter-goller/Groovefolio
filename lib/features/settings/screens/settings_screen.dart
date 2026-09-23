@@ -13,6 +13,7 @@ import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/local_data_reset_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
+import 'package:vinyl_app/utils/error_reporting.dart';
 
 final developerToolsEnabledProvider = Provider<bool>((ref) => kDebugMode);
 
@@ -164,30 +165,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       await ref.read(localDataResetServiceProvider).reset();
 
-      ref.read(collectionFiltersProvider.notifier).reset();
-      ref.invalidate(albumsProvider);
-      ref.invalidate(albumSearchProvider);
-      ref.invalidate(albumProvider);
-      ref.invalidate(albumDetailProvider);
-      ref.invalidate(playCountProvider);
-      ref.invalidate(recentlyPlayedProvider);
-      ref.invalidate(genresProvider);
-      ref.invalidate(albumGenresProvider);
-      ref.invalidate(albumTracksProvider);
-
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Local app data reset. Discogs connection kept.'),
         ),
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logAppError('reset local data', error, stackTrace);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Couldn’t reset local data: $error')),
+        const SnackBar(
+          content: Text(
+            'Couldn’t finish the reset. Some data may already have been cleared. Check your collection before retrying.',
+          ),
+        ),
       );
     } finally {
       if (mounted) {
+        ref.read(collectionFiltersProvider.notifier).reset();
+        ref.invalidate(albumsProvider);
+        ref.invalidate(albumSearchProvider);
+        ref.invalidate(albumProvider);
+        ref.invalidate(albumDetailProvider);
+        ref.invalidate(playCountProvider);
+        ref.invalidate(recentlyPlayedProvider);
+        ref.invalidate(genresProvider);
+        ref.invalidate(albumGenresProvider);
+        ref.invalidate(albumTracksProvider);
+
         setState(() => _isResettingLocalData = false);
       }
     }

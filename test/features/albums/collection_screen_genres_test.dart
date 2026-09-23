@@ -190,6 +190,45 @@ void main() {
     expect(find.byType(FloatingActionButton), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('friendly collection error retries the failed provider', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final albumRepository = _RetryAlbumRepository();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          albumRepositoryProvider.overrideWithValue(albumRepository),
+          artistRepositoryProvider.overrideWithValue(_FakeArtistRepository()),
+          playRepositoryProvider.overrideWithValue(_FakePlayRepository()),
+          genreRepositoryProvider.overrideWithValue(
+            const _FakeGenreRepository([]),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          home: const CollectionScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Couldn’t load your collection'), findsOneWidget);
+    expect(find.textContaining('private database details'), findsNothing);
+    expect(find.byKey(const Key('collection-error-retry')), findsOneWidget);
+    expect(albumRepository.findAllCalls, 1);
+
+    await tester.tap(find.byKey(const Key('collection-error-retry')));
+    await tester.pumpAndSettle();
+
+    expect(albumRepository.findAllCalls, 2);
+    expect(find.text('Your collection is empty'), findsOneWidget);
+    expect(find.byKey(const Key('collection-error-state')), findsNothing);
+  });
 }
 
 class _FakeAlbumRepository implements IAlbumRepository {
@@ -227,6 +266,19 @@ class _FakeAlbumRepository implements IAlbumRepository {
 
   @override
   Future<bool> update(Album album) => throw UnimplementedError();
+}
+
+class _RetryAlbumRepository extends _FakeAlbumRepository {
+  int findAllCalls = 0;
+
+  @override
+  Future<List<Album>> findAll() async {
+    findAllCalls += 1;
+    if (findAllCalls == 1) {
+      throw StateError('private database details');
+    }
+    return const [];
+  }
 }
 
 class _FakeArtistRepository implements IArtistRepository {

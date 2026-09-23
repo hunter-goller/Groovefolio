@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
+import 'package:vinyl_app/widgets/shared/resilient_image.dart';
 
 /// Reusable artwork selection surface for Add/Edit Record.
 ///
@@ -26,7 +27,7 @@ class ArtworkPicker extends StatelessWidget {
 
   /// Optional renderer used by widget tests to avoid exercising Flutter's
   /// asynchronous file-image decoder. Production callers should leave this
-  /// null so artwork is rendered with [Image.file].
+  /// null so artwork is rendered with [ResilientImage.file].
   final Widget Function(File file)? imageBuilder;
 
   @override
@@ -60,11 +61,11 @@ class ArtworkPicker extends StatelessWidget {
                       fit: StackFit.expand,
                       children: [
                         imageBuilder?.call(image!) ??
-                            Image.file(
-                              image!,
+                            ResilientImage.file(
+                              path: image!.path,
+                              fallback: _ArtworkPlaceholder(enabled: enabled),
+                              operation: 'load selected album artwork',
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  _ArtworkPlaceholder(enabled: enabled),
                             ),
                         Align(
                           alignment: Alignment.bottomRight,

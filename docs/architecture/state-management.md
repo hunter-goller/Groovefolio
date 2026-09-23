@@ -23,7 +23,7 @@ Most data providers perform one-time repository `.get()` reads. Watching a repos
 
 For a provider family, `ref.invalidate(albumDetailProvider(albumId))` refreshes one album's cached entry. Invalidating the family refreshes all its existing entries. Choose the scope from the affected data. Auto-disposal can eventually discard an unused result, but navigation or disposal is not a reliable substitute for refresh after mutation.
 
-Existing callers do not all invalidate the same providers. For example, manual play logging, automatic NFC logging, and import have different refresh lists. `AlbumMutations` is a convenience for core album writes; it does not own every multi-table workflow or every dependent view. Trace the actual caller before copying its refresh list. An import error can follow earlier committed records and skip the screen's success-only refresh path.
+Existing callers do not all invalidate the same providers. For example, manual play logging, automatic NFC logging, and import have different refresh lists. `AlbumMutations` is a convenience for core album writes; it does not own every multi-table workflow or every dependent view. Trace the actual caller before copying its refresh list. An import error can follow earlier committed records; the import screen refreshes collection/genre reads in its `finally` path so both success and failure expose committed records.
 
 ## Loading, errors, and durable saves
 

@@ -1,9 +1,12 @@
 import 'dart:async';
+
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/db/database_provider.dart';
+import 'package:vinyl_app/features/startup/app_startup.dart';
 import 'package:vinyl_app/features/stats/screens/stats_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
@@ -21,36 +24,37 @@ import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/theme/theme_provider.dart';
 
-/// Bootstraps app links and opens/migrates the local database before the
-/// first frame, keeping the native splash visible during that work.
+/// Captures app links before opening storage. A failed database open shows
+/// recovery UI and retries with fresh dependencies without deleting local data.
 Future<void> main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  final appLinks = AppLinks();
 
-  final container = ProviderContainer();
+  runApp(
+    AppStartup(
+      initialize: () async {
+        // Keep the native app-links singleton across retries so startup callbacks
+        // remain available when the normal root listeners are finally mounted.
+        final container = ProviderContainer(
+          overrides: [discogsAppLinksProvider.overrideWithValue(appLinks)],
+        );
+        try {
+          await container.read(databaseProvider).initialize();
+          return UncontrolledProviderScope(
+            container: container,
+            child: const MyApp(),
+          );
+        } catch (error, stackTrace) {
+          container.dispose();
+          Error.throwWithStackTrace(error, stackTrace);
+        }
+      },
+    ),
+  );
 
-  // Instantiate app-links before the database bootstrap so a cold-start OAuth
-  // or NFC callback is retained while Drift opens and runs any migrations.
-  container.read(discogsAppLinksProvider);
-
-  try {
-    // Force Drift's LazyDatabase to open. The future only completes after
-    // onCreate/onUpgrade and beforeOpen have finished, so the native splash
-    // remains visible for the full database migration/bootstrap path.
-    await container.read(databaseProvider).initialize();
-  } catch (error, stackTrace) {
-    container.dispose();
-    FlutterNativeSplash.remove();
-    Error.throwWithStackTrace(error, stackTrace);
-  }
-
-  runApp(UncontrolledProviderScope(container: container, child: const MyApp()));
-
-  // Keep the native splash until Flutter has actually painted the first frame.
-  // Database initialization has already completed before runApp above.
-  widgetsBinding.addPostFrameCallback((_) {
-    FlutterNativeSplash.remove();
-  });
+  // Flutter now owns loading/error recovery as well as the successful app.
+  widgetsBinding.addPostFrameCallback((_) => FlutterNativeSplash.remove());
 }
 
 /// Root integration point for app-link OAuth callbacks and Android NFC

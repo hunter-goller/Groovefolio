@@ -5,6 +5,7 @@ import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
+import 'package:vinyl_app/widgets/ui/app_error_state.dart';
 
 class DiscogsConnectionCard extends StatelessWidget {
   const DiscogsConnectionCard({
@@ -79,9 +80,19 @@ class DiscogsConnectionCard extends StatelessWidget {
             else
               accountAsync.when(
                 loading: () => const _LoadingRow(label: 'Checking connection…'),
-                error: (error, stackTrace) => _IdentityError(
+                error: (error, stackTrace) => AppErrorState.inline(
+                  key: const Key('discogs-identity-error-state'),
+                  title: 'Couldn’t verify your Discogs connection',
+                  message:
+                      'Check your connection and retry. You can keep using your local collection.',
+                  error: error,
+                  stackTrace: stackTrace,
+                  operation: 'verify Discogs connection',
                   onRetry: onRetryIdentity,
-                  onDisconnect: onDisconnect,
+                  retryLabel: 'Retry',
+                  retryButtonKey: const Key('discogs-identity-retry'),
+                  secondaryActionLabel: 'Disconnect',
+                  onSecondaryAction: () => onDisconnect(),
                 ),
                 data: (account) => _ConnectionBody(
                   account: account,
@@ -273,43 +284,6 @@ class _DiscogsDataLink extends StatelessWidget {
         icon: const Icon(Icons.open_in_new_rounded, size: 16),
         label: const Text('Data provided by Discogs.'),
       ),
-    );
-  }
-}
-
-class _IdentityError extends StatelessWidget {
-  const _IdentityError({required this.onRetry, required this.onDisconnect});
-
-  final VoidCallback onRetry;
-  final Future<void> Function() onDisconnect;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const _MessagePanel(
-          icon: Icons.cloud_off_rounded,
-          message: 'Could not verify the saved Discogs connection.',
-        ),
-        SizedBox(height: tokens.space12),
-        Row(
-          children: [
-            OutlinedButton.icon(
-              onPressed: () => onDisconnect(),
-              icon: const Icon(Icons.link_off_rounded),
-              label: const Text('Disconnect'),
-            ),
-            const Spacer(),
-            FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Retry'),
-            ),
-          ],
-        ),
-      ],
     );
   }
 }

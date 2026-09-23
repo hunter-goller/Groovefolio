@@ -17,9 +17,48 @@ import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/record_write_service.dart';
+import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 
 void main() {
+  testWidgets(
+    'saved record survives follow-up failure without duplicate retry',
+    (tester) async {
+      final albums = _FakeAlbumRepository();
+      await tester.pumpWidget(
+        _testApp(albumRepository: albums, walkthrough: _FailingFollowUp()),
+      );
+      await tester.pumpAndSettle();
+      for (final entry in {
+        'add-record-title': 'Blue Train',
+        'add-record-artist': 'John Coltrane',
+      }.entries) {
+        await tester.enterText(
+          find.descendant(
+            of: find.byKey(Key(entry.key)),
+            matching: find.byType(TextFormField),
+          ),
+          entry.value,
+        );
+      }
+      tester.testTextInput.hide();
+      await tester.ensureVisible(find.text('Add to collection'));
+      await tester.tap(find.text('Add to collection'));
+      await tester.pumpAndSettle();
+      expect(albums.created, hasLength(1));
+      expect(
+        find.textContaining('Record added, but a follow-up step failed'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('private follow-up failure'), findsNothing);
+      await tester.ensureVisible(find.text('View record').last);
+      await tester.tap(find.text('View record').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Detail test'), findsOneWidget);
+      expect(albums.created, hasLength(1));
+    },
+  );
+
   testWidgets('requires title and artist', (tester) async {
     await tester.pumpWidget(_testApp());
     await tester.pumpAndSettle();
@@ -600,6 +639,7 @@ Widget _testApp({
   NfcAvailabilityState nfcAvailability = NfcAvailabilityState.unsupported,
   NfcService? nfcService,
   String? scannedBarcode,
+  WalkthroughController? walkthrough,
 }) {
   final router = GoRouter(
     initialLocation: AppRoutes.addAlbum,
@@ -625,11 +665,17 @@ Widget _testApp({
           ),
         ),
       ),
+      GoRoute(
+        path: AppRoutes.albumDetail,
+        builder: (context, state) => const Scaffold(body: Text('Detail test')),
+      ),
     ],
   );
 
   return ProviderScope(
     overrides: [
+      if (walkthrough != null)
+        walkthroughProvider.overrideWith(() => walkthrough),
       artistRepositoryProvider.overrideWithValue(
         artistRepository ?? _FakeArtistRepository(),
       ),
@@ -1058,4 +1104,12 @@ class _FakeNfcTagRepository implements INfcTagRepository {
     }
     return null;
   }
+}
+
+class _FailingFollowUp extends WalkthroughController {
+  @override
+  WalkthroughState build() => const WalkthroughState(active: true, step: 1);
+  @override
+  Future<void> recordSaved(String id) async =>
+      throw StateError('private follow-up failure');
 }

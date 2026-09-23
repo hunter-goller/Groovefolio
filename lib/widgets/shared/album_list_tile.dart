@@ -1,9 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/widgets/shared/genre_chip.dart';
+import 'package:vinyl_app/widgets/shared/resilient_image.dart';
 
 /// Compact Collection row matching the approved Groovefolio mockup.
 class AlbumListTile extends StatelessWidget {
@@ -164,10 +163,11 @@ class _AlbumArtwork extends StatelessWidget {
         borderRadius: BorderRadius.circular(tokens.radiusSmall),
         child: normalizedPath == null || normalizedPath.isEmpty
             ? placeholder
-            : Image.file(
-                File(normalizedPath),
+            : ResilientImage.file(
+                path: normalizedPath,
+                fallback: placeholder,
+                operation: 'load collection album artwork',
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => placeholder,
               ),
       ),
     );

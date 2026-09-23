@@ -8,6 +8,8 @@
 - [Discover](discover.md) and [local recommendations](recommendations.md)
 - [Discogs integration](../integrations/discogs.md) — optional; production credentials remain release work
 
+- [Errors and recovery](error-recovery.md) — retry behavior, saved-operation boundaries, and phone review.
+
 ## Planned
 
 - [Album Wrapped](album-wrapped.md)

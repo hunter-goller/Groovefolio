@@ -34,7 +34,7 @@ Start with the question you are trying to answer. You do not need to read the wh
 
 Use your editor's **Go to definition** on the symbol names in this guide. Use `Ctrl+F` for the screen, service, or error you recognize. Links point to files rather than line numbers because lines move as code evolves.
 
-**Source checkpoint:** app `main` at `64b5ef6`, website `main` at `2a70c02`, and the backend draft stack at `c39dbbf`. This guide describes that code, not unseen Play Console settings or a verified production backend. The backend branch is currently `VinylApp-125-staging-setup`; once that stack merges, update its links and setup instructions here. Commands are intended for your own checkout. This documentation review did not run a live Discogs login, create a real upload key, or deploy a server.
+**Source checkpoint:** app documentation baseline at `35d753e` (plus the error-recovery workflow update documented here), website `main` at `2a70c02`, and the backend draft stack at `c39dbbf`. This guide describes that code, not unseen Play Console settings or a verified production backend. The backend branch is currently `VinylApp-125-staging-setup`; once that stack merges, update its links and setup instructions here. Commands are intended for your own checkout. This documentation review did not run a live Discogs login, create a real upload key, or deploy a server.
 
 ## 1. Overview
 
@@ -84,9 +84,9 @@ The backend has a different database: PostgreSQL stores installation identity, r
 
 ### Startup and lifetime
 
-1. [`main()`](../lib/main.dart) initializes Flutter, preserves the native splash and creates a `ProviderContainer` (the app's dependency/state container).
+1. [`main()`](../lib/main.dart) initializes Flutter and starts [`AppStartup`](../lib/features/startup/app_startup.dart), which owns loading/error/retry UI. Each initialization attempt creates a fresh `ProviderContainer` (the dependency/state container).
 2. It instantiates `AppLinks` before opening the database, so an incoming OAuth/NFC link is retained during startup.
-3. [`AppDatabase.initialize()`](../lib/db/app_database.dart) forces the lazy database connection to open and finish migrations. A failure is rethrown; the app does not reset the user's data or show a dedicated recovery screen here.
+3. [`AppDatabase.initialize()`](../lib/db/app_database.dart) forces the lazy database connection to open and finish migrations. A failure disposes that attempt’s container and shows a retry screen. Retry opens a fresh connection without clearing data or bypassing migrations. The native splash is removed after Flutter paints its loading/recovery UI.
 4. The root `UncontrolledProviderScope` shares that same container with `MyApp`; the database provider stays alive for the container's lifetime and closes on disposal.
 5. `routerProvider` selects screens. Its `ShellRoute` wraps them with `WalkthroughFrame`; the normal Collection entry uses `OnboardingGate`.
 6. Root listeners classify the shared app-link stream. OAuth callbacks go through the authorization controller; album NFC URIs go through `NfcIntentPlayHandler`. Notification-open navigation is separate from play insertion.
@@ -321,7 +321,7 @@ For a save problem, first identify **which step committed**. SQLite and a filesy
 | Operation | Order in current code | What failure means |
 |---|---|---|
 | Add Record | Validate form → `RecordWriteService.createRecord` transaction → save artwork + update album path → optional NFC write → navigation/feedback | Database metadata may already exist if artwork/NFC or later UI work fails. Inspect it before repeating create. |
-| Edit Record | Read old artwork bytes → write replacement file if selected → `updateRecord` transaction → invalidate reads → navigate | On a later exception, the screen attempts to restore old artwork bytes or delete the new file. That compensation is not crash-atomic, and compensation itself can fail. |
+| Edit Record | Read old artwork bytes → write replacement file if selected → `updateRecord` transaction → invalidate reads → navigate | If metadata fails, attempt to restore old artwork bytes or delete the new file. Restoration failure gets a distinct warning. Once metadata commits, a UI failure must not undo the artwork; this remains best-effort, not crash-atomic. |
 | Delete Record | Confirm → `AlbumDeletionService` reads summary counts → delete album row/cascaded children → best-effort artwork removal | A DB delete failure preserves artwork. Artwork cleanup failure after commit can leave an orphan file, but the record is deleted. |
 | Discogs import | Preview/review → exact release fetch → optional artwork download → record transaction → artwork file/link → next item | Earlier imported records remain if a later item stops the batch. Missing artwork can be a warning on a valid record. |
 
@@ -369,7 +369,7 @@ The direct client permits up to three GET attempts for selected transient failur
 
 `importCandidates` rechecks each release link after preview. Each metadata write is atomic **per record**; the batch is not. Authentication, rate-limit and network failures in the metadata path stop the batch; other item failures are collected. Artwork failures are handled as warnings so a valid metadata import can survive. The preview loop currently has no whole-collection size cap/cancellation argument, and the import service has no resume cursor. A future backend cutover must add deliberate waiting/cancellation for its shared request limits rather than claiming those controls already exist.
 
-On a failed batch, refresh preview before retrying: the release links of previously committed records prevent reimport. The import screen refreshes providers on a normally returned result; its catch path does not invalidate those reads. If partial records appear only after reopening a screen, check both the database and this refresh path. An error message alone is not a count of rolled-back records.
+On a failed batch, refresh preview before retrying: the release links of previously committed records prevent reimport. The import screen refreshes collection and genre providers after both returned results and thrown failures. Retry refreshes the account lookup and preview. If records still look stale, trace the affected consumer and its provider family. An error message alone is not a count of rolled-back records.
 
 ### NFC write, foreground scan, and automatic intent
 
@@ -544,6 +544,12 @@ The app workflow currently uses Flutter's moving `stable` channel. Record `flutt
 
 ## 11. Common issues and debugging tips
 
+### Friendly errors and retry
+
+See [error recovery](features/error-recovery.md) for the source map and phone checks. `AppErrorState` shows friendly page/inline failures; Retry invalidates the failed provider. `ResilientImage` handles unreadable artwork. `logAppError` keeps diagnostic exception details in the debug console rather than visible copy or release logs.
+
+Add and Log Play remember when the operation committed. If a later step fails, their form offers **View record** or **Done** instead of repeating the insert. Edit never restores pre-save artwork after a successful metadata commit. Startup failure offers Retry without resetting the database.
+
 ### Debugging checklist
 
 1. **Capture the situation.** Note commit/build, phone/Android version, install vs upgrade, selected Stats range/filter, network/Discogs state, and exact steps. Record expected and actual results. Use a small anonymized example where possible.
@@ -560,11 +566,11 @@ Useful tools: your Dart debugger's exception breakpoint and variable watch, `flu
 
 | Symptom | First place to inspect | What to check / nearest test |
 |---|---|---|
-| Startup fails before first screen | `main()` → `AppDatabase.initialize` → migration runner | Opening exception, supported schema version and failing SQL; `test/db/migration_recovery_test.dart`. No automatic reset/recovery screen is implemented at this boundary. |
+| Startup fails before first screen | `main()` → `AppDatabase.initialize` → migration runner | Opening exception, supported schema version and failing SQL; `test/db/migration_recovery_test.dart`. The startup recovery screen retries with fresh dependencies; it never automatically resets data. See `test/features/startup/app_startup_test.dart`. |
 | Generated type/provider missing | Schema/annotation source, `part` directive, build_runner output | Run generation before analysis; do not create/edit generated files manually. Check package name is still `vinyl_app`. |
 | Save says it failed but record exists | Add `_save`, import `_importOne`, artwork/NFC follow-up | Metadata can commit before follow-up operations. Identify the committed album ID before retrying create; `record_write_service_test` and `add_record_artwork_test`. |
 | Edit removes unrelated metadata | `RecordWriteService.updateRecord` and `Album(...)` constructors | Full-row replacement may have omitted a new field; verify purchase info, release link, tracks and artwork. |
-| Image changes then reverts or fails | `EditAlbumScreen._save` and `ArtworkStorageService` | File overwrites same album path; compensation keeps old bytes. A storage failure during compensation can escape; test both DB and file behavior. |
+| Image changes then reverts or fails | `EditAlbumScreen._save` and `ArtworkStorageService` | File overwrites same album path; compensation keeps old bytes. A storage failure during compensation produces a cover-recovery warning. Compensation runs only before a successful metadata commit; test both DB and file behavior. |
 | Count/list remains old until reopen | Mutation handler and provider's dependencies | Cached future not invalidated, wrong family ID/query, or error branch skipped refresh. See example below. |
 | Record absent from Collection | Filter/search state, `albumsProvider`, genre filtering in screen | Clear filters before assuming deletion; provider throws for missing artist rather than quietly dropping the row. |
 | Stats year/month unexpected | `StatsService` and `StatsRange` | UTC storage → local calendar conversion, range selection, invalid timestamp, future date and injected clock. |

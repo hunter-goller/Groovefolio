@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -19,10 +20,12 @@ import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/record_write_service.dart';
 import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
+import 'package:vinyl_app/utils/error_reporting.dart';
 import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
 import 'package:vinyl_app/widgets/shared/discogs_banner.dart';
 import 'package:vinyl_app/widgets/shared/genre_chip_input.dart';
 import 'package:vinyl_app/widgets/shared/nfc_write_dialog.dart';
+import 'package:vinyl_app/widgets/shared/resilient_image.dart';
 import 'package:vinyl_app/widgets/ui/labeled_text_field.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 
@@ -49,6 +52,7 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
   List<DiscogsTrack> _selectedDiscogsTracks = const [];
   bool _isSubmitting = false;
   bool _writeNfcAfterSave = false;
+  String? _savedAlbumId;
 
   @override
   void initState() {
@@ -90,10 +94,15 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
       if (picked == null || !mounted) return;
       await _deleteDiscogsTempArtwork();
       setState(() => _selectedArtwork = File(picked.path));
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logAppError('choose album artwork', error, stackTrace);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Couldn’t choose artwork: $error')),
+        const SnackBar(
+          content: Text(
+            'Couldn’t open your photos. Check photo access and try again.',
+          ),
+        ),
       );
     }
   }
@@ -223,6 +232,12 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
   /// A later integration failure does not roll back the saved record; inspect
   /// its ID before retrying the whole create operation after an error.
   Future<void> _save() async {
+    if (_isSubmitting) return;
+    final savedId = _savedAlbumId;
+    if (savedId != null) {
+      context.go(AppRoutes.albumDetailPath(savedId));
+      return;
+    }
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
@@ -255,6 +270,9 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
             ),
           );
 
+      _savedAlbumId = createdAlbum.id;
+      if (!mounted) return;
+
       String? artworkWarning;
       if (_selectedArtwork != null) {
         String? storedArtworkPath;
@@ -279,11 +297,20 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
           if (!updated) {
             throw StateError('Artwork could not be linked to the record.');
           }
-        } catch (_) {
-          if (storedArtworkPath != null) {
-            await ref
-                .read(artworkStorageServiceProvider)
-                .deleteArtwork(storedArtworkPath);
+        } catch (error, stackTrace) {
+          logAppError('attach record artwork', error, stackTrace);
+          if (storedArtworkPath != null && mounted) {
+            try {
+              await ref
+                  .read(artworkStorageServiceProvider)
+                  .deleteArtwork(storedArtworkPath);
+            } catch (cleanupError, cleanupStack) {
+              logAppError(
+                'clean up unattached artwork',
+                cleanupError,
+                cleanupStack,
+              );
+            }
           }
           artworkWarning =
               'Record added, but its artwork could not be saved. You can add it again from Edit record.';
@@ -299,7 +326,8 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
 
       try {
         await _deleteDiscogsTempArtwork();
-      } catch (_) {
+      } catch (error, stackTrace) {
+        logAppError('delete temporary Discogs artwork', error, stackTrace);
         // Temporary artwork cleanup is best-effort and must not undo a valid
         // database commit.
       }
@@ -342,11 +370,18 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
       if (artworkWarning != null) {
         messenger.showSnackBar(SnackBar(content: Text(artworkWarning)));
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logAppError('add record', error, stackTrace);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Couldn’t add record: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _savedAlbumId == null
+                ? 'Couldn’t add this record. Check the details and try again.'
+                : 'Record added, but a follow-up step failed. View the record before making more changes.',
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -376,7 +411,7 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
                 : const [],
             child: TextButton(
               onPressed: isSaving ? null : _save,
-              child: const Text('Save'),
+              child: Text(_savedAlbumId == null ? 'Save' : 'View record'),
             ),
           ),
           const SizedBox(width: 8),
@@ -545,7 +580,9 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
                 ],
                 SizedBox(height: tokens.space24),
                 PrimaryButton(
-                  label: 'Add to collection',
+                  label: _savedAlbumId == null
+                      ? 'Add to collection'
+                      : 'View record',
                   icon: Icons.add_rounded,
                   isLoading: isSaving,
                   onPressed: isSaving ? null : _save,
@@ -1018,10 +1055,11 @@ class _DiscogsCoverState extends ConsumerState<_DiscogsCover> {
                 future: _future,
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) return _placeholder(context);
-                  return Image.memory(
-                    snapshot.data!,
+                  return ResilientImage.memory(
+                    bytes: snapshot.data!,
+                    fallback: _placeholder(context),
+                    operation: 'decode Discogs album artwork',
                     fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => _placeholder(context),
                   );
                 },
               ),

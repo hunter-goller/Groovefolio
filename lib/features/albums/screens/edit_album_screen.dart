@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,8 +13,10 @@ import 'package:vinyl_app/services/artwork_storage_service.dart';
 import 'package:vinyl_app/services/record_write_service.dart';
 import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
+import 'package:vinyl_app/utils/error_reporting.dart';
 import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
 import 'package:vinyl_app/widgets/shared/genre_chip_input.dart';
+import 'package:vinyl_app/widgets/ui/app_error_state.dart';
 import 'package:vinyl_app/widgets/ui/empty_state.dart';
 import 'package:vinyl_app/widgets/ui/labeled_text_field.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
@@ -82,18 +85,24 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
       );
       if (picked == null || !mounted) return;
       setState(() => _selectedArtwork = File(picked.path));
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logAppError('choose album artwork', error, stackTrace);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Couldn’t choose artwork: $error')),
+        const SnackBar(
+          content: Text(
+            'Couldn’t open your photos. Check photo access and try again.',
+          ),
+        ),
       );
     }
   }
 
   /// Stages artwork before the metadata transaction and restores old bytes
-  /// on a later failure. The image path is reused, so keeping only its string
-  /// would not be enough to undo replacement of the file itself.
+  /// if the metadata write fails. A later UI failure must not undo artwork.
+  /// The image path is reused, so its string alone cannot undo a replacement.
   Future<void> _save() async {
+    if (_isSubmitting) return;
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
@@ -105,14 +114,17 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
     List<int>? previousArtworkBytes;
     String? writtenArtworkPath;
     var wroteArtwork = false;
+    var metadataSaved = false;
+    var restoreFailed = false;
+    late final ArtworkStorageService artworkStorage;
 
     try {
+      artworkStorage = ref.read(artworkStorageServiceProvider);
       final yearText = _yearController.text.trim();
       final labelText = _labelController.text.trim();
 
       var artworkPath = existing.artworkPath;
       if (_selectedArtwork != null) {
-        final artworkStorage = ref.read(artworkStorageServiceProvider);
         previousArtworkFile = artworkStorage.artworkFile(existing.artworkPath);
         if (previousArtworkFile != null) {
           previousArtworkBytes = await previousArtworkFile.readAsBytes();
@@ -138,6 +150,8 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
             genreNames: _selectedGenres,
           );
 
+      metadataSaved = true;
+      if (!mounted) return;
       ref.invalidate(genresProvider);
       ref.invalidate(albumGenresProvider(existing.id));
       ref.invalidate(albumDetailProvider(existing.id));
@@ -151,25 +165,42 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
             ? AppRoutes.collection
             : AppRoutes.albumDetailPath(existing.id),
       );
-    } catch (error) {
-      if (wroteArtwork && writtenArtworkPath != null) {
-        final artworkStorage = ref.read(artworkStorageServiceProvider);
-        if (previousArtworkFile != null &&
-            previousArtworkBytes != null &&
-            previousArtworkFile.path == writtenArtworkPath) {
-          await previousArtworkFile.writeAsBytes(
-            previousArtworkBytes,
-            flush: true,
+    } catch (error, stackTrace) {
+      logAppError('save record changes', error, stackTrace);
+      if (!metadataSaved && wroteArtwork && writtenArtworkPath != null) {
+        try {
+          if (previousArtworkFile != null &&
+              previousArtworkBytes != null &&
+              previousArtworkFile.path == writtenArtworkPath) {
+            await previousArtworkFile.writeAsBytes(
+              previousArtworkBytes,
+              flush: true,
+            );
+          } else {
+            await artworkStorage.deleteArtwork(writtenArtworkPath);
+          }
+        } catch (rollbackError, rollbackStackTrace) {
+          restoreFailed = true;
+          logAppError(
+            'restore artwork after failed record update',
+            rollbackError,
+            rollbackStackTrace,
           );
-        } else {
-          await artworkStorage.deleteArtwork(writtenArtworkPath);
         }
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Couldn’t save changes: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            metadataSaved
+                ? 'Changes saved, but the next screen could not open. Reopen the record from your collection.'
+                : restoreFailed
+                ? 'Couldn’t save these changes or restore the artwork. Reopen the record and check its cover before retrying.'
+                : 'Couldn’t save these changes. Check the details and try again.',
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -199,8 +230,16 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
         top: false,
         child: detailAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => _LoadError(
+          error: (error, stackTrace) => AppErrorState(
+            key: const Key('edit-record-error-state'),
+            title: 'Couldn’t load this record',
+            message:
+                'Something went wrong while preparing the editor. Try again.',
+            error: error,
+            stackTrace: stackTrace,
+            operation: 'load record editor',
             onRetry: () => ref.invalidate(albumDetailProvider(widget.albumId)),
+            retryButtonKey: const Key('edit-record-error-retry'),
           ),
           data: (detail) {
             if (detail == null) {
@@ -409,23 +448,6 @@ class _SectionCard extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: Padding(padding: EdgeInsets.all(tokens.space12), child: child),
-    );
-  }
-}
-
-class _LoadError extends StatelessWidget {
-  const _LoadError({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: OutlinedButton.icon(
-        onPressed: onRetry,
-        icon: const Icon(Icons.refresh_rounded),
-        label: const Text('Try again'),
-      ),
     );
   }
 }
