@@ -46,6 +46,9 @@ class WalkthroughController extends Notifier<WalkthroughState> {
   WalkthroughState build() => const WalkthroughState();
 
   /// Starts from saved progress, or step zero for a Settings replay.
+  /// Only the step is restored: albumId and practice state are session-local.
+  /// Resuming an album-specific step can therefore return to Collection so
+  /// the user can select an existing record again.
   Future<bool> start({bool replay = false}) async {
     if (state.busy) return false;
     _pending = null;

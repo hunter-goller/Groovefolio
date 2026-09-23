@@ -89,6 +89,11 @@ final collectionFiltersProvider =
 /// This provider intentionally composes repository APIs instead of reading
 /// Drift directly. Artists and plays are loaded once and indexed in memory so
 /// building a Collection does not perform a query per album.
+///
+/// This is a one-shot query, not a Drift watch stream. Watching a repository
+/// provider tracks the repository instance, not writes to its tables. Mutation
+/// callers must invalidate this provider after saving. Genre filtering is
+/// applied by CollectionScreen using per-album genre providers.
 final albumsProvider = FutureProvider.autoDispose<List<CollectionAlbum>>((
   ref,
 ) async {
@@ -313,6 +318,9 @@ final playCountProvider = FutureProvider.autoDispose.family<int, String>((
 ///
 /// Screens can report loading/errors and invalidate dependent album views
 /// without calling a repository directly.
+/// This controller writes only the Album row; Add/Edit metadata workflows use
+/// RecordWriteService for artist, genre and release/track consistency. Its
+/// invalidation list is not a universal refresh for all collection-derived UI.
 class AlbumMutations extends Notifier<AsyncValue<void>> {
   @override
   AsyncValue<void> build() => const AsyncData<void>(null);

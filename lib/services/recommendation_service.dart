@@ -197,6 +197,9 @@ class RecommendationService implements IRecommendationService {
     final lastPlayedAt = <String, DateTime>{};
     final validPlays = <Play>[];
 
+    // Keep counts for existing albums even when an old row's date is invalid.
+    // Such a row cannot establish recency; unlike Stats, Discover tolerates
+    // malformed dates while avoiding an "unplayed" label for known plays.
     for (final play in plays) {
       if (!albumIds.contains(play.albumId)) continue;
       validPlays.add(play);

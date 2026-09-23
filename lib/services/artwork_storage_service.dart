@@ -33,6 +33,10 @@ class ArtworkStorageService {
   /// Writes the album-owned artwork file and returns its durable path.
   /// Callers update the Album row separately because filesystem writes cannot
   /// join a SQLite transaction.
+  ///
+  /// Reuses `artwork/<albumId>.jpg`, overwriting an existing file. Bytes are
+  /// stored as supplied, without JPEG conversion. Edit callers must retain old
+  /// bytes if they need to compensate for a later database failure.
   Future<String> saveArtworkBytes(Uint8List bytes, String albumId) async {
     final normalizedId = albumId.trim();
     if (normalizedId.isEmpty) {

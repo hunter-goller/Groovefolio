@@ -32,6 +32,10 @@ class ThemeModeController extends _$ThemeModeController {
     return ThemeMode.system;
   }
 
+  /// Applies the choice immediately and serializes durable writes in order.
+  /// False means saving failed: the session still uses the selected mode, but
+  /// the next launch may restore the previous value. The revision also prevents
+  /// an older startup read from overwriting a newer user choice.
   Future<bool> setMode(ThemeMode mode) async {
     _revision++;
     state = mode;

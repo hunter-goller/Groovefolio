@@ -122,6 +122,8 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
     }
   }
 
+  /// Combines the local date/time selection; the repository stores it in UTC.
+  /// Only advance the walkthrough and refresh cached reads after persistence.
   Future<void> _save() async {
     final album = _selectedAlbum;
     if (album == null) {

@@ -11,8 +11,11 @@ part 'album_repository.g.dart';
 /// Keeping callers behind this interface makes the repository replaceable in
 /// tests and prevents feature code from querying Drift directly.
 abstract interface class IAlbumRepository {
+  /// Returns a one-time snapshot without a guaranteed display order.
+  /// Collection providers own sorting and refresh after mutations.
   Future<List<Album>> findAll();
 
+  /// Returns null when the exact ID has no row; database errors still throw.
   Future<Album?> findById(String id);
 
   /// Creates an album while keeping persistence-only metadata inside the
@@ -27,8 +30,12 @@ abstract interface class IAlbumRepository {
     int? purchasePriceCents,
   });
 
+  /// Replaces the complete row by primary key, returning false if it is gone.
+  /// Preserve fields the form does not edit when constructing [album].
   Future<bool> update(Album album);
 
+  /// Deletes the database row and cascaded children; returns the row count.
+  /// Feature code should use AlbumDeletionService for artwork cleanup too.
   Future<int> delete(String id);
 
   /// Searches album titles and artist names using a case-insensitive

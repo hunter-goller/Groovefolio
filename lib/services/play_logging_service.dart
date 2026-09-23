@@ -23,6 +23,9 @@ class PlayLoggingService {
   ///
   /// NFC flows should resolve a tag to an album first and then call this same
   /// method, keeping the play-logging workflow independent of input source.
+  /// Blank IDs throw ArgumentError and absent albums throw StateError. This
+  /// method neither deduplicates manual plays nor refreshes Riverpod snapshots;
+  /// successful callers handle feedback, navigation and invalidation separately.
   Future<Play> logPlay(
     String albumId,
     DateTime playedAt,

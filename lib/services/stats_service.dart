@@ -109,6 +109,10 @@ class AlbumStats {
 /// This service owns aggregation/business rules while repositories remain
 /// responsible only for persistence and raw queries. It intentionally does
 /// not depend on Drift or any UI layer.
+/// Stored play timestamps must be valid ISO-8601 text: aggregation parses them
+/// strictly and surfaces corrupt values instead of silently changing totals.
+/// Calendar grouping converts UTC storage timestamps to the device's local
+/// time, which matters for plays close to midnight or a year boundary.
 class StatsService {
   StatsService({
     required this._albumRepository,
@@ -124,9 +128,11 @@ class StatsService {
 
   /// Returns collection totals and the average number of plays per week.
   ///
-  /// The average uses the time between the first logged play and [now], with
-  /// a minimum one-week window so a brand-new collection does not report an
-  /// exaggerated rate after only a few hours or days.
+  /// The average uses the time between the first included play and the injected
+  /// clock, with a minimum one-week window so a brand-new collection does not
+  /// report an exaggerated rate after only a few hours or days.
+  /// A year filter narrows plays, not totalAlbums; its average still runs to
+  /// the injected current time rather than using a fixed 52-week denominator.
   Future<CollectionSummary> getCollectionSummary({int? year}) async {
     final albums = await _albumRepository.findAll();
     final plays = _filterPlaysByYear(await _playRepository.findAll(), year);

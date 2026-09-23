@@ -38,6 +38,9 @@ class NfcIntentPlayHandler {
 
   /// Validates the album URI, rechecks foreground-link suppression after an
   /// awaited lookup, then reuses the normal NFC play logging service.
+  /// Android supplies an album URI, not a physical tag UID, on this path.
+  /// It checks album existence but does not recheck the NfcTags mapping used
+  /// by foreground polling. A copied URI is not proof of a particular tag.
   Future<NfcIntentPlayResult?> handle(Uri uri) async {
     if (_shouldSuppressAutomaticIntent()) return null;
 

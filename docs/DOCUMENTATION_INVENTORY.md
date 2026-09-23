@@ -2,6 +2,8 @@
 
 The navigable starting point is [README.md](README.md).
 
+- **Onboarding and maintenance:** [developer guide](developer-guide.md), including app/site/backend status, source/test map, workflows, debugging, recovery, and feature recipes. Backend draft material is explicitly distinguished from app `main`.
+
 - **Living product status:** root [README](../README.md), [roadmap](../ROADMAP.md), [changelog](../CHANGELOG.md), and [implementation status](implementation-status.md).
 - **Architecture:** [overview](architecture/overview.md), database, dependencies, project structure, repository pattern, routing, services, state management, and CI.
 - **Development:** setup, testing, code generation, seed data, standards, Git/PR workflow, release process, Play readiness, signing, and documentation maintenance under [development/](development/).

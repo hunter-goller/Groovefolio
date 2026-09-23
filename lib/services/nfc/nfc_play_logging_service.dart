@@ -67,9 +67,9 @@ class NfcPlayLoggingService {
 
   final Map<String, Duration> _lastLoggedAt = {};
 
-  /// Waits for one NFC scan, resolves it to an album, and logs one full-side
-  /// play. A duplicate scan within [duplicateWindow] is acknowledged without
-  /// creating another play row.
+  /// Waits for one NFC scan, resolves it to an album, and logs one play using
+  /// [side] (full album by default). A duplicate scan within [duplicateWindow]
+  /// is acknowledged without creating another play row.
   Future<NfcPlayLogResult> logNextScan({
     DateTime? playedAt,
     SidePlayed side = SidePlayed.full,

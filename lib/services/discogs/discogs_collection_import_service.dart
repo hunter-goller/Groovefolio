@@ -122,11 +122,16 @@ class DiscogsCollectionImportResult {
 abstract interface class DiscogsCollectionImportService {
   /// Fetches every collection page and classifies exact and possible local
   /// duplicates. Similar title/artist matches require explicit review.
+  /// The preview does not reserve releases: import rechecks exact links before
+  /// each write because the local collection may have changed since preview.
   Future<DiscogsCollectionPreview> prepare(String username);
 
   /// Imports eligible selected candidates one by one. Per-release failures
   /// are reported; authentication, throttling, or network failure stops the
   /// batch so a systemic outage is not mistaken for individual bad records.
+  /// Earlier successful records stay committed if a later candidate throws.
+  /// Artwork download/save failures can instead produce a warning for a
+  /// successfully imported record; the entire batch is not one transaction.
   Future<DiscogsCollectionImportResult> importCandidates(
     Iterable<DiscogsCollectionCandidate> candidates, {
     void Function(DiscogsImportProgress progress)? onProgress,

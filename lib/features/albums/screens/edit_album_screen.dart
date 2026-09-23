@@ -90,6 +90,9 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
     }
   }
 
+  /// Stages artwork before the metadata transaction and restores old bytes
+  /// on a later failure. The image path is reused, so keeping only its string
+  /// would not be enough to undo replacement of the file itself.
   Future<void> _save() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
