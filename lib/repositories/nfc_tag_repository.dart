@@ -145,8 +145,8 @@ class NfcTagRepository implements INfcTagRepository {
 
 /// Repository dependency used by feature/service providers.
 ///
-/// VinylApp-016 will standardize override coverage across all repository
-/// providers; VinylApp-041 introduces this provider alongside the repository.
+/// Exposes the NFC repository interface for service injection and test
+/// overrides, keeping SQLite construction out of UI code.
 @riverpod
 INfcTagRepository nfcTagRepository(Ref ref) {
   return NfcTagRepository(ref.watch(databaseProvider));

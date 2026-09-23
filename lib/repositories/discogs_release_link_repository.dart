@@ -2,13 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/db/database_provider.dart';
 
+/// Maps each local album to at most one exact Discogs release ID.
+/// Release IDs are unique across the collection for import deduplication.
 abstract interface class IDiscogsReleaseLinkRepository {
+  /// Links an exact release to [albumId]; a duplicate release ID attached
+  /// elsewhere fails under the database unique constraint.
   Future<void> link({required String albumId, required int releaseId});
   Future<int?> findReleaseIdForAlbum(String albumId);
   Future<String?> findAlbumIdForRelease(int releaseId);
   Future<Set<int>> findAllReleaseIds();
 }
 
+/// Drift implementation of the local exact-release identity mapping.
 class DiscogsReleaseLinkRepository implements IDiscogsReleaseLinkRepository {
   const DiscogsReleaseLinkRepository(this._db);
 

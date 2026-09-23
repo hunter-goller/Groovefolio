@@ -24,7 +24,9 @@ const List<FilterChipOption<CollectionSort>> _sortOptions = [
   FilterChipOption(value: CollectionSort.mostPlayed, label: 'Most played'),
 ];
 
-/// Main collection view aligned with the approved compact dark-mode mockup.
+/// Main local collection view. Search/sort filters live in Riverpod so they
+/// survive widget rebuilds; swipe actions reuse the canonical edit/delete
+/// flows rather than writing directly from a list row.
 class CollectionScreen extends ConsumerStatefulWidget {
   const CollectionScreen({super.key});
 

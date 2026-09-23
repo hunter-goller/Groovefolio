@@ -10,8 +10,10 @@ import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/record_write_service.dart';
 
+/// Review state of a Discogs item relative to the local collection.
 enum DiscogsCollectionCandidateStatus { newRecord, exactDuplicate, needsReview }
 
+/// A vinyl item plus duplicate classification for the import review screen.
 class DiscogsCollectionCandidate {
   const DiscogsCollectionCandidate({
     required this.item,
@@ -115,9 +117,16 @@ class DiscogsCollectionImportResult {
   int get failed => failures.length;
 }
 
+/// Previews the complete collection before any write, then imports only the
+/// caller-selected candidates into the phone's local database.
 abstract interface class DiscogsCollectionImportService {
+  /// Fetches every collection page and classifies exact and possible local
+  /// duplicates. Similar title/artist matches require explicit review.
   Future<DiscogsCollectionPreview> prepare(String username);
 
+  /// Imports eligible selected candidates one by one. Per-release failures
+  /// are reported; authentication, throttling, or network failure stops the
+  /// batch so a systemic outage is not mistaken for individual bad records.
   Future<DiscogsCollectionImportResult> importCandidates(
     Iterable<DiscogsCollectionCandidate> candidates, {
     void Function(DiscogsImportProgress progress)? onProgress,
@@ -186,6 +195,8 @@ class DefaultDiscogsCollectionImportService
           '${artistName.trim()} — ${album.title.trim()}';
     }
 
+    // Two physical Discogs collection instances can share a release ID,
+    // while the local release link is unique. Offer only the first instance.
     final seenReleaseIds = <int>{};
     final candidates = <DiscogsCollectionCandidate>[];
     for (final item in vinylItems) {
@@ -265,6 +276,8 @@ class DefaultDiscogsCollectionImportService
           if (warning != null) warnings.add(warning);
           imported += 1;
         }
+      // Stop on systemic failures; only a particular release's content or
+      // write failure should be isolated and counted in the final summary.
       } on DiscogsAuthenticationFailure {
         rethrow;
       } on DiscogsRateLimitFailure {

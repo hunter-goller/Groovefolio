@@ -2,8 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// Whether Android received the tag while the app was visible or externally.
 enum NfcDeliveryMode { foreground, external }
 
+/// Native delivery identifier paired with its foreground/external mode.
+/// IDs keep repeated identical album URIs associated with the right event.
 class NfcDeliveryContext {
   const NfcDeliveryContext({required this.id, required this.mode});
 
@@ -17,6 +20,7 @@ class NfcDeliveryContext {
   bool get isExternal => mode == NfcDeliveryMode.external;
 }
 
+/// Consumes Android intent classifications in the same order as app links.
 abstract interface class INfcDeliveryContextService {
   Future<NfcDeliveryContext> consume();
 
@@ -28,6 +32,8 @@ abstract interface class INfcDeliveryContextService {
 typedef NfcDeliveryMethodInvoker =
     Future<Object?> Function(String method, Map<String, Object?>? arguments);
 
+/// Method-channel adapter for native intent classification and task cleanup.
+/// Missing classification falls back to a visible foreground confirmation.
 class AndroidNfcDeliveryContextService implements INfcDeliveryContextService {
   AndroidNfcDeliveryContextService({
     NfcDeliveryMethodInvoker? invoke,
@@ -74,6 +80,8 @@ class AndroidNfcDeliveryContextService implements INfcDeliveryContextService {
   }
 
   @override
+  /// Releases the matching external host after play handling and feedback.
+  /// This is best-effort and must not affect a committed play.
   Future<void> completeExternal(NfcDeliveryContext delivery) async {
     if (!_isAndroid || !delivery.isExternal) return;
     try {

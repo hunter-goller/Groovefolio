@@ -10,6 +10,7 @@ import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/widgets/shared/bottom_nav_bar.dart';
 import 'package:vinyl_app/widgets/shared/genre_breakdown_list.dart';
 
+/// Calendar-year or full-history range for play-derived aggregates.
 enum StatsRange { currentYear, allTime }
 
 class StatsRankedAlbum {
@@ -36,6 +37,7 @@ class StatsRankedArtist {
   final int albumCount;
 }
 
+/// Joined snapshot of service aggregates and display names for one range.
 class StatsDashboardData {
   const StatsDashboardData({
     required this.summary,
@@ -58,6 +60,8 @@ class StatsDashboardData {
   final String? firstVinylArtistName;
 }
 
+/// Loads the range-specific dashboard, resolving artist IDs once for
+/// rankings rather than mixing repository lookups into the widget tree.
 final statsDashboardProvider = FutureProvider.autoDispose
     .family<StatsDashboardData, StatsRange>((ref, range) async {
       final service = ref.watch(statsServiceProvider);
@@ -124,6 +128,7 @@ final statsDashboardProvider = FutureProvider.autoDispose
       );
     });
 
+/// Displays local listening statistics, charts, and rankings by range.
 class StatsScreen extends ConsumerStatefulWidget {
   const StatsScreen({super.key});
 

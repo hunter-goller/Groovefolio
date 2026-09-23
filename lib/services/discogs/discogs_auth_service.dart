@@ -3,6 +3,10 @@ import 'package:vinyl_app/services/discogs/discogs_api_client.dart';
 import 'package:vinyl_app/services/discogs/discogs_credential_store.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 
+/// Coordinates the app's current, direct Discogs OAuth 1.0a flow.
+///
+/// The pending request token and connected access token are stored through
+/// [DiscogsCredentialStore], never in the collection database.
 class DiscogsAuthService {
   const DiscogsAuthService({
     required DiscogsApiClient apiClient,
@@ -19,6 +23,8 @@ class DiscogsAuthService {
     return credentials == null ? null : _apiClient.identity(credentials);
   }
 
+  /// Persists the temporary request token before returning the browser URL
+  /// so a cold-start callback can still complete the same authorization.
   Future<Uri> beginAuthorization() async {
     final requestToken = await _apiClient.requestToken();
     await _credentialStore.writePendingRequestToken(requestToken);
@@ -34,6 +40,8 @@ class DiscogsAuthService {
     }
   }
 
+  /// Exchanges only a callback matching the saved request token.
+  /// Clears newly stored access credentials if identity verification fails.
   Future<DiscogsAccount> completeAuthorization({
     required String oauthToken,
     required String verifier,
@@ -64,6 +72,8 @@ class DiscogsAuthService {
     await _credentialStore.clearPendingRequestToken();
   }
 
+  /// Removes local access credentials and any unfinished request token.
+  /// This does not revoke the grant at Discogs itself.
   Future<void> disconnect() async {
     await _credentialStore.clearCredentials();
     await _credentialStore.clearPendingRequestToken();

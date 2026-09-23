@@ -5,6 +5,9 @@ import 'package:vinyl_app/services/onboarding_service.dart';
 import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 
+/// Shows onboarding only for a fresh, incomplete collection.
+/// A running walkthrough bypasses this gate so navigation into Collection
+/// does not display the welcome screen again.
 class OnboardingGate extends ConsumerWidget {
   const OnboardingGate({super.key, required this.child});
 

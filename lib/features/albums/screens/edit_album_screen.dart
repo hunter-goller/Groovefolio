@@ -18,6 +18,9 @@ import 'package:vinyl_app/widgets/ui/empty_state.dart';
 import 'package:vinyl_app/widgets/ui/labeled_text_field.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 
+/// Edits a saved local record while preserving its identity and purchase
+/// history. Artwork replacement and optional NFC rewrite are separate steps
+/// from the transactional metadata/genre update.
 class EditAlbumScreen extends ConsumerStatefulWidget {
   const EditAlbumScreen({required this.albumId, super.key});
 

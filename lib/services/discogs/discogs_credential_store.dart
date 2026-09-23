@@ -1,6 +1,8 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 
+/// Storage boundary for current direct OAuth access and pending tokens.
+/// Tests can replace the platform secure store without changing auth logic.
 abstract interface class DiscogsCredentialStore {
   Future<DiscogsOAuthCredentials?> readCredentials();
   Future<void> writeCredentials(DiscogsOAuthCredentials credentials);
@@ -10,6 +12,7 @@ abstract interface class DiscogsCredentialStore {
   Future<void> clearPendingRequestToken();
 }
 
+/// Persists OAuth tokens in platform secure storage, separate from SQLite.
 class SecureDiscogsCredentialStore implements DiscogsCredentialStore {
   SecureDiscogsCredentialStore({FlutterSecureStorage? storage})
     : _storage = storage ?? const FlutterSecureStorage();

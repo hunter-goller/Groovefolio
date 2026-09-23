@@ -14,6 +14,7 @@ abstract interface class DatabaseTransactionRunner {
   Future<T> run<T>(Future<T> Function() operation);
 }
 
+/// Drift-backed implementation of the transaction boundary.
 class DriftDatabaseTransactionRunner implements DatabaseTransactionRunner {
   const DriftDatabaseTransactionRunner(this._db);
 
@@ -53,6 +54,9 @@ class RecordWriteService {
   final ITrackRepository _trackRepository;
   final IDiscogsReleaseLinkRepository _releaseLinkRepository;
 
+  /// Creates one record and its optional release link, tracks, and genres
+  /// atomically. Rejects an exact Discogs release already linked locally.
+  /// Artwork is saved separately by the caller after this transaction.
   Future<Album> createRecord({
     required String title,
     required String artistName,
@@ -108,6 +112,8 @@ class RecordWriteService {
     });
   }
 
+  /// Updates editable fields and replaces genre assignments atomically.
+  /// Preserves the existing purchase metadata, release link, and tracklist.
   Future<Album> updateRecord({
     required Album existing,
     required String title,

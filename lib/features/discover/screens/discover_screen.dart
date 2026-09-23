@@ -9,6 +9,9 @@ import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/widgets/shared/bottom_nav_bar.dart';
 
+/// Presents on-device recommendations and their explanation evidence.
+/// Ranking is delegated to RecommendationService; this screen never fetches
+/// suggestions from an external server.
 class DiscoverScreen extends ConsumerWidget {
   const DiscoverScreen({super.key});
 
