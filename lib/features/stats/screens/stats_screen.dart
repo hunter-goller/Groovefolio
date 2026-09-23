@@ -206,7 +206,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
             key: const Key('stats-error-state'),
             title: 'Couldn’t load your stats',
             message:
-                'Your listening history is still safe. Try loading your '
+                'Try loading your '
                 'stats again.',
             error: error,
             stackTrace: stackTrace,

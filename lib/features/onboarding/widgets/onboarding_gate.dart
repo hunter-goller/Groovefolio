@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/features/onboarding/screens/onboarding_screen.dart';
 import 'package:vinyl_app/services/onboarding_service.dart';
-import 'package:vinyl_app/widgets/ui/app_error_state.dart';
 import 'package:vinyl_app/services/walkthrough_controller.dart';
+import 'package:vinyl_app/widgets/ui/app_error_state.dart';
 
 /// Shows onboarding only for a fresh, incomplete collection.
 /// A running walkthrough bypasses this gate so navigation into Collection

@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -98,8 +99,8 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
   }
 
   /// Stages artwork before the metadata transaction and restores old bytes
-  /// if the metadata write fails. A later UI failure must not undo artwork. The image path is reused, so keeping only its string
-  /// would not be enough to undo replacement of the file itself.
+  /// if the metadata write fails. A later UI failure must not undo artwork.
+  /// The image path is reused, so its string alone cannot undo a replacement.
   Future<void> _save() async {
     if (_isSubmitting) return;
     FocusScope.of(context).unfocus();
@@ -232,8 +233,7 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
             key: const Key('edit-record-error-state'),
             title: 'Couldn’t load this record',
             message:
-                'Something went wrong while preparing the editor. Your '
-                'record has not been changed.',
+                'Something went wrong while preparing the editor. Try again.',
             error: error,
             stackTrace: stackTrace,
             operation: 'load record editor',

@@ -1,11 +1,12 @@
 import 'dart:async';
+
 import 'package:app_links/app_links.dart';
-import 'package:vinyl_app/features/startup/app_startup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/db/database_provider.dart';
+import 'package:vinyl_app/features/startup/app_startup.dart';
 import 'package:vinyl_app/features/stats/screens/stats_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';

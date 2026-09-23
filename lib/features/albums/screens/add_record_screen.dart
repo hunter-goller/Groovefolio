@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,8 +24,8 @@ import 'package:vinyl_app/utils/error_reporting.dart';
 import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
 import 'package:vinyl_app/widgets/shared/discogs_banner.dart';
 import 'package:vinyl_app/widgets/shared/genre_chip_input.dart';
-import 'package:vinyl_app/widgets/shared/resilient_image.dart';
 import 'package:vinyl_app/widgets/shared/nfc_write_dialog.dart';
+import 'package:vinyl_app/widgets/shared/resilient_image.dart';
 import 'package:vinyl_app/widgets/ui/labeled_text_field.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 

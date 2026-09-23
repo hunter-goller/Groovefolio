@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vinyl_app/features/settings/screens/discogs_collection_import_screen.dart';
+import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/services/discogs/discogs_collection_import_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
-import 'package:vinyl_app/providers/album_providers.dart';
 
 void main() {
   testWidgets(
