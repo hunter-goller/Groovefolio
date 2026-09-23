@@ -6,17 +6,18 @@
 - local-first persistence
 - deterministic schema migrations
 - app-level product name: Groovefolio
+- permanent Android application ID `app.groovefolio`
+- launcher icon and splash assets
+- privacy/support links in Settings
+- release signing configuration that requires an explicit upload key
 
 ## Before release
-- permanent Android application ID `app.groovefolio`
 - create and back up the upload key on the developer's machine using
   [Android release signing](android-release-signing.md); configure a signed AAB
-- target/compile SDK review
-- app icon/adaptive icon
-- splash/bootstrap
+- target/compile SDK review and final permission audit
 - screenshots/feature graphic/listing copy
-- privacy policy/data-safety form
-- accessibility pass
+- review the published privacy policy against the actual build and complete Data Safety
+- verify critical readability and reduced-motion behavior
 - production error handling
 - final dependency/security review
 
@@ -38,6 +39,6 @@ It must remain independent of Android automatic backup and must never export
 Discogs credentials or a backend installation token.
 
 ## Discogs-specific release work
-The current client reads a Discogs Consumer Key/Secret from build-time configuration for development. A secret compiled into a mobile APK should not be treated as truly confidential. Revisit the production auth architecture before public distribution.
+The current client reads a Discogs Consumer Key/Secret from build-time configuration for development. A secret compiled into a mobile APK should not be treated as truly confidential. The proposed Java/Spring Boot backend is separate, unmerged, and undeployed. Resolve and validate the production credential architecture before public distribution.
 
 User OAuth access credentials are stored with `flutter_secure_storage`; this is separate from protecting the app-level Consumer Secret.

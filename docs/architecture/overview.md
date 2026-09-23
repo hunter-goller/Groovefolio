@@ -21,9 +21,9 @@ AppDatabase / SQLite
 External API path:
 
 ```text
-UI / future feature service
+UI / feature service
       ↓
-DiscogsAuthService / future DiscogsService
+DiscogsAuthService / DiscogsCatalogService
       ↓
 DiscogsApiClient
       ↓
@@ -48,6 +48,8 @@ Discogs API
 - `ArtworkStorageService`: owns persisted artwork filesystem paths.
 - `AlbumDeletionService`: coordinates plays, NFC association, artwork, and album deletion.
 - `DiscogsAuthService`: owns the OAuth authorization lifecycle above `DiscogsApiClient`.
+- `RecordWriteService`: coordinates multi-repository record writes in a database transaction.
+- `RecommendationService`: ranks owned records from local collection and play history.
 
 ## Why local-first
 

@@ -10,6 +10,7 @@ The Collection screen is the primary Groovefolio home screen and uses real local
 - genre filter bottom sheet
 - Add Record FAB
 - quick Log Play action
+- swipe actions for edit and delete
 - bottom navigation to Collection / Stats / Discover
 - loading, retry, and empty states
 - optional Discogs collection import is launched from Settings when a Discogs account is connected

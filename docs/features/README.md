@@ -1,17 +1,14 @@
 # Feature documentation
 
-## Implemented
-- [Collection](collection.md)
-- [Add Record](add-album.md)
-- [Album Detail / Edit / Delete](album-details.md)
-- [Play Logging](play-logging.md)
-- [Statistics](statistics.md)
+## Available on `main`
 
-## Foundation exists; device/product flow incomplete
-- [NFC](nfc.md)
+- [Collection](collection.md), [Add Record](add-album.md), and [Album Detail / Edit / Delete](album-details.md)
+- [Play logging](play-logging.md) and [statistics](statistics.md)
+- [NFC](nfc.md) — implemented with physical-device validation still pending
+- [Discover](discover.md) and [local recommendations](recommendations.md)
+- [Discogs integration](../integrations/discogs.md) — optional; production credentials remain release work
 
 ## Planned
-- [Discover](discover.md)
-- [Recommendations](recommendations.md)
+
 - [Album Wrapped](album-wrapped.md)
-- [Discogs integration](../integrations/discogs.md)
+- External discovery of releases outside the local collection

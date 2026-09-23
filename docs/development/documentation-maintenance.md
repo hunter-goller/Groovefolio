@@ -9,6 +9,6 @@ When a feature changes:
 4. update setup/testing docs when developer workflow changes
 5. add a changelog entry for meaningful milestones
 
-Historical patch notes should not be rewritten into current-state docs. They may carry a note that the product was later renamed to Groovefolio, but their technical content remains historical.
+Historical overlay notes live in `docs/archive/apply-notes/` and patch notes in `docs/Patch_Notes/`. Do not use their old apply instructions on current `main`. Historical patch notes should not be rewritten into current-state docs. They may carry a note that the product was later renamed to Groovefolio, but their technical content remains historical.
 
 The product name is Groovefolio; `vinyl_app` and `VinylApp-###` may still appear when referring to technical or historical identifiers.

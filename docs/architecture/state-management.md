@@ -24,12 +24,12 @@ Repositories expose generated providers and are re-exported through `providers/r
 The Stats screen composes a `StatsDashboardData` FutureProvider around `StatsService` and artist lookup.
 
 ## Discogs
-Part 1 exposes providers for:
+Providers expose:
 - config
 - secure credential store
 - API client
 - auth service
-- connected account lookup
+- connected account lookup and authorization flow
 
 ## Testing
 Provider overrides are preferred over global singletons so repository/service behavior can be replaced with in-memory fakes in tests.

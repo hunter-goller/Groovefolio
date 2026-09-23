@@ -18,13 +18,11 @@ Shows:
 ## Edit Record
 Route: `/album/:id/edit`
 
-Supports title, artist, year, label, genres, and artwork replacement. Existing purchase metadata is preserved. The NFC rewrite option is currently a deferred UI hook; actual NFC writing is not implemented yet.
+Supports title, artist, year, label, genres, and artwork replacement. Existing purchase metadata is preserved. Album Details can link a tag to an existing record or rewrite/replace its linked tag on a supported Android device.
 
 ## Delete Record
 `AlbumDeletionService` coordinates:
-- deletion of play rows
-- deletion of linked NFC association
-- persisted artwork deletion
-- album deletion
+- album deletion in the database, cascading to plays, NFC association, genres, Discogs link, and tracks
+- best-effort persisted artwork cleanup after the database commit
 
 AlbumGenres mappings, Discogs release links, and Tracks rows are removed by database cascade. The UI confirms the album title and number of logged plays before deletion.

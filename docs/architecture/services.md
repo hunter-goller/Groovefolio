@@ -1,32 +1,14 @@
 # Services
 
-Services hold workflows/business rules that are broader than one repository.
+Services coordinate workflows that cross repositories, files, or external APIs. Repositories own persistence details.
 
-## PlayLoggingService
-Validates the target album and creates a play through `IPlayRepository`.
+- `PlayLoggingService`: validates the target album and records a play.
+- `StatsService`: calculates collection and listening aggregates.
+- `RecommendationService`: creates local, explainable suggestions for records already owned.
+- `RecordWriteService`: coordinates add/edit/import writes in a database transaction.
+- `ArtworkStorageService`: persists artwork in app storage.
+- `AlbumDeletionService`: deletes an album and its database associations; artwork cleanup follows the database commit.
+- `NfcService` and NFC play services: manage tag association, intent validation, automatic play, and duplicate protection.
+- `DiscogsAuthService`, `DiscogsCatalogService`, and `DiscogsCollectionImportService`: optional OAuth, catalog, and import workflows over `DiscogsApiClient`.
 
-## StatsService
-Computes:
-- collection summary
-- plays/week
-- most-played albums
-- monthly current-year series
-- yearly all-time series
-- genre breakdown
-- first vinyl
-- album-level play statistics
-
-## ArtworkStorageService
-Owns persisted artwork under the app documents directory. The Albums table stores only the returned path.
-
-## AlbumDeletionService
-Coordinates deletion of:
-- play rows
-- linked NFC association
-- artwork file
-- album row
-
-Album/genre join rows are removed by database cascade.
-
-## DiscogsAuthService / DiscogsApiClient
-Part 1 provides OAuth 1.0a request/access-token exchange, identity lookup, secure user credential storage, typed failures, and injectable providers. UI callback wiring remains Part 2.
+The current mobile client communicates with Discogs directly. Backend proposals in another repository are not part of this app's `main` implementation.

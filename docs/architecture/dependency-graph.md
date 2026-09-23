@@ -33,13 +33,11 @@ application documents/artwork/<albumId>.jpg
 
 ```text
 Album Detail → AlbumDeletionService
-                   ├─ PlayRepository
-                   ├─ NfcTagRepository
-                   ├─ ArtworkStorageService
-                   └─ AlbumRepository
+                   ├─ AlbumRepository → database cascade for related rows
+                   └─ ArtworkStorageService (after DB commit)
 ```
 
-`AlbumGenres` mappings are removed by database cascade when the album row is deleted.
+Plays, NFC associations, genres, Discogs release links, and tracks are removed by database cascade when the album row is deleted.
 
 ## Discogs account connection
 

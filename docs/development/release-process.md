@@ -3,11 +3,10 @@
 Groovefolio has not shipped a public Play Store release yet.
 
 Before the first public release:
-- finalize application branding/icon/splash
-- confirm Android application ID strategy before publishing
+- verify final branding/icon/splash and the permanent `app.groovefolio` application ID
 - create and back up the upload key, then build the signed AAB with
   [Android release signing](android-release-signing.md)
-- finish privacy/data-safety disclosures
+- compare the published privacy policy to the actual build and complete Play Data Safety
 - review Discogs production credential architecture and API terms/attribution
 - run full verification and release builds
 - test migration paths using preserved Drift schema snapshots
