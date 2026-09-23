@@ -654,10 +654,6 @@ Widget _testApp({
             const Scaffold(body: Center(child: Text('Collection test'))),
       ),
       GoRoute(
-        path: AppRoutes.albumDetail,
-        builder: (context, state) => const Scaffold(body: Text('Detail test')),
-      ),
-      GoRoute(
         path: AppRoutes.barcodeScan,
         builder: (context, state) => Scaffold(
           body: Center(
@@ -668,6 +664,10 @@ Widget _testApp({
             ),
           ),
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.albumDetail,
+        builder: (context, state) => const Scaffold(body: Text('Detail test')),
       ),
     ],
   );
