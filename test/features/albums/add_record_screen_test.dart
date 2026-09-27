@@ -11,7 +11,6 @@ import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/repositories/discogs_release_link_repository.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/discogs/discogs_catalog_service.dart';
-import 'package:vinyl_app/services/discogs/discogs_credential_store.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
@@ -188,7 +187,7 @@ void main() {
           albumRepository: albumRepository,
           genreRepository: genreRepository,
           catalogService: catalog,
-          credentialStore: _ConnectedCredentialStore(),
+          connected: true,
           releaseLinkRepository: links,
           trackRepository: tracks,
         ),
@@ -298,7 +297,7 @@ void main() {
           artistRepository: artistRepository,
           albumRepository: albumRepository,
           catalogService: catalog,
-          credentialStore: _ConnectedCredentialStore(),
+          connected: true,
           releaseLinkRepository: links,
           trackRepository: tracks,
           scannedBarcode: '074643377512',
@@ -355,7 +354,7 @@ void main() {
     await tester.pumpWidget(
       _testApp(
         catalogService: catalog,
-        credentialStore: _ConnectedCredentialStore(),
+        connected: true,
         releaseLinkRepository: _FakeDiscogsReleaseLinkRepository(),
         scannedBarcode: '000000000000',
       ),
@@ -385,7 +384,7 @@ void main() {
     await tester.pumpWidget(
       _testApp(
         catalogService: catalog,
-        credentialStore: _ConnectedCredentialStore(),
+        connected: true,
         releaseLinkRepository: _FakeDiscogsReleaseLinkRepository(),
       ),
     );
@@ -595,7 +594,7 @@ Widget _testApp({
   IGenreRepository? genreRepository,
   ITrackRepository? trackRepository,
   DiscogsCatalogService? catalogService,
-  DiscogsCredentialStore? credentialStore,
+  bool connected = false,
   IDiscogsReleaseLinkRepository? releaseLinkRepository,
   NfcAvailabilityState nfcAvailability = NfcAvailabilityState.unsupported,
   NfcService? nfcService,
@@ -645,8 +644,10 @@ Widget _testApp({
       discogsCatalogServiceProvider.overrideWithValue(
         catalogService ?? _FakeDiscogsCatalogService(),
       ),
-      discogsCredentialStoreProvider.overrideWithValue(
-        credentialStore ?? _DisconnectedCredentialStore(),
+      discogsAccountProvider.overrideWithValue(
+        AsyncData(
+          connected ? const DiscogsAccount(id: 7, username: 'listener') : null,
+        ),
       ),
       discogsReleaseLinkRepositoryProvider.overrideWithValue(
         releaseLinkRepository ?? _FakeDiscogsReleaseLinkRepository(),
@@ -723,7 +724,9 @@ class _FakeAlbumRepository implements IAlbumRepository {
   @override
   Future<Album?> findById(String id) async {
     for (final album in created) {
-      if (album.id == id) return album;
+      if (album.id == id) {
+        return album;
+      }
     }
     return null;
   }
@@ -762,7 +765,9 @@ class _FakeGenreRepository implements IGenreRepository {
   @override
   Future<Genre?> findById(String id) async {
     for (final genre in genres) {
-      if (genre.id == id) return genre;
+      if (genre.id == id) {
+        return genre;
+      }
     }
     return null;
   }
@@ -771,7 +776,9 @@ class _FakeGenreRepository implements IGenreRepository {
   Future<Genre?> findByName(String name) async {
     final normalized = name.trim().toLowerCase();
     for (final genre in genres) {
-      if (genre.name.toLowerCase() == normalized) return genre;
+      if (genre.name.toLowerCase() == normalized) {
+        return genre;
+      }
     }
     return null;
   }
@@ -781,7 +788,9 @@ class _FakeGenreRepository implements IGenreRepository {
     final normalized = name.trim();
     findOrCreateNames.add(normalized);
     final existing = await findByName(normalized);
-    if (existing != null) return existing;
+    if (existing != null) {
+      return existing;
+    }
 
     final genre = Genre(
       id: 'genre-${genres.length + 1}',
@@ -795,7 +804,9 @@ class _FakeGenreRepository implements IGenreRepository {
   @override
   Future<int> removeFromAlbum(String albumId, String genreId) async {
     final ids = albumAssignments[albumId];
-    if (ids == null || !ids.remove(genreId)) return 0;
+    if (ids == null || !ids.remove(genreId)) {
+      return 0;
+    }
     return 1;
   }
 
@@ -841,7 +852,9 @@ class _FakeDiscogsCatalogService implements DiscogsCatalogService {
     required String title,
   }) async {
     final current = failure;
-    if (current != null) throw current;
+    if (current != null) {
+      throw current;
+    }
     return results;
   }
 
@@ -851,7 +864,9 @@ class _FakeDiscogsCatalogService implements DiscogsCatalogService {
   ) async {
     barcodeLookups.add(barcode);
     final current = failure;
-    if (current != null) throw current;
+    if (current != null) {
+      throw current;
+    }
     return barcodeResults;
   }
 
@@ -872,7 +887,9 @@ class _FakeDiscogsCatalogService implements DiscogsCatalogService {
   @override
   Future<DiscogsReleaseDetails> release(int releaseId) async {
     final current = failure;
-    if (current != null) throw current;
+    if (current != null) {
+      throw current;
+    }
     return details ??
         DiscogsReleaseDetails(
           releaseId: releaseId,
@@ -884,36 +901,11 @@ class _FakeDiscogsCatalogService implements DiscogsCatalogService {
   @override
   Future<Uint8List> downloadArtwork(String url) async {
     final current = failure;
-    if (current != null) throw current;
+    if (current != null) {
+      throw current;
+    }
     return Uint8List.fromList([1, 2, 3]);
   }
-}
-
-class _ConnectedCredentialStore extends _DisconnectedCredentialStore {
-  @override
-  Future<DiscogsOAuthCredentials?> readCredentials() async {
-    return const DiscogsOAuthCredentials(token: 'token', tokenSecret: 'secret');
-  }
-}
-
-class _DisconnectedCredentialStore implements DiscogsCredentialStore {
-  @override
-  Future<void> clearCredentials() async {}
-
-  @override
-  Future<void> clearPendingRequestToken() async {}
-
-  @override
-  Future<DiscogsOAuthCredentials?> readCredentials() async => null;
-
-  @override
-  Future<DiscogsRequestToken?> readPendingRequestToken() async => null;
-
-  @override
-  Future<void> writeCredentials(DiscogsOAuthCredentials credentials) async {}
-
-  @override
-  Future<void> writePendingRequestToken(DiscogsRequestToken token) async {}
 }
 
 class _FakeDiscogsReleaseLinkRepository
@@ -923,7 +915,9 @@ class _FakeDiscogsReleaseLinkRepository
   @override
   Future<String?> findAlbumIdForRelease(int releaseId) async {
     for (final entry in links.entries) {
-      if (entry.value == releaseId) return entry.key;
+      if (entry.value == releaseId) {
+        return entry.key;
+      }
     }
     return null;
   }
@@ -986,8 +980,12 @@ class _QueuedNfcPlatform implements INfcPlatformAdapter {
   @override
   Future<NfcPlatformTag> poll({required Duration timeout}) {
     pollCalls += 1;
-    if (_tags.isNotEmpty) return Future.value(_tags.removeAt(0));
-    if (!holdPoll) throw StateError('No fake NFC tag is queued.');
+    if (_tags.isNotEmpty) {
+      return Future.value(_tags.removeAt(0));
+    }
+    if (!holdPoll) {
+      throw StateError('No fake NFC tag is queued.');
+    }
     _pendingPoll = Completer<NfcPlatformTag>();
     return _pendingPoll!.future;
   }
@@ -1046,7 +1044,9 @@ class _FakeNfcTagRepository implements INfcTagRepository {
   @override
   Future<NfcTag?> findByAlbum(String albumId) async {
     for (final tag in createdTags) {
-      if (tag.albumId == albumId) return tag;
+      if (tag.albumId == albumId) {
+        return tag;
+      }
     }
     return null;
   }
@@ -1054,7 +1054,9 @@ class _FakeNfcTagRepository implements INfcTagRepository {
   @override
   Future<NfcTag?> findByTagId(String nfcTagId) async {
     for (final tag in createdTags) {
-      if (tag.nfcTagId == nfcTagId) return tag;
+      if (tag.nfcTagId == nfcTagId) {
+        return tag;
+      }
     }
     return null;
   }

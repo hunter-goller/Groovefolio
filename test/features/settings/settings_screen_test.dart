@@ -15,9 +15,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          discogsConfigProvider.overrideWithValue(
-            const DiscogsConfig(consumerKey: 'key', consumerSecret: 'secret'),
-          ),
+          discogsConfigProvider.overrideWithValue(const DiscogsConfig()),
           discogsAccountProvider.overrideWithValue(
             const AsyncData<DiscogsAccount?>(
               DiscogsAccount(
@@ -49,9 +47,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          discogsConfigProvider.overrideWithValue(
-            const DiscogsConfig(consumerKey: 'key', consumerSecret: 'secret'),
-          ),
+          discogsConfigProvider.overrideWithValue(const DiscogsConfig()),
           discogsAccountProvider.overrideWithValue(
             const AsyncData<DiscogsAccount?>(null),
           ),
@@ -72,9 +68,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          discogsConfigProvider.overrideWithValue(
-            const DiscogsConfig(consumerKey: 'key', consumerSecret: 'secret'),
-          ),
+          discogsConfigProvider.overrideWithValue(const DiscogsConfig()),
           discogsAccountProvider.overrideWithValue(
             const AsyncData<DiscogsAccount?>(null),
           ),
@@ -106,9 +100,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            discogsConfigProvider.overrideWithValue(
-              const DiscogsConfig(consumerKey: 'key', consumerSecret: 'secret'),
-            ),
+            discogsConfigProvider.overrideWithValue(const DiscogsConfig()),
             discogsAccountProvider.overrideWithValue(
               const AsyncData<DiscogsAccount?>(
                 DiscogsAccount(

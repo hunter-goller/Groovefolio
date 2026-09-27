@@ -1,39 +1,48 @@
 import 'package:app_links/app_links.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vinyl_app/services/backend/backend_store.dart';
+import 'package:vinyl_app/services/backend/backend_transport.dart';
+import 'package:vinyl_app/services/backend/installation_session.dart';
 import 'package:vinyl_app/services/discogs/discogs_api_client.dart';
 import 'package:vinyl_app/services/discogs/discogs_auth_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_catalog_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_config.dart';
-import 'package:vinyl_app/services/discogs/discogs_credential_store.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 
 final discogsConfigProvider = Provider<DiscogsConfig>((ref) {
   return DiscogsConfig.fromEnvironment;
 });
 
-final discogsCredentialStoreProvider = Provider<DiscogsCredentialStore>((ref) {
-  return SecureDiscogsCredentialStore();
+final backendStoreProvider = Provider<BackendStore>((ref) {
+  return SecureBackendStore(ref.watch(discogsConfigProvider).origin.toString());
 });
-
-final discogsApiClientProvider = Provider<DiscogsApiClient>((ref) {
-  final client = DiscogsApiClient(config: ref.watch(discogsConfigProvider));
-  ref.onDispose(client.close);
-  return client;
+final backendTransportProvider = Provider<BackendTransport>((ref) {
+  final transport = BackendTransport();
+  ref.onDispose(transport.close);
+  return transport;
 });
-
-final discogsAuthServiceProvider = Provider<DiscogsAuthService>((ref) {
-  return DiscogsAuthService(
+final installationSessionProvider = Provider<InstallationSession>((ref) {
+  return InstallationSession(
+    origin: ref.watch(discogsConfigProvider).origin,
+    store: ref.watch(backendStoreProvider),
+    transport: ref.watch(backendTransportProvider),
+  );
+});
+final discogsApiClientProvider = Provider<DiscogsApiClient>(
+  (ref) => DiscogsApiClient(
+    ref.watch(installationSessionProvider),
+    ref.watch(backendTransportProvider),
+  ),
+);
+final discogsAuthServiceProvider = Provider<DiscogsAuthService>(
+  (ref) => DiscogsAuthService(
     apiClient: ref.watch(discogsApiClientProvider),
-    credentialStore: ref.watch(discogsCredentialStoreProvider),
-  );
-});
-
-final discogsCatalogServiceProvider = Provider<DiscogsCatalogService>((ref) {
-  return DefaultDiscogsCatalogService(
-    ref.watch(discogsApiClientProvider),
-    ref.watch(discogsCredentialStoreProvider),
-  );
-});
+    store: ref.watch(backendStoreProvider),
+  ),
+);
+final discogsCatalogServiceProvider = Provider<DiscogsCatalogService>(
+  (ref) => DefaultDiscogsCatalogService(ref.watch(discogsApiClientProvider)),
+);
 
 final discogsAccountProvider = FutureProvider.autoDispose<DiscogsAccount?>((
   ref,
@@ -78,7 +87,7 @@ enum DiscogsAuthorizationStatus {
   failed,
 }
 
-/// UI state for the direct-to-Discogs browser authorization flow.
+/// UI state for browser authorization completed by the backend.
 class DiscogsAuthorizationState {
   const DiscogsAuthorizationState._({required this.status, this.failure});
 
@@ -118,14 +127,14 @@ class DiscogsAuthorizationController
   DiscogsAuthorizationState build() => const DiscogsAuthorizationState.idle();
 
   Future<void> connect() async {
-    if (state.isBusy) return;
+    if (state.isBusy) {
+      return;
+    }
 
     final config = ref.read(discogsConfigProvider);
     if (!config.isConfigured) {
       state = const DiscogsAuthorizationState.failed(
-        DiscogsAuthenticationFailure(
-          'Discogs application credentials are not configured for this build.',
-        ),
+        DiscogsAuthenticationFailure('Discogs is unavailable in this build.'),
       );
       return;
     }
@@ -143,39 +152,38 @@ class DiscogsAuthorizationController
   /// the user back to Settings where success or failure can be shown.
   Future<bool> handleCallback(Uri uri) async {
     final config = ref.read(discogsConfigProvider);
-    if (!config.matchesCallback(uri)) return false;
-
-    final oauthToken = uri.queryParameters['oauth_token']?.trim();
-    final verifier = uri.queryParameters['oauth_verifier']?.trim();
-    if (oauthToken == null ||
-        oauthToken.isEmpty ||
-        verifier == null ||
-        verifier.isEmpty) {
-      state = const DiscogsAuthorizationState.failed(
-        DiscogsAuthenticationFailure(
-          'Discogs returned an incomplete authorization callback.',
-        ),
-      );
-      return true;
+    if (!config.matchesCallback(uri)) {
+      return false;
     }
 
+    await checkAuthorization();
+    return true;
+  }
+
+  Future<void> checkAuthorization() async {
+    if (state.status == DiscogsAuthorizationStatus.completing ||
+        state.status == DiscogsAuthorizationStatus.disconnecting) {
+      return;
+    }
     state = const DiscogsAuthorizationState.completing();
     try {
-      await ref
+      final status = await ref
           .read(discogsAuthServiceProvider)
-          .completeAuthorization(oauthToken: oauthToken, verifier: verifier);
+          .authorizationStatus();
       ref.invalidate(discogsAccountProvider);
-      state = const DiscogsAuthorizationState.idle();
+      state = status == 'pending'
+          ? const DiscogsAuthorizationState.awaitingCallback()
+          : const DiscogsAuthorizationState.idle();
     } catch (error) {
       ref.invalidate(discogsAccountProvider);
       state = DiscogsAuthorizationState.failed(_typedFailure(error));
     }
-    return true;
   }
 
   Future<void> cancelAuthorization() async {
     try {
       await ref.read(discogsAuthServiceProvider).cancelAuthorization();
+      ref.invalidate(discogsAccountProvider);
       state = const DiscogsAuthorizationState.idle();
     } catch (error) {
       state = DiscogsAuthorizationState.failed(_typedFailure(error));
@@ -183,7 +191,9 @@ class DiscogsAuthorizationController
   }
 
   Future<void> disconnect() async {
-    if (state.isBusy) return;
+    if (state.isBusy) {
+      return;
+    }
 
     state = const DiscogsAuthorizationState.disconnecting();
     try {
@@ -200,7 +210,9 @@ class DiscogsAuthorizationController
   }
 
   DiscogsFailure _typedFailure(Object error) {
-    if (error is DiscogsFailure) return error;
+    if (error is DiscogsFailure) {
+      return error;
+    }
     return const DiscogsApiFailure(
       'The Discogs connection could not be updated. Try again.',
     );

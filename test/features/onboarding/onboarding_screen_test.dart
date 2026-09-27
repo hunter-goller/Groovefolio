@@ -237,9 +237,7 @@ Widget _app(
       onboardingServiceProvider.overrideWithValue(
         OnboardingService(store: store, albumRepository: const _Albums()),
       ),
-      discogsConfigProvider.overrideWithValue(
-        const DiscogsConfig(consumerKey: 'test', consumerSecret: 'test'),
-      ),
+      discogsConfigProvider.overrideWithValue(const DiscogsConfig()),
       discogsAccountProvider.overrideWithValue(
         AsyncData(
           connected
@@ -276,7 +274,9 @@ class _MemoryOnboardingStore implements OnboardingStore {
 
   @override
   Future<void> saveProgress(int step) async {
-    if (failProgress) throw StateError('storage unavailable');
+    if (failProgress) {
+      throw StateError('storage unavailable');
+    }
     progress = step;
   }
 
@@ -289,7 +289,9 @@ class _MemoryOnboardingStore implements OnboardingStore {
 
   @override
   Future<void> markOnboardingComplete() async {
-    if (failCompletion) throw StateError('sensitive storage error');
+    if (failCompletion) {
+      throw StateError('sensitive storage error');
+    }
     completed = true;
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -87,35 +88,61 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
         imageQuality: 92,
         maxWidth: 1600,
       );
-      if (picked == null || !mounted) return;
+      if (picked == null || !mounted) {
+        return;
+      }
       await _deleteDiscogsTempArtwork();
       setState(() => _selectedArtwork = File(picked.path));
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Couldn’t choose artwork: $error')),
       );
     }
   }
 
-  Future<void> _openDiscogsSearch() async {
-    FocusScope.of(context).unfocus();
-    final credentials = await ref
-        .read(discogsCredentialStoreProvider)
-        .readCredentials();
-    if (!mounted) return;
-    if (credentials == null) {
+  Future<bool> _canUseDiscogs(String message) async {
+    try {
+      final account = await ref.read(discogsAccountProvider.future);
+      if (!mounted) {
+        return false;
+      }
+      if (account != null) {
+        return true;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text(
-            'Connect Discogs in Settings to search releases.',
-          ),
+          content: Text(message),
           action: SnackBarAction(
             label: 'Settings',
             onPressed: () => context.push(AppRoutes.settings),
           ),
         ),
       );
+    } catch (error) {
+      if (!mounted) {
+        return false;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error is DiscogsFailure
+                ? error.message
+                : 'Could not check the Discogs connection. Try again.',
+          ),
+        ),
+      );
+    }
+    return false;
+  }
+
+  Future<void> _openDiscogsSearch() async {
+    FocusScope.of(context).unfocus();
+    if (!await _canUseDiscogs(
+      'Connect Discogs in Settings to search releases.',
+    )) {
       return;
     }
 
@@ -128,33 +155,24 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
         initialTitle: _titleController.text,
       ),
     );
-    if (details == null || !mounted) return;
+    if (details == null || !mounted) {
+      return;
+    }
     await _applyDiscogsRelease(details);
   }
 
   Future<void> _scanBarcode() async {
     FocusScope.of(context).unfocus();
-    final credentials = await ref
-        .read(discogsCredentialStoreProvider)
-        .readCredentials();
-    if (!mounted) return;
-    if (credentials == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Connect Discogs in Settings before scanning a barcode.',
-          ),
-          action: SnackBarAction(
-            label: 'Settings',
-            onPressed: () => context.push(AppRoutes.settings),
-          ),
-        ),
-      );
+    if (!await _canUseDiscogs(
+      'Connect Discogs in Settings before scanning a barcode.',
+    )) {
       return;
     }
 
     final barcode = await context.push<String>(AppRoutes.barcodeScan);
-    if (barcode == null || !mounted) return;
+    if (barcode == null || !mounted) {
+      return;
+    }
 
     final details = await showModalBottomSheet<DiscogsReleaseDetails>(
       context: context,
@@ -162,7 +180,9 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
       useSafeArea: true,
       builder: (context) => _DiscogsBarcodeResultsSheet(barcode: barcode),
     );
-    if (details == null || !mounted) return;
+    if (details == null || !mounted) {
+      return;
+    }
     await _applyDiscogsRelease(details);
   }
 
@@ -192,7 +212,9 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
     }
 
     await _deleteDiscogsTempArtwork();
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _titleController.text = details.title;
       _artistController.text = details.artist;
@@ -224,7 +246,9 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
   /// its ID before retrying the whole create operation after an error.
   Future<void> _save() async {
     FocusScope.of(context).unfocus();
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     final shouldWriteNfc =
         _writeNfcAfterSave &&
@@ -304,7 +328,9 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
         // database commit.
       }
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       NfcWriteOutcome? nfcOutcome;
       if (shouldWriteNfc) {
         nfcOutcome = await showNfcWriteDialog(
@@ -313,13 +339,17 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
         );
       }
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       final messenger = ScaffoldMessenger.of(context);
       if (ref.read(walkthroughProvider).active) {
         await ref
             .read(walkthroughProvider.notifier)
             .recordSaved(createdAlbum.id);
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
         context.go(AppRoutes.collection);
       } else if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
               'true' &&
@@ -343,7 +373,9 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
         messenger.showSnackBar(SnackBar(content: Text(artworkWarning)));
       }
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Couldn’t add record: $error')));
@@ -565,9 +597,13 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
 
   String? _yearValidator(String? value) {
     final normalized = value?.trim() ?? '';
-    if (normalized.isEmpty) return null;
+    if (normalized.isEmpty) {
+      return null;
+    }
     final year = int.tryParse(normalized);
-    if (year == null) return 'Enter a valid year';
+    if (year == null) {
+      return 'Enter a valid year';
+    }
     final maxYear = DateTime.now().year + 1;
     if (year < 1900 || year > maxYear) {
       return 'Enter a year from 1900 to $maxYear';
@@ -608,10 +644,14 @@ class _DiscogsBarcodeResultsSheetState
       final results = await ref
           .read(discogsCatalogServiceProvider)
           .searchReleasesByBarcode(widget.barcode);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() => _results = results);
     } on DiscogsFailure catch (failure) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _failure = failure;
         _results = const [];
@@ -630,10 +670,14 @@ class _DiscogsBarcodeResultsSheetState
       final details = await ref
           .read(discogsCatalogServiceProvider)
           .release(result.releaseId);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       Navigator.of(context).pop(details);
     } on DiscogsFailure catch (failure) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() => _failure = failure);
     } finally {
       if (mounted) setState(() => _loadingReleaseId = null);
@@ -815,13 +859,17 @@ class _DiscogsSearchSheetState extends ConsumerState<_DiscogsSearchSheet> {
       final results = await ref
           .read(discogsCatalogServiceProvider)
           .searchReleases(artist: artist, title: title);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _results = results;
         _hasSearched = true;
       });
     } on DiscogsFailure catch (failure) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _failure = failure;
         _results = const [];
@@ -841,10 +889,14 @@ class _DiscogsSearchSheetState extends ConsumerState<_DiscogsSearchSheet> {
       final details = await ref
           .read(discogsCatalogServiceProvider)
           .release(result.releaseId);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       Navigator.of(context).pop(details);
     } on DiscogsFailure catch (failure) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() => _failure = failure);
     } finally {
       if (mounted) setState(() => _loadingReleaseId = null);
@@ -1017,7 +1069,9 @@ class _DiscogsCoverState extends ConsumerState<_DiscogsCover> {
             : FutureBuilder<Uint8List>(
                 future: _future,
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData) return _placeholder(context);
+                  if (!snapshot.hasData) {
+                    return _placeholder(context);
+                  }
                   return Image.memory(
                     snapshot.data!,
                     fit: BoxFit.cover,

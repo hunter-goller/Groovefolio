@@ -186,7 +186,7 @@ dart run build_runner build --delete-conflicting-outputs
 flutter run
 ```
 
-The app can run its local collection without Discogs credentials. To test *live* Discogs integration, register a Discogs developer application with the current `groovefolio://discogs-auth` callback, then pass your own consumer key and secret privately to `flutter run` using `--dart-define=DISCOGS_CONSUMER_KEY=...` and `--dart-define=DISCOGS_CONSUMER_SECRET=...`. Do not commit credentials or put them in a shared command log. An emulator covers most UI work; use physical Android hardware for NFC and camera flows. Old installs under `com.huntergoller.vinyl_app` do not upgrade in place to `app.groovefolio` and do not carry their local data over.
+The app uses `https://api.groovefolio.app` for Discogs and needs no consumer-key defines. Run `flutter run`, connect in Settings, authorize in the browser, then return and tap Check connection. See [Discogs integration](integrations/discogs.md) for installation tokens, renewal, migration and device tests. Use physical Android hardware for NFC and camera flows. Old installs under `com.huntergoller.vinyl_app` do not upgrade in place to `app.groovefolio`.
 
 Run `flutter test`, `flutter analyze`, and `dart format --output=none --set-exit-if-changed .`, or use the repository's `tools/verify_vinylapp_012.ps1` on PowerShell. Build and check generated code and Drift snapshots when changing providers or schema. The app PR workflow also builds debug and disposable-key release APKs and exercises native NFC tests; it does not publish either build.
 
@@ -287,7 +287,7 @@ Configuration decides which external systems a process can reach; it is separate
 
 | Where | Setting | Needed for / location |
 |---|---|---|
-| App build | `DISCOGS_CONSUMER_KEY`, `DISCOGS_CONSUMER_SECRET` | Optional live direct Discogs calls, passed as `--dart-define`; empty values still allow local app/testing. A distributed secret is not a production secret. |
+| App build | `GROOVEFOLIO_API_ORIGIN` | Optional HTTPS backend origin override; defaults to `https://api.groovefolio.app`. No Discogs consumer credentials in the app. |
 | App runtime | OAuth access token/secret | Obtained after connecting and kept in `flutter_secure_storage`, not SQLite. |
 | Android release build | `GROOVEFOLIO_UPLOAD_KEYSTORE`, `GROOVEFOLIO_UPLOAD_KEY_ALIAS`, `GROOVEFOLIO_UPLOAD_STORE_PASSWORD`, `GROOVEFOLIO_UPLOAD_KEY_PASSWORD` | Required to sign a real release AAB; set locally for the build. Never store the real key/passwords in GitHub. |
 | Website | No runtime environment variables | GitHub Pages publishes static files; Node/Playwright dependencies are development-only. |

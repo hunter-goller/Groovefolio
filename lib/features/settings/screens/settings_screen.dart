@@ -60,6 +60,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onConnect: () => ref
                     .read(discogsAuthorizationControllerProvider.notifier)
                     .connect(),
+                onCheck: () => ref
+                    .read(discogsAuthorizationControllerProvider.notifier)
+                    .checkAuthorization(),
                 onCancel: () => ref
                     .read(discogsAuthorizationControllerProvider.notifier)
                     .cancelAuthorization(),
@@ -158,7 +161,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
 
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) {
+      return;
+    }
 
     setState(() => _isResettingLocalData = true);
     try {
@@ -175,14 +180,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ref.invalidate(albumGenresProvider);
       ref.invalidate(albumTracksProvider);
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Local app data reset. Discogs connection kept.'),
         ),
       );
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Couldn’t reset local data: $error')),
       );

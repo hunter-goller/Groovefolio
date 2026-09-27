@@ -1,146 +1,137 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vinyl_app/services/discogs/discogs_auth_service.dart';
-import 'package:vinyl_app/services/discogs/discogs_config.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 
 void main() {
-  late _FakeDiscogsAuthService authService;
+  late FakeAuth auth;
   late ProviderContainer container;
-
   setUp(() {
-    authService = _FakeDiscogsAuthService();
+    auth = FakeAuth();
     container = ProviderContainer(
-      overrides: [
-        discogsConfigProvider.overrideWithValue(
-          const DiscogsConfig(consumerKey: 'key', consumerSecret: 'secret'),
-        ),
-        discogsAuthServiceProvider.overrideWithValue(authService),
-      ],
+      overrides: [discogsAuthServiceProvider.overrideWithValue(auth)],
     );
   });
-
   tearDown(() => container.dispose());
-
   test(
-    'connect launches browser authorization and waits for callback',
+    'connect waits; check queries server transaction and completes',
     () async {
       final controller = container.read(
         discogsAuthorizationControllerProvider.notifier,
       );
-
       await controller.connect();
-
-      expect(authService.authorizationLaunched, isTrue);
+      expect(auth.launched, isTrue);
+      expect(
+        container
+            .read(discogsAuthorizationControllerProvider)
+            .isAwaitingCallback,
+        isTrue,
+      );
+      await controller.checkAuthorization();
+      expect(
+        container
+            .read(discogsAuthorizationControllerProvider)
+            .isAwaitingCallback,
+        isTrue,
+      );
+      auth.status = 'connected';
+      await controller.checkAuthorization();
       expect(
         container.read(discogsAuthorizationControllerProvider).status,
-        DiscogsAuthorizationStatus.awaitingCallback,
+        DiscogsAuthorizationStatus.idle,
       );
     },
   );
-
-  test('valid callback exchanges verifier and returns to idle', () async {
+  test('deep link parameters cannot complete authorization themselves', () async {
     final controller = container.read(
       discogsAuthorizationControllerProvider.notifier,
     );
-
-    final handled = await controller.handleCallback(
-      Uri.parse(
-        'groovefolio://discogs-auth?oauth_token=request-token&oauth_verifier=123456',
+    expect(
+      await controller.handleCallback(
+        Uri.parse(
+          'groovefolio://discogs-auth?oauth_token=forged&oauth_verifier=forged',
+        ),
       ),
+      isTrue,
     );
-
-    expect(handled, isTrue);
-    expect(authService.completedOauthToken, 'request-token');
-    expect(authService.completedVerifier, '123456');
+    expect(auth.checks, 1);
     expect(
-      container.read(discogsAuthorizationControllerProvider).status,
-      DiscogsAuthorizationStatus.idle,
+      container.read(discogsAuthorizationControllerProvider).isAwaitingCallback,
+      isTrue,
     );
-  });
-
-  test('callback rejects missing verifier with typed failure', () async {
-    final controller = container.read(
-      discogsAuthorizationControllerProvider.notifier,
-    );
-
-    final handled = await controller.handleCallback(
-      Uri.parse('groovefolio://discogs-auth?oauth_token=request-token'),
-    );
-
-    final state = container.read(discogsAuthorizationControllerProvider);
-    expect(handled, isTrue);
-    expect(state.status, DiscogsAuthorizationStatus.failed);
-    expect(state.failure, isA<DiscogsAuthenticationFailure>());
-  });
-
-  test('unrelated deep link is ignored', () async {
-    final controller = container.read(
-      discogsAuthorizationControllerProvider.notifier,
-    );
-
-    final handled = await controller.handleCallback(
-      Uri.parse('groovefolio://something-else?oauth_token=x&oauth_verifier=y'),
-    );
-
-    expect(handled, isFalse);
-    expect(authService.completedOauthToken, isNull);
-  });
-
-  test('cancel clears pending authorization', () async {
-    final controller = container.read(
-      discogsAuthorizationControllerProvider.notifier,
-    );
-
-    await controller.connect();
-    await controller.cancelAuthorization();
-
-    expect(authService.authorizationCancelled, isTrue);
     expect(
-      container.read(discogsAuthorizationControllerProvider).status,
-      DiscogsAuthorizationStatus.idle,
+      await controller.handleCallback(Uri.parse('groovefolio://album/123')),
+      isFalse,
     );
+    expect(auth.checks, 1);
   });
+  test(
+    'cold-start check recovers pending state and cancellation refreshes account',
+    () async {
+      final controller = container.read(
+        discogsAuthorizationControllerProvider.notifier,
+      );
+      await controller.checkAuthorization();
+      expect(
+        container
+            .read(discogsAuthorizationControllerProvider)
+            .isAwaitingCallback,
+        isTrue,
+      );
+      await controller.cancelAuthorization();
+      expect(auth.canceled, isTrue);
+      expect(
+        container.read(discogsAuthorizationControllerProvider).status,
+        DiscogsAuthorizationStatus.idle,
+      );
+    },
+  );
+  test(
+    'failed server verification shows failure without claiming connection',
+    () async {
+      auth.failure = const DiscogsNetworkFailure('Offline');
+      final controller = container.read(
+        discogsAuthorizationControllerProvider.notifier,
+      );
+      await controller.checkAuthorization();
+      expect(
+        container.read(discogsAuthorizationControllerProvider).status,
+        DiscogsAuthorizationStatus.failed,
+      );
+    },
+  );
 }
 
-class _FakeDiscogsAuthService implements DiscogsAuthService {
-  bool authorizationLaunched = false;
-  bool authorizationCancelled = false;
-  bool disconnected = false;
-  String? completedOauthToken;
-  String? completedVerifier;
-
+class FakeAuth implements DiscogsAuthService {
+  bool launched = false, canceled = false;
+  int checks = 0;
+  String status = 'pending';
+  DiscogsFailure? failure;
   @override
   Future<DiscogsAccount?> currentAccount() async => null;
-
   @override
-  Future<Uri> beginAuthorization() async => Uri.parse(
-    'https://www.discogs.com/oauth/authorize?oauth_token=request-token',
-  );
-
+  Future<Uri> beginAuthorization() async =>
+      Uri.parse('https://www.discogs.com/oauth/authorize');
   @override
   Future<void> launchAuthorization() async {
-    authorizationLaunched = true;
+    launched = true;
   }
 
   @override
-  Future<DiscogsAccount> completeAuthorization({
-    required String oauthToken,
-    required String verifier,
-  }) async {
-    completedOauthToken = oauthToken;
-    completedVerifier = verifier;
-    return const DiscogsAccount(id: 7, username: 'hunter');
+  Future<String> authorizationStatus() async {
+    checks++;
+    if (failure != null) {
+      throw failure!;
+    }
+    return status;
   }
 
   @override
   Future<void> cancelAuthorization() async {
-    authorizationCancelled = true;
+    canceled = true;
   }
 
   @override
-  Future<void> disconnect() async {
-    disconnected = true;
-  }
+  Future<void> disconnect() async {}
 }

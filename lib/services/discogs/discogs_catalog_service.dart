@@ -1,11 +1,10 @@
 import 'dart:typed_data';
 
 import 'package:vinyl_app/services/discogs/discogs_api_client.dart';
-import 'package:vinyl_app/services/discogs/discogs_credential_store.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 
 /// Discogs catalog operations used by Add Record and collection import.
-/// Calls require the current app-side OAuth credentials.
+/// Calls use the current installation token; Discogs credentials stay on the server.
 abstract interface class DiscogsCatalogService {
   Future<List<DiscogsReleaseSearchResult>> searchReleases({
     required String artist,
@@ -30,35 +29,23 @@ abstract interface class DiscogsCatalogService {
 }
 
 class DefaultDiscogsCatalogService implements DiscogsCatalogService {
-  const DefaultDiscogsCatalogService(this._apiClient, this._credentialStore);
+  const DefaultDiscogsCatalogService(this._apiClient);
 
   final DiscogsApiClient _apiClient;
-  final DiscogsCredentialStore _credentialStore;
 
   @override
   Future<List<DiscogsReleaseSearchResult>> searchReleases({
     required String artist,
     required String title,
   }) async {
-    final credentials = await _requireCredentials();
-    return _apiClient.searchReleases(
-      credentials: credentials,
-      artist: artist,
-      title: title,
-      limit: 5,
-    );
+    return _apiClient.searchReleases(artist: artist, title: title, limit: 5);
   }
 
   @override
   Future<List<DiscogsReleaseSearchResult>> searchReleasesByBarcode(
     String barcode,
   ) async {
-    final credentials = await _requireCredentials();
-    return _apiClient.searchReleasesByBarcode(
-      credentials: credentials,
-      barcode: barcode,
-      limit: 10,
-    );
+    return _apiClient.searchReleasesByBarcode(barcode: barcode, limit: 10);
   }
 
   @override
@@ -67,34 +54,16 @@ class DefaultDiscogsCatalogService implements DiscogsCatalogService {
     required int page,
     int perPage = 100,
   }) async {
-    final credentials = await _requireCredentials();
-    return _apiClient.collectionFolderReleases(
-      credentials: credentials,
-      username: username,
-      page: page,
-      perPage: perPage,
-    );
+    return _apiClient.collectionFolderReleases(page: page, perPage: perPage);
   }
 
   @override
   Future<DiscogsReleaseDetails> release(int releaseId) async {
-    final credentials = await _requireCredentials();
-    return _apiClient.release(credentials: credentials, releaseId: releaseId);
+    return _apiClient.release(releaseId: releaseId);
   }
 
   @override
   Future<Uint8List> downloadArtwork(String url) async {
-    final credentials = await _requireCredentials();
-    return _apiClient.downloadImage(credentials: credentials, url: url);
-  }
-
-  Future<DiscogsOAuthCredentials> _requireCredentials() async {
-    final credentials = await _credentialStore.readCredentials();
-    if (credentials == null) {
-      throw const DiscogsAuthenticationFailure(
-        'Connect a Discogs account in Settings before searching Discogs.',
-      );
-    }
-    return credentials;
+    return _apiClient.downloadImage(url: url);
   }
 }
