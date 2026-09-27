@@ -182,7 +182,7 @@ DiscogsFailure backendFailure(BackendError error) {
   }
   if (error.status >= 500) {
     return const DiscogsNetworkFailure(
-      'Discogs is temporarily unavailable. Try again shortly.',
+      'Groovefolio’s connection service is temporarily unavailable. Try again shortly.',
     );
   }
   if (error.status == 403) {
