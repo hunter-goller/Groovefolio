@@ -41,18 +41,17 @@ Plays, NFC associations, genres, Discogs release links, and tracks are removed b
 
 ## Discogs account connection
 
-```text
-SettingsScreen
-   ├─ discogsAccountProvider
-   └─ discogsAuthorizationControllerProvider
-                ↓
-        DiscogsAuthService
-        ├─ DiscogsCredentialStore → flutter_secure_storage
-        └─ DiscogsApiClient
-                ↓
-        DiscogsOAuthSigner
-                ↓
-             Discogs
-
-app_links → groovefolio://discogs-auth → authorization controller → Settings
+```mermaid
+flowchart TD
+    Settings["Settings and Riverpod"] --> Auth["DiscogsAuthService"]
+    Auth --> API["DiscogsApiClient and InstallationSession"]
+    Auth --> Store["Origin-scoped secure storage"]
+    API --> Store
+    API --> Backend["Groovefolio backend"]
+    Backend --> Discogs["Discogs OAuth and API"]
 ```
+
+The browser completes the backend HTTPS callback. Return to Settings and tap
+**Check connection** to query the saved transaction. Legacy custom-scheme links
+only trigger a server check; they do not supply credentials. NFC links keep their
+separate routing. See [Discogs integration](../integrations/discogs.md).
