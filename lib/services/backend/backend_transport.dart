@@ -46,12 +46,11 @@ class BackendError implements Exception {
 /// Bounded HTTPS transport. No redirects or automatic mutation retries.
 class BackendTransport {
   BackendTransport({
-    BackendSender? sender,
+    this.sender,
     HttpClient? client,
     this.timeout = const Duration(seconds: 30),
-  }) : _sender = sender,
-       _client = client ?? HttpClient();
-  final BackendSender? _sender;
+  }) : _client = client ?? HttpClient();
+  final BackendSender? sender;
   final HttpClient _client;
   final Duration timeout;
 
@@ -74,7 +73,7 @@ class BackendTransport {
       if (body != null) 'Content-Type': 'application/json',
     };
     try {
-      final response = await (_sender ?? _send)(
+      final response = await (sender ?? _send)(
         method,
         uri,
         headers,

@@ -146,6 +146,9 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
       return;
     }
 
+    if (!mounted) {
+      return;
+    }
     final details = await showModalBottomSheet<DiscogsReleaseDetails>(
       context: context,
       isScrollControlled: true,
@@ -169,6 +172,9 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
       return;
     }
 
+    if (!mounted) {
+      return;
+    }
     final barcode = await context.push<String>(AppRoutes.barcodeScan);
     if (barcode == null || !mounted) {
       return;

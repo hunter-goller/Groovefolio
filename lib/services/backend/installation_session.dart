@@ -24,7 +24,7 @@ class InstallationSession {
   // All authenticated requests share this queue, including rotation/recovery.
   Future<T> _serial<T>(Future<T> Function() action) {
     final result = _tail.then((_) => action());
-    _tail = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    _tail = result.then<void>((_) {}, onError: (Object _, StackTrace _) {});
     return result;
   }
 
@@ -117,7 +117,7 @@ class InstallationSession {
         uri('/v1/installation'),
         token: session.pending,
       );
-      return _promote(session, response, session.pending!);
+      return await _promote(session, response, session.pending!);
     } on BackendError catch (error) {
       if (!error.invalidToken) {
         rethrow;
@@ -146,7 +146,7 @@ class InstallationSession {
         token: session.token,
         body: jsonEncode({'nextToken': session.pending}),
       );
-      return _promote(session, response, session.pending!);
+      return await _promote(session, response, session.pending!);
     } on BackendError catch (error) {
       if (error.status == 409 && error.code == 'token_conflict') {
         await _save(

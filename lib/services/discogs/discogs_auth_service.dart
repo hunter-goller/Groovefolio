@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:url_launcher/url_launcher.dart';
-import 'package:vinyl_app/services/backend/backend_store.dart';
+import 'package:vinyl_app/services/backend/backendstore.dart';
 import 'package:vinyl_app/services/discogs/discogs_api_client.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 
@@ -10,34 +10,33 @@ typedef DiscogsBrowserLauncher = Future<bool> Function(Uri uri);
 class DiscogsAuthService {
   DiscogsAuthService({
     required DiscogsApiClient apiClient,
-    required BackendStore store,
+    required this.store,
     DiscogsBrowserLauncher? launcher,
   }) : _api = apiClient,
-       _store = store,
        _launch =
            launcher ??
            ((uri) => launchUrl(uri, mode: LaunchMode.externalApplication));
   final DiscogsApiClient _api;
-  final BackendStore _store;
+  final BackendStore store;
   final DiscogsBrowserLauncher _launch;
   Future<void> _tail = Future.value();
   Future<T> _serial<T>(Future<T> Function() operation) {
     final result = _tail.then((_) => operation());
-    _tail = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    _tail = result.then<void>((_) {}, onError: (Object _, StackTrace _) {});
     return result;
   }
 
   Future<DiscogsAccount?> currentAccount() => _api.account();
 
   Future<Map<String, dynamic>?> _flow() async {
-    final raw = await _store.read('flow');
+    final raw = await store.read('flow');
     if (raw == null) {
       return null;
     }
     try {
       final flow = jsonDecode(raw) as Map<String, dynamic>;
       if (flow['installationId'] != await _api.session.installationId()) {
-        await _store.delete('flow');
+        await store.delete('flow');
         return null;
       }
       if (!RegExp(
@@ -84,7 +83,7 @@ class DiscogsAuthService {
         'The server returned an invalid authorization session.',
       );
     }
-    await _store.write(
+    await store.write(
       'flow',
       jsonEncode({
         'transactionId': id,
@@ -119,7 +118,7 @@ class DiscogsAuthService {
       );
     } on DiscogsApiFailure catch (error) {
       if (error.statusCode == 404) {
-        await _store.delete('flow');
+        await store.delete('flow');
       }
       rethrow;
     }
@@ -133,11 +132,11 @@ class DiscogsAuthService {
           'Connect Discogs again in Settings.',
         );
       }
-      await _store.delete('flow');
+      await store.delete('flow');
       return 'connected';
     }
     if (const {'canceled', 'expired', 'failed'}.contains(status)) {
-      await _store.delete('flow');
+      await store.delete('flow');
       throw const DiscogsAuthenticationFailure(
         'Authorization ended without connecting. Please try again.',
       );
@@ -158,7 +157,7 @@ class DiscogsAuthService {
         rethrow;
       }
     }
-    await _store.delete('flow');
+    await store.delete('flow');
   }
 
   Future<void> cancelAuthorization() => _serial(() async {
@@ -171,7 +170,7 @@ class DiscogsAuthService {
     if (await _api.session.hasSession()) {
       await _api.call('DELETE', '/v1/discogs/account');
     }
-    await _store.delete('flow');
-    await _store.clearLegacyDiscogs();
+    await store.delete('flow');
+    await store.clearLegacyDiscogs();
   });
 }

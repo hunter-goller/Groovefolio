@@ -42,6 +42,17 @@ void main() {
       expect((await api.account())!.username, 'listener');
     },
   );
+  test('malformed metadata produces a safe typed failure', () async {
+    final api = make(
+      (method, uri, headers, body, limit) async =>
+          response(200, {'releaseId': 'invalid'}),
+    );
+    await expectLater(
+      api.release(releaseId: 12),
+      throwsA(isA<DiscogsApiFailure>()),
+    );
+  });
+
   test(
     'normalized search, barcode, release and collection contracts are mapped',
     () async {

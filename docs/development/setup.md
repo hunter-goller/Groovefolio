@@ -31,7 +31,7 @@ Android is the primary development target. A physical Android device is supporte
 flutter build apk --debug
 ```
 
-## Discogs app credentials
+## Discogs backend connection
 
 Do not place real Discogs credentials in source files or commit them.
 

@@ -43,7 +43,7 @@ void main() {
       ]);
       expect(calls, 1);
       expect(await session.hasSession(), isTrue);
-      expect(store.legacyClears, 1);
+      expect(store.legacyClears, 2);
     },
   );
 
@@ -112,8 +112,9 @@ void main() {
             headers['Authorization'] == 'Bearer $nextToken') {
           return response(401, {'code': 'authentication_required'});
         }
-        if (uri.path.endsWith('/rotate'))
+        if (uri.path.endsWith('/rotate')) {
           expect(jsonDecode(body!)['nextToken'], nextToken);
+        }
         return response(200, identity());
       });
       await session.request('GET', '/v1/discogs/account');
@@ -174,6 +175,32 @@ void main() {
       );
       expect(calls, 1);
       expect(store.values, isEmpty);
+    },
+  );
+
+  test(
+    'failed promotion write recovers a successfully rotated token',
+    () async {
+      store.seed(days: 1);
+      final first = make((method, uri, headers, body, limit) async {
+        expect(uri.path, '/v1/installation/rotate');
+        store.failWrites = true;
+        return response(200, identity());
+      });
+      await expectLater(
+        first.request('GET', '/v1/discogs/account'),
+        throwsStateError,
+      );
+      expect(jsonDecode(store.values['session']!)['pendingToken'], nextToken);
+      store.failWrites = false;
+      final recovered = make((method, uri, headers, body, limit) async {
+        expect(method, 'GET');
+        expect(headers['Authorization'], 'Bearer $nextToken');
+        return response(200, identity());
+      });
+      await recovered.request('GET', '/v1/discogs/account');
+      expect(jsonDecode(store.values['session']!)['token'], nextToken);
+      expect(jsonDecode(store.values['session']!)['pendingToken'], isNull);
     },
   );
 
