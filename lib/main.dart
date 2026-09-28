@@ -9,6 +9,7 @@ import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/routing/router.dart';
+import 'package:vinyl_app/services/ads/ad_consent_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_delivery_context.dart';
 import 'package:vinyl_app/services/nfc/nfc_intent_play_handler.dart';
@@ -50,6 +51,8 @@ Future<void> main() async {
   // Database initialization has already completed before runApp above.
   widgetsBinding.addPostFrameCallback((_) {
     FlutterNativeSplash.remove();
+    // Opt-in preview only; the regular app never initializes the ad SDK.
+    unawaited(adConsentService.start());
   });
 }
 

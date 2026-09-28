@@ -8,6 +8,7 @@ import 'package:vinyl_app/services/stats_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/widgets/shared/bottom_nav_bar.dart';
+import 'package:vinyl_app/widgets/shared/ad_supported_bottom_nav.dart';
 import 'package:vinyl_app/widgets/shared/genre_breakdown_list.dart';
 
 /// Calendar-year or full-history range for play-derived aggregates.
@@ -217,21 +218,23 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: 1,
-        onTap: (index) {
-          const routes = [
-            AppRoutes.collection,
-            AppRoutes.stats,
-            AppRoutes.discover,
-          ];
-          if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
-              'true') {
-            context.push('${routes[index]}?onboarding=true');
-          } else {
-            context.go(routes[index]);
-          }
-        },
+      bottomNavigationBar: AdSupportedBottomNav(
+        navigationBar: BottomNavBar(
+          currentIndex: 1,
+          onTap: (index) {
+            const routes = [
+              AppRoutes.collection,
+              AppRoutes.stats,
+              AppRoutes.discover,
+            ];
+            if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+                'true') {
+              context.push('${routes[index]}?onboarding=true');
+            } else {
+              context.go(routes[index]);
+            }
+          },
+        ),
       ),
     );
   }

@@ -12,6 +12,7 @@ import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/providers/track_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/ads/ad_consent_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/local_data_reset_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
@@ -106,6 +107,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               ),
             ),
             SizedBox(height: tokens.space24),
+            ValueListenableBuilder<AdConsentState>(
+              valueListenable: adConsentService,
+              builder: (context, consent, child) {
+                if (!consent.privacyOptionsRequired) {
+                  return const SizedBox.shrink();
+                }
+                return Card(
+                  child: ListTile(
+                    key: const Key('ad-privacy-options'),
+                    leading: const Icon(Icons.privacy_tip_outlined),
+                    title: const Text('Ad privacy choices'),
+                    onTap: () async {
+                      final shown = await adConsentService.showPrivacyOptions();
+                      if (!shown && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Privacy choices are unavailable. Try again.',
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                );
+              },
+            ),
             Text(
               'Help',
               style: context.theme.textTheme.titleMedium?.copyWith(

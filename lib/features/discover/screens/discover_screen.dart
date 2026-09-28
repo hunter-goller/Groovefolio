@@ -8,6 +8,7 @@ import 'package:vinyl_app/services/recommendation_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/widgets/shared/bottom_nav_bar.dart';
+import 'package:vinyl_app/widgets/shared/ad_supported_bottom_nav.dart';
 
 /// Presents on-device recommendations and their explanation evidence.
 /// Ranking is delegated to RecommendationService; this screen never fetches
@@ -37,21 +38,23 @@ class DiscoverScreen extends ConsumerWidget {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: 2,
-        onTap: (index) {
-          const routes = [
-            AppRoutes.collection,
-            AppRoutes.stats,
-            AppRoutes.discover,
-          ];
-          if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
-              'true') {
-            context.push('${routes[index]}?onboarding=true');
-          } else {
-            context.go(routes[index]);
-          }
-        },
+      bottomNavigationBar: AdSupportedBottomNav(
+        navigationBar: BottomNavBar(
+          currentIndex: 2,
+          onTap: (index) {
+            const routes = [
+              AppRoutes.collection,
+              AppRoutes.stats,
+              AppRoutes.discover,
+            ];
+            if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+                'true') {
+              context.push('${routes[index]}?onboarding=true');
+            } else {
+              context.go(routes[index]);
+            }
+          },
+        ),
       ),
     );
   }
@@ -712,9 +715,9 @@ class _LowDataCard extends StatelessWidget {
                   FilledButton.icon(
                     key: const Key('discover-log-play'),
                     onPressed: () => context.push(
-                      GoRouterState.of(
-                                context,
-                              ).uri.queryParameters['onboarding'] ==
+                      GoRouterState.of(context)
+                                  .uri
+                                  .queryParameters['onboarding'] ==
                               'true'
                           ? '${AppRoutes.logPlay}?onboarding=true'
                           : AppRoutes.logPlay,

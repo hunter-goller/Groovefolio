@@ -14,6 +14,11 @@
         android:allowBackup="false"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules">
+        <!-- Google's sample App ID. Ads are opt-in test banners only; replace
+             this and the banner unit before enabling live monetization. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713" />
         <!-- Reuse the app task for external NFC/OAuth launches so an open
              Flutter dialog and its intent guard stay in the same instance. -->
         <activity

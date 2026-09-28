@@ -14,6 +14,7 @@ import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/widgets/shared/album_list_tile.dart';
 import 'package:vinyl_app/widgets/shared/bottom_nav_bar.dart';
+import 'package:vinyl_app/widgets/shared/ad_supported_bottom_nav.dart';
 import 'package:vinyl_app/widgets/ui/empty_state.dart';
 import 'package:vinyl_app/widgets/ui/filter_chip_row.dart';
 import 'package:vinyl_app/widgets/ui/section_header.dart';
@@ -258,21 +259,23 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
               ),
             )
           : null,
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: 0,
-        onTap: (index) {
-          const routes = [
-            AppRoutes.collection,
-            AppRoutes.stats,
-            AppRoutes.discover,
-          ];
-          if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
-              'true') {
-            context.push('${routes[index]}?onboarding=true');
-          } else {
-            context.go(routes[index]);
-          }
-        },
+      bottomNavigationBar: AdSupportedBottomNav(
+        navigationBar: BottomNavBar(
+          currentIndex: 0,
+          onTap: (index) {
+            const routes = [
+              AppRoutes.collection,
+              AppRoutes.stats,
+              AppRoutes.discover,
+            ];
+            if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+                'true') {
+              context.push('${routes[index]}?onboarding=true');
+            } else {
+              context.go(routes[index]);
+            }
+          },
+        ),
       ),
     );
   }
@@ -668,8 +671,7 @@ class _CollectionBody extends StatelessWidget {
                 guideSteps: const [1],
                 icon: Icons.album_outlined,
                 title: 'Your collection is empty',
-                subtitle:
-                    'Add your first record and Groovefolio will start building your listening history.',
+                subtitle: 'Add your first record and Groovefolio will start building your listening history.',
                 ctaLabel: 'Add your first record',
                 onCtaTap: () => context.push(
                   GoRouterState.of(context).uri.queryParameters['onboarding'] ==
