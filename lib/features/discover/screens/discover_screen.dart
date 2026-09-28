@@ -7,8 +7,8 @@ import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/recommendation_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
-import 'package:vinyl_app/widgets/shared/bottom_nav_bar.dart';
 import 'package:vinyl_app/widgets/shared/ad_supported_bottom_nav.dart';
+import 'package:vinyl_app/widgets/shared/bottom_nav_bar.dart';
 
 /// Presents on-device recommendations and their explanation evidence.
 /// Ranking is delegated to RecommendationService; this screen never fetches

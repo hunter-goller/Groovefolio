@@ -74,9 +74,7 @@ class _TestBannerState extends State<_TestBanner> {
     _loading = true;
     AdSize? size;
     try {
-      size = await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(
-        width,
-      );
+      size = await AdSize.getLargeAnchoredAdaptiveBannerAdSize(width);
     } on Object {
       if (mounted) _failed = true;
       _loading = false;
@@ -118,7 +116,7 @@ class _TestBannerState extends State<_TestBanner> {
     try {
       await banner.load();
     } on Object {
-      banner.dispose();
+      await banner.dispose();
       if (mounted) {
         setState(() {
           _loading = false;

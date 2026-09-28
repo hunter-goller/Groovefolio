@@ -38,7 +38,7 @@ class AdConsentService extends ValueNotifier<AdConsentState> {
       if (!await updated.future) return;
 
       final form = Completer<bool>();
-      ConsentForm.loadAndShowConsentFormIfRequired(
+      await ConsentForm.loadAndShowConsentFormIfRequired(
         (error) => form.complete(error == null),
       );
       if (!await form.future) return;
@@ -67,7 +67,7 @@ class AdConsentService extends ValueNotifier<AdConsentState> {
     if (!value.privacyOptionsRequired) return false;
     final shown = Completer<bool>();
     try {
-      ConsentForm.showPrivacyOptionsForm(
+      await ConsentForm.showPrivacyOptionsForm(
         (error) => shown.complete(error == null),
       );
       if (!await shown.future) return false;
