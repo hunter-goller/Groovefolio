@@ -14,6 +14,9 @@ class AdSupportedBottomNav extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Many screen tests mount a screen without GoRouter. The ordinary app
+    // build does not need route or consent state when preview is disabled.
+    if (!canPreviewAds) return navigationBar;
     final visible = shouldShowAd(
       previewEnabled: canPreviewAds,
       walkthroughActive: ref.watch(walkthroughProvider).active,
