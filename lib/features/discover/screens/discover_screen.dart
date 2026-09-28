@@ -715,9 +715,9 @@ class _LowDataCard extends StatelessWidget {
                   FilledButton.icon(
                     key: const Key('discover-log-play'),
                     onPressed: () => context.push(
-                      GoRouterState.of(context)
-                                  .uri
-                                  .queryParameters['onboarding'] ==
+                      GoRouterState.of(
+                                context,
+                              ).uri.queryParameters['onboarding'] ==
                               'true'
                           ? '${AppRoutes.logPlay}?onboarding=true'
                           : AppRoutes.logPlay,

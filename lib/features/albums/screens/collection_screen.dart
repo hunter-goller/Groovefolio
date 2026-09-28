@@ -671,7 +671,8 @@ class _CollectionBody extends StatelessWidget {
                 guideSteps: const [1],
                 icon: Icons.album_outlined,
                 title: 'Your collection is empty',
-                subtitle: 'Add your first record and Groovefolio will start building your listening history.',
+                subtitle:
+                    'Add your first record and Groovefolio will start building your listening history.',
                 ctaLabel: 'Add your first record',
                 onCtaTap: () => context.push(
                   GoRouterState.of(context).uri.queryParameters['onboarding'] ==
