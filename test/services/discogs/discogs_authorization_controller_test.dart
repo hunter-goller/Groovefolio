@@ -128,6 +128,19 @@ void main() {
       );
     },
   );
+  test('provider cancellation returns a clear disconnected result', () async {
+    auth.status = 'canceled';
+    final controller = container.read(
+      discogsAuthorizationControllerProvider.notifier,
+    );
+    await controller.checkAuthorization();
+    final state = container.read(discogsAuthorizationControllerProvider);
+    expect(state.status, DiscogsAuthorizationStatus.failed);
+    expect(
+      state.failure?.message,
+      'Discogs connection canceled. No account was connected.',
+    );
+  });
 }
 
 class FakeAuth implements DiscogsAuthService {

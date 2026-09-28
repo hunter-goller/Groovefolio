@@ -99,6 +99,16 @@ void main() {
     expect(store.values['flow'], isNull);
     expect(store.values['session'], isNotNull);
   });
+  test('provider cancellation clears the flow and remains distinct', () async {
+    store.seedFlow();
+    final canceled = make(
+      (method, uri, headers, body, limit) async =>
+          response(200, {'status': 'canceled'}),
+    );
+    expect(await canceled.authorizationStatus(), 'canceled');
+    expect(store.values['flow'], isNull);
+    expect(store.values['session'], isNotNull);
+  });
   test(
     'cancel and disconnect call server before clearing saved state',
     () async {

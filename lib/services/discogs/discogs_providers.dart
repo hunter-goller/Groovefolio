@@ -171,9 +171,15 @@ class DiscogsAuthorizationController
           .read(discogsAuthServiceProvider)
           .authorizationStatus();
       ref.invalidate(discogsAccountProvider);
-      state = status == 'pending'
-          ? const DiscogsAuthorizationState.awaitingCallback()
-          : const DiscogsAuthorizationState.idle();
+      state = switch (status) {
+        'pending' => const DiscogsAuthorizationState.awaitingCallback(),
+        'canceled' => const DiscogsAuthorizationState.failed(
+          DiscogsAuthenticationFailure(
+            'Discogs connection canceled. No account was connected.',
+          ),
+        ),
+        _ => const DiscogsAuthorizationState.idle(),
+      };
     } catch (error) {
       ref.invalidate(discogsAccountProvider);
       state = DiscogsAuthorizationState.failed(_typedFailure(error));

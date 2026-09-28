@@ -136,7 +136,11 @@ class DiscogsAuthService {
       await _backendStore.delete('flow');
       return 'connected';
     }
-    if (const {'canceled', 'expired', 'failed'}.contains(status)) {
+    if (status == 'canceled') {
+      await _backendStore.delete('flow');
+      return 'canceled';
+    }
+    if (const {'expired', 'failed'}.contains(status)) {
       await _backendStore.delete('flow');
       throw const DiscogsAuthenticationFailure(
         'Authorization ended without connecting. Please try again.',
