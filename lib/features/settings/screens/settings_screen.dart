@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,8 +27,35 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen>
+    with WidgetsBindingObserver {
   bool _isResettingLocalData = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        ref.read(discogsAuthorizationControllerProvider).isAwaitingCallback) {
+      // One check per browser return, with no background polling. The
+      // controller also coalesces a simultaneous deep-link verification.
+      unawaited(
+        ref
+            .read(discogsAuthorizationControllerProvider.notifier)
+            .checkAuthorization(),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

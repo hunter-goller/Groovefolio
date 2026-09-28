@@ -39,7 +39,7 @@ Do not place real Discogs credentials in source files or commit them.
 flutter run
 ```
 
-The app uses `https://api.groovefolio.app` by default. No Discogs consumer credentials are required to build or run it. The backend handles the HTTPS OAuth callback; after authorizing in the browser, return to Settings and tap **Check connection**.
+The app uses `https://api.groovefolio.app` by default. No Discogs consumer credentials are required to build or run it. The backend handles the HTTPS OAuth callback; after authorizing, the callback page attempts to reopen the app and provides an **Open Groovefolio** fallback. Returning to the waiting Settings screen checks the connection automatically; **Check connection** remains available for retry.
 
 ## Technical identifiers
 

@@ -51,7 +51,8 @@ flowchart TD
     Backend --> Discogs["Discogs OAuth and API"]
 ```
 
-The browser completes the backend HTTPS callback. Return to Settings and tap
-**Check connection** to query the saved transaction. Legacy custom-scheme links
+The browser completes the backend HTTPS callback, then attempts to reopen the app.
+**Open Groovefolio** provides a user-tap fallback. A return link or a resume of the
+waiting Settings screen checks the saved transaction; **Check connection** remains available. Legacy custom-scheme links
 only trigger a server check; they do not supply credentials. NFC links keep their
 separate routing. See [Discogs integration](../integrations/discogs.md).

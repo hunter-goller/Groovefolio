@@ -77,7 +77,7 @@ The backend has a different database: PostgreSQL stores installation identity, r
 | Transaction | Related database changes either all commit or all roll back | Album, artist, genres, release link, and tracks in one record creation |
 | Invalidation | Discarding a cached provider result so consumers get a fresh read | `ref.invalidate(albumDetailProvider(albumId))` after a play |
 | Generated code | Files built from annotations and schema definitions | Drift row/companion types and Riverpod `*.g.dart` providers |
-| OAuth | A user authorizes Discogs access in their browser without giving Groovefolio their password | Backend HTTPS callback followed by Check connection in Settings |
+| OAuth | A user authorizes Discogs access in their browser without giving Groovefolio their password | Backend HTTPS callback followed by app return and server verification |
 
 `ref.watch` subscribes to a provider's state/dependency changes. `ref.read` obtains its current value without creating that subscription. Neither means “watch every SQLite write.” Most data providers here use one-time repository reads. See [provider refreshes](#provider-refreshes).
 
@@ -185,7 +185,7 @@ dart run build_runner build --delete-conflicting-outputs
 flutter run
 ```
 
-The app uses `https://api.groovefolio.app` for Discogs and needs no consumer-key defines. Run `flutter run`, connect in Settings, authorize in the browser, then return and tap Check connection. See [Discogs integration](integrations/discogs.md) for installation tokens, renewal, migration and device tests. Use physical Android hardware for NFC and camera flows. Old installs under `com.huntergoller.vinyl_app` do not upgrade in place to `app.groovefolio`.
+The app uses `https://api.groovefolio.app` for Discogs and needs no consumer-key defines. Run `flutter run`, connect in Settings, authorize in the browser, then return automatically or tap Open Groovefolio. See [Discogs integration](integrations/discogs.md) for installation tokens, renewal, migration and device tests. Use physical Android hardware for NFC and camera flows. Old installs under `com.huntergoller.vinyl_app` do not upgrade in place to `app.groovefolio`.
 
 Run `flutter test`, `flutter analyze`, and `dart format --output=none --set-exit-if-changed .`, or use the repository's `tools/verify_vinylapp_012.ps1` on PowerShell. Build and check generated code and Drift snapshots when changing providers or schema. The app PR workflow also builds debug and disposable-key release APKs and exercises native NFC tests; it does not publish either build.
 
@@ -354,7 +354,7 @@ After a successful mutation, inspect every affected view. The table is a **revie
 
 1. Settings calls `DiscogsAuthorizationController.connect`. The app registers an installation if none is saved, then requests a server authorization flow.
 2. `DiscogsAuthService.beginAuthorization` saves the transaction ID and owner before opening the validated Discogs authorization URL. OAuth request/access credentials remain on the server.
-3. The browser completes the backend HTTPS callback. Return to Settings and tap **Check connection** to query the persisted transaction and account. A process restart can recover the same transaction.
+3. The browser completes the backend HTTPS callback. The callback page attempts app return and provides Open Groovefolio as a fallback. The app verifies the persisted transaction; manually resuming waiting Settings also checks it. A process restart can recover the same transaction.
 4. Legacy `groovefolio://discogs-auth` links only trigger a server check; their token/verifier fields are never trusted. NFC URIs retain their separate handler.
 5. Settings refreshes `discogsAccountProvider`. Offline errors preserve the saved installation and flow. Confirmed invalid installation credentials require an explicit reconnect.
 
@@ -422,7 +422,7 @@ The walkthrough exercises real forms and writes real records/plays. Only the del
 
 For the website, edit HTML/CSS/JS, run the fast checks and browser tests, review at narrow/mobile widths and merge only when public copy is approved. Its feature panels, screenshot dialog and navigation are progressively enhanced: basic content/links remain usable without JavaScript. There is no collection database in the browser.
 
-The app registers an installation, securely saves its bearer token, opens server-owned OAuth, checks the saved transaction, and calls backend catalog endpoints. The callback displays a static completion page; return to Settings and tap Check connection. All collection review and record writes stay local.
+The app registers an installation, securely saves its bearer token, opens server-owned OAuth, checks the saved transaction, and calls backend catalog endpoints. The callback attempts to reopen the app using a fixed credential-free URI and provides Open Groovefolio as a fallback. Returning to waiting Settings also refreshes the connection. All collection review and record writes stay local.
 
 ## 8. API endpoints
 
@@ -568,7 +568,7 @@ Useful tools: your Dart debugger's exception breakpoint and variable watch, `flu
 | Genre totals exceed plays | `getGenreBreakdown` | Each genre gets a contribution; this is expected for a multi-genre record. Compare shares' denominator, not raw sum to total plays. |
 | Discover empty/different than expected | `getRecommendations`, `_buildTastePicks`, `_buildEraPicks` | History requirements, recent suppression, shelf exclusions, missing year/genre metadata and self-evidence removal; freeze clock in `recommendation_service_test`. |
 | Discogs Connected state fails offline | `currentAccount` and `discogsAccountProvider` | Stored credentials cause a live identity lookup; network error is not the same as no credentials. |
-| OAuth returns but cannot finish | `authorizationStatus`, saved transaction, account endpoint | Return to Settings and tap Check connection; verify server status and persistence without logging token values. |
+| OAuth returns but cannot finish | `authorizationStatus`, saved transaction, account endpoint | Use Open Groovefolio or return to Settings; Check connection is a fallback. Verify server status and persistence without logging token values. |
 | Import stops / retry shows duplicates | Import service and screen catch path | Previously committed records remain; refresh preview and examine exact release links. Test metadata failure separately from artwork warning. |
 | Theme works until restart | `ThemeModeController.setMode` | Boolean return tells persistence success; optimistic session state is retained on failed save. Test reordered reads/writes with the store fake. |
 | Walkthrough resumes on Collection | `WalkthroughController.start`, `WalkthroughState.route` | Only step persists; selected album ID does not. Use existing-record selection to reestablish it. |

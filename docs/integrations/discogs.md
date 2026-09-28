@@ -8,10 +8,13 @@ Collection records, play history, NFC tags and imported artwork remain local.
 
 In Settings, tap **Connect Discogs**. The app registers an installation on first use, saves
 its random bearer token in platform secure storage, creates a backend authorization flow and
-opens the allowlisted Discogs authorization URL. After authorizing in the browser, return to
-Settings and tap **Check connection**. The backend callback page completes OAuth; it does not
-currently launch the app automatically. A legacy custom-scheme return is only a hint to query
-the saved flow; its token/verifier parameters are never accepted as proof of authorization.
+opens the allowlisted Discogs authorization URL. The backend callback completes OAuth and
+attempts to open `groovefolio://discogs-auth`, with an **Open Groovefolio** link if the browser
+requires a tap. The URI contains no tokens or identity. The app verifies its saved transaction
+with the server before showing success. Browsers may block automatic app launches; manual
+return to the waiting Settings screen also triggers one connection check on resume.
+**Check connection** remains available as a retry/fallback. Deploy the backend app-return
+change to enable the browser handoff; app resume checking also works with the older page.
 
 Pending transaction ID and owner ID are saved securely before opening the browser. After a
 process restart, Settings reads the account from the backend; Check connection also restores
@@ -63,9 +66,9 @@ no user info, path, query or fragment are accepted. Credentials are isolated per
 After CI passes, validate on an Android device against the Pi:
 
 1. Open an existing collection and verify records/plays still work offline.
-2. Connect from Settings, authorize in the browser, return and Check connection. Confirm username.
+2. Connect from Settings and authorize in the browser. Verify automatic return or tap Open Groovefolio; confirm the username appears without Check connection. Also test manually switching back to the waiting app.
 3. Cancel a fresh pending connection, then check the old browser URL cannot attach that flow.
-4. Start again, close the app while the browser is open, authorize, relaunch and Check connection.
+4. Start again, close the app while the browser is open, authorize and use Open Groovefolio. Verify cold-start server verification succeeds. Check connection remains a fallback.
 5. Search John Coltrane / Blue Train, select a release, and inspect artwork, genres and side/track data.
 6. Scan a known barcode and review candidates before saving.
 7. Preview your collection, review duplicates, import a few releases and verify local tracks/artwork.

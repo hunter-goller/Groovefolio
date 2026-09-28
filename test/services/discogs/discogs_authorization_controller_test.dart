@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vinyl_app/services/discogs/discogs_auth_service.dart';
@@ -43,6 +45,31 @@ void main() {
       );
     },
   );
+  test(
+    'simultaneous resume and bare app-return link share verification',
+    () async {
+      final result = Completer<String>();
+      auth.pendingCheck = result.future;
+      final controller = container.read(
+        discogsAuthorizationControllerProvider.notifier,
+      );
+      final resumed = controller.checkAuthorization();
+      expect(
+        await controller.handleCallback(
+          Uri.parse('groovefolio://discogs-auth'),
+        ),
+        isTrue,
+      );
+      expect(auth.checks, 1);
+      result.complete('connected');
+      await resumed;
+      expect(
+        container.read(discogsAuthorizationControllerProvider).status,
+        DiscogsAuthorizationStatus.idle,
+      );
+    },
+  );
+
   test('deep link parameters cannot complete authorization themselves', () async {
     final controller = container.read(
       discogsAuthorizationControllerProvider.notifier,
@@ -108,6 +135,7 @@ class FakeAuth implements DiscogsAuthService {
   int checks = 0;
   String status = 'pending';
   DiscogsFailure? failure;
+  Future<String>? pendingCheck;
   @override
   Future<DiscogsAccount?> currentAccount() async => null;
   @override
@@ -124,7 +152,7 @@ class FakeAuth implements DiscogsAuthService {
     if (failure != null) {
       throw failure!;
     }
-    return status;
+    return pendingCheck ?? Future.value(status);
   }
 
   @override

@@ -11,6 +11,45 @@ import 'package:vinyl_app/services/local_data_reset_service.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 
 void main() {
+  testWidgets(
+    'browser return checks only a pending connection and removes observer',
+    (tester) async {
+      final controller = _ResumeAuthorizationController();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            discogsAccountProvider.overrideWithValue(
+              const AsyncData<DiscogsAccount?>(null),
+            ),
+            discogsAuthorizationControllerProvider.overrideWith(
+              () => controller,
+            ),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: const SettingsScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(controller.checks, 1);
+      // Completed/idle connections do not poll on every foreground event.
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(controller.checks, 1);
+      await tester.pumpWidget(const SizedBox.shrink());
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(controller.checks, 1);
+    },
+  );
+
   testWidgets('shows connected Discogs username', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -162,5 +201,19 @@ class _FakeArtworkStorageService extends ArtworkStorageService {
   @override
   Future<void> clearAllArtwork() async {
     clearCalls += 1;
+  }
+}
+
+class _ResumeAuthorizationController extends DiscogsAuthorizationController {
+  int checks = 0;
+
+  @override
+  DiscogsAuthorizationState build() =>
+      const DiscogsAuthorizationState.awaitingCallback();
+
+  @override
+  Future<void> checkAuthorization() async {
+    checks++;
+    state = const DiscogsAuthorizationState.idle();
   }
 }

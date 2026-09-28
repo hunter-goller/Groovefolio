@@ -189,7 +189,7 @@ class _ConnectionBody extends StatelessWidget {
           const _MessagePanel(
             icon: Icons.open_in_browser_rounded,
             message:
-                'Finish authorization in your browser, then return here and tap Check connection.',
+                'Finish authorization in your browser. Your connection will update when you return.',
           ),
           SizedBox(height: tokens.space12),
           FilledButton(
