@@ -31,17 +31,15 @@ Android is the primary development target. A physical Android device is supporte
 flutter build apk --debug
 ```
 
-## Discogs app credentials
+## Discogs backend connection
 
 Do not place real Discogs credentials in source files or commit them.
 
 ```powershell
-flutter run `
-  --dart-define=DISCOGS_CONSUMER_KEY=YOUR_KEY `
-  --dart-define=DISCOGS_CONSUMER_SECRET=YOUR_SECRET
+flutter run
 ```
 
-The app can build/test without real values. Live OAuth requests require a registered Discogs application configured to return to `groovefolio://discogs-auth`. Android and iOS register that custom URI scheme.
+The app uses `https://api.groovefolio.app` by default. No Discogs consumer credentials are required to build or run it. The backend handles the HTTPS OAuth callback; after authorizing, the callback page attempts to reopen the app and provides an **Open Groovefolio** fallback. Returning to the waiting Settings screen checks the connection automatically; **Check connection** remains available for retry.
 
 ## Technical identifiers
 
@@ -54,3 +52,5 @@ Android builds created before the permanent application ID was selected used
 `com.huntergoller.vinyl_app`. Android treats `app.groovefolio` as a separate
 application, so those development installs are not upgraded and their local
 collection is not migrated. This is intentional before the first public release.
+
+Discogs now uses the Groovefolio backend without consumer-key defines. See [connection and device tests](../integrations/discogs.md).

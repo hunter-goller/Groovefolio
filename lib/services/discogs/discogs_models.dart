@@ -1,20 +1,3 @@
-/// Connected user's access token and secret; never persist in SQLite or logs.
-class DiscogsOAuthCredentials {
-  const DiscogsOAuthCredentials({
-    required this.token,
-    required this.tokenSecret,
-  });
-  final String token;
-  final String tokenSecret;
-}
-
-/// Temporary credentials kept only while browser authorization is pending.
-class DiscogsRequestToken {
-  const DiscogsRequestToken({required this.token, required this.tokenSecret});
-  final String token;
-  final String tokenSecret;
-}
-
 class DiscogsAccount {
   const DiscogsAccount({
     required this.id,
@@ -119,7 +102,9 @@ DiscogsReleaseSearchResult? discogsReleaseSearchResultFromJson(
 ) {
   final id = json['id'];
   final combinedTitle = _nonEmptyString(json['title']);
-  if (id is! int || combinedTitle == null) return null;
+  if (id is! int || combinedTitle == null) {
+    return null;
+  }
 
   final titleParts = _splitSearchTitle(combinedTitle);
   return DiscogsReleaseSearchResult(
@@ -195,7 +180,9 @@ DiscogsReleaseDetails discogsReleaseDetailsFromJson(
 }
 
 List<DiscogsTrack> _discogsTracksFromJson(Object? value) {
-  if (value is! List) return const [];
+  if (value is! List) {
+    return const [];
+  }
 
   final rawTracks =
       <({String title, String? position, int? durationSeconds})>[];
@@ -236,20 +223,30 @@ List<DiscogsTrack> _discogsTracksFromJson(Object? value) {
 }
 
 String? _sideFromTrackPosition(String? position) {
-  if (position == null) return null;
+  if (position == null) {
+    return null;
+  }
   final normalized = position.trim().toUpperCase();
-  if (normalized.isEmpty) return null;
+  if (normalized.isEmpty) {
+    return null;
+  }
   final match = RegExp(r'^([A-Z]+)(?:\d|$)').firstMatch(normalized);
   return match?.group(1);
 }
 
 int? _parseDiscogsDuration(Object? value) {
   final duration = _nonEmptyString(value);
-  if (duration == null) return null;
+  if (duration == null) {
+    return null;
+  }
   final parts = duration.split(':');
-  if (parts.length < 2 || parts.length > 3) return null;
+  if (parts.length < 2 || parts.length > 3) {
+    return null;
+  }
   final values = parts.map(int.tryParse).toList(growable: false);
-  if (values.any((part) => part == null)) return null;
+  if (values.any((part) => part == null)) {
+    return null;
+  }
 
   if (values.length == 2) {
     return values[0]! * 60 + values[1]!;
@@ -325,12 +322,16 @@ DiscogsCollectionItem? discogsCollectionItemFromJson(
   Map<String, dynamic> json,
 ) {
   final basic = json['basic_information'];
-  if (basic is! Map<String, dynamic>) return null;
+  if (basic is! Map<String, dynamic>) {
+    return null;
+  }
 
   final releaseId = _asInt(basic['id']) ?? _asInt(json['id']);
   final instanceId = _asInt(json['instance_id']) ?? releaseId;
   final title = _nonEmptyString(basic['title']);
-  if (releaseId == null || instanceId == null || title == null) return null;
+  if (releaseId == null || instanceId == null || title == null) {
+    return null;
+  }
 
   final artistNames = <String>[];
   final artists = basic['artists'];
@@ -424,8 +425,12 @@ String _stripArtistDisambiguation(String value) {
 }
 
 int? _asInt(Object? value) {
-  if (value is int) return value;
-  if (value is String) return int.tryParse(value);
+  if (value is int) {
+    return value;
+  }
+  if (value is String) {
+    return int.tryParse(value);
+  }
   return null;
 }
 
@@ -435,7 +440,9 @@ String? _firstString(Object? value) {
 }
 
 List<String> _stringList(Object? value) {
-  if (value is! List) return const [];
+  if (value is! List) {
+    return const [];
+  }
   return value
       .whereType<String>()
       .map((item) => item.trim())
@@ -444,7 +451,9 @@ List<String> _stringList(Object? value) {
 }
 
 String? _nonEmptyString(Object? value) {
-  if (value is! String) return null;
+  if (value is! String) {
+    return null;
+  }
   final normalized = value.trim();
   return normalized.isEmpty ? null : normalized;
 }

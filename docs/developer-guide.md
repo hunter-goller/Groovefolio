@@ -1,6 +1,6 @@
 # Groovefolio developer guide
 
-An onboarding guide for the Android app, public website, and proposed Discogs backend. Verified against the three repositories on September 23, 2026. Read the status notes before following a deployment step: a passing draft PR is not a running service.
+An onboarding guide for the Android app, public website, and Discogs backend. Updated for the September 27, 2026 app/backend cutover. See the device validation gate before releasing the app.
 
 ## How to use this guide
 
@@ -34,15 +34,15 @@ Start with the question you are trying to answer. You do not need to read the wh
 
 Use your editor's **Go to definition** on the symbol names in this guide. Use `Ctrl+F` for the screen, service, or error you recognize. Links point to files rather than line numbers because lines move as code evolves.
 
-**Source checkpoint:** app `main` at `64b5ef6`, website `main` at `2a70c02`, and the backend draft stack at `c39dbbf`. This guide describes that code, not unseen Play Console settings or a verified production backend. The backend branch is currently `VinylApp-125-staging-setup`; once that stack merges, update its links and setup instructions here. Commands are intended for your own checkout. This documentation review did not run a live Discogs login, create a real upload key, or deploy a server.
+**Source checkpoint:** app backend cutover, September 27, 2026. The backend is deployed on the Pi at `https://api.groovefolio.app`; app device validation remains a release gate. Commands are intended for your own checkout.
 
 ## 1. Overview
 
 Groovefolio helps someone catalog their vinyl records and remember what they played. The Android app stores records, artists, genres, tracklists, artwork, listening history, NFC tag links, statistics, and recommendations on the phone. It works without a Groovefolio account or a server. A Discogs connection can optionally look up pressings by title or barcode, fill in record details, and import a user's Discogs collection.
 
-The [public website](https://groovefolio.app/) introduces the app, shows screenshots, and hosts [privacy](https://groovefolio.app/privacy/) and [support](https://groovefolio.app/support/) pages. It is a static marketing site, not a web version of the collection. The [backend repository](https://github.com/hunter-goller/Groovefolio-Backend) contains a **draft, unmerged, undeployed** Java service intended to keep Discogs credentials off distributed app builds. Today's app still talks to Discogs directly with build-time application credentials. Neither the backend nor the website stores a user's local record collection.
+The [public website](https://groovefolio.app/) introduces the app, shows screenshots, and hosts [privacy](https://groovefolio.app/privacy/) and [support](https://groovefolio.app/support/) pages. It is a static marketing site, not a web version of the collection. The [backend repository](https://github.com/hunter-goller/Groovefolio-Backend) contains the Java service that keeps Discogs OAuth credentials off app builds. The app now calls that service with an installation bearer token. Neither the backend nor the website stores a user's local record collection.
 
-**Current status:** The [app](https://github.com/hunter-goller/Groovefolio) and [website](https://github.com/hunter-goller/Groovefolio-Site) have merged code; the app has not had a public Play Store release. The backend's six dependent draft PRs [#5](https://github.com/hunter-goller/Groovefolio-Backend/pull/5) through [#10](https://github.com/hunter-goller/Groovefolio-Backend/pull/10) form an implementation stack, while backend `main` contains only a placeholder README. Backend commands below require the branch at the tip of that stack and are for local staging, not a production installation.
+**Current status:** The backend stack is merged into `main` and has been exercised on the Pi. The Flutter cutover requires Android validation before release. The website remains independent of the API.
 
 ## 2. Architecture
 
@@ -55,15 +55,14 @@ flowchart TD
     Service["Services and repositories"]
     Data["SQLite and local artwork"]
     Discogs["Discogs API"]
-    Backend["Draft Spring Boot backend"]
+    Backend["Spring Boot backend"]
     App -->|"opens privacy/support pages"| Site
     App --> Service --> Data
-    App -->|"current optional integration"| Discogs
-    App -.->|"planned cutover"| Backend
-    Backend -.->|"server-owned OAuth/proxy"| Discogs
+    App -->|"installation bearer token"| Backend
+    Backend -->|"server-owned OAuth/proxy"| Discogs
 ```
 
-The backend has a different database: PostgreSQL stores installation identity, request limits, encrypted Discogs connection credentials, and short-lived OAuth flow state. It is **not** a mirror of the phone's SQLite database. On a future cutover, the app will register an installation and use a bearer token for Discogs endpoints; local record and play writes will still happen on the phone. The website is independently deployed through GitHub Pages and has no API dependency.
+The backend has a different database: PostgreSQL stores installation identity, request limits, encrypted Discogs connection credentials, and short-lived OAuth flow state. It is **not** a mirror of the phone's SQLite database. The app registers an installation when connecting Discogs and uses its bearer token for backend endpoints; local record and play writes happen on the phone. The website is independently deployed through GitHub Pages and has no API dependency.
 
 ### Vocabulary used in the code
 
@@ -78,7 +77,7 @@ The backend has a different database: PostgreSQL stores installation identity, r
 | Transaction | Related database changes either all commit or all roll back | Album, artist, genres, release link, and tracks in one record creation |
 | Invalidation | Discarding a cached provider result so consumers get a fresh read | `ref.invalidate(albumDetailProvider(albumId))` after a play |
 | Generated code | Files built from annotations and schema definitions | Drift row/companion types and Riverpod `*.g.dart` providers |
-| OAuth | A user authorizes Discogs access in their browser without giving Groovefolio their password | Current app callback to `groovefolio://discogs-auth` |
+| OAuth | A user authorizes Discogs access in their browser without giving Groovefolio their password | Backend HTTPS callback followed by app return and server verification |
 
 `ref.watch` subscribes to a provider's state/dependency changes. `ref.read` obtains its current value without creating that subscription. Neither means “watch every SQLite write.” Most data providers here use one-time repository reads. See [provider refreshes](#provider-refreshes).
 
@@ -110,9 +109,9 @@ The backend has a different database: PostgreSQL stores installation identity, r
 | App UI | Flutter and Dart (`pubspec.yaml`: Dart `^3.12.2`) | One mobile UI codebase; Android is the release target, with iOS groundwork. |
 | App state/navigation | Riverpod with generated providers; `go_router` | Dependency injection and reactive screens; centralized named route paths. |
 | App storage | Drift over SQLite; `path_provider`; local artwork files | Typed queries and migrations, with collection and plays available offline. |
-| Device/integration | `flutter_nfc_kit`, `ndef`, native Android Kotlin, `mobile_scanner`, `app_links`, `flutter_secure_storage` | NFC writing/taps, barcode scanning, current Discogs OAuth callback, encrypted credential storage. |
+| Device/integration | `flutter_nfc_kit`, `ndef`, native Android Kotlin, `mobile_scanner`, `app_links`, `flutter_secure_storage` | NFC writing/taps, barcode scanning, legacy Discogs return hints, encrypted credential storage. |
 | Website | HTML, CSS, JavaScript; Node 22 for checks; Playwright | Static site with small interactive feature panels and browser regression checks; no production JavaScript framework or build step. |
-| Backend draft | Java 17, Spring Boot 4.1.1, Maven wrapper, PostgreSQL 17, Flyway, Docker Compose | Small bounded HTTP service for installation authorization and server-owned Discogs OAuth/proxy; migration-controlled server state. |
+| Backend | Java 17, Spring Boot 4.1.1, Maven wrapper, PostgreSQL 17, Flyway, Docker Compose | Small bounded HTTP service for installation authorization and server-owned Discogs OAuth/proxy; migration-controlled server state. |
 | Delivery | GitHub Actions; GitHub Pages for the site | App/backend checks run on PRs; a site push to `main` publishes the static site. Play upload remains a manual release process. |
 
 Package names such as `vinyl_app`, historical `VinylApp-###` tickets, and the SQLite filename `vinyl_app_db.sqlite` predate the Groovefolio name. The permanent Android application ID is `app.groovefolio`.
@@ -135,9 +134,9 @@ Clone the repos side by side; these paths are relative to their respective roots
 | Site `index.html`, `styles.css`, `script.js` | Marketing content, layout and feature interactions. |
 | Site `privacy/`, `support/`, `assets/` | Public policy and support pages, optimized screenshots and branding. |
 | Site `tools/`, `.github/workflows/` | Link/asset checks, Playwright browser smoke test and Pages deployment. |
-| Backend draft `src/main/java/com/groovefolio/backend/` | Installation, security and Discogs controllers, services, gateway and credential vault. |
-| Backend draft `src/main/resources/application.yaml`, `db/migration/` | Config defaults and Flyway PostgreSQL migrations V1–V4. |
-| Backend draft `docs/`, `pom.xml`, `Dockerfile`, `compose*.yaml`, `tools/configure_staging.py` | API contracts, staging guidance, dependencies, containers and local secret setup. |
+| Backend `src/main/java/com/groovefolio/backend/` | Installation, security and Discogs controllers, services, gateway and credential vault. |
+| Backend `src/main/resources/application.yaml`, `db/migration/` | Config defaults and Flyway PostgreSQL migrations V1–V4. |
+| Backend `docs/`, `pom.xml`, `Dockerfile`, `compose*.yaml`, `tools/configure_staging.py` | API contracts, staging guidance, dependencies, containers and local secret setup. |
 
 The app's [documentation index](README.md) and each repository's own README contain narrower, regularly maintained instructions. Historical app patch notes in `docs/Patch_Notes/` and `docs/archive/` are records of past work, not the current setup procedure.
 
@@ -186,7 +185,7 @@ dart run build_runner build --delete-conflicting-outputs
 flutter run
 ```
 
-The app can run its local collection without Discogs credentials. To test *live* Discogs integration, register a Discogs developer application with the current `groovefolio://discogs-auth` callback, then pass your own consumer key and secret privately to `flutter run` using `--dart-define=DISCOGS_CONSUMER_KEY=...` and `--dart-define=DISCOGS_CONSUMER_SECRET=...`. Do not commit credentials or put them in a shared command log. An emulator covers most UI work; use physical Android hardware for NFC and camera flows. Old installs under `com.huntergoller.vinyl_app` do not upgrade in place to `app.groovefolio` and do not carry their local data over.
+The app uses `https://api.groovefolio.app` for Discogs and needs no consumer-key defines. Run `flutter run`, connect in Settings, authorize in the browser, then return automatically or tap Open Groovefolio. See [Discogs integration](integrations/discogs.md) for installation tokens, renewal, migration and device tests. Use physical Android hardware for NFC and camera flows. Old installs under `com.huntergoller.vinyl_app` do not upgrade in place to `app.groovefolio`.
 
 Run `flutter test`, `flutter analyze`, and `dart format --output=none --set-exit-if-changed .`, or use the repository's `tools/verify_vinylapp_012.ps1` on PowerShell. Build and check generated code and Drift snapshots when changing providers or schema. The app PR workflow also builds debug and disposable-key release APKs and exercises native NFC tests; it does not publish either build.
 
@@ -200,14 +199,14 @@ python -m http.server 8080
 
 Open `http://localhost:8080`. In a second terminal, run `node tools/check-site.mjs`, `node --check script.js`, and `node --check support/support.js`. For browser tests, install Node 22, then run `npm ci`, `npx playwright install chromium`, and `npm run test:browser`. `npm run check` runs the fast checks. The Python server only serves files; there is no website database, API key, or production build command.
 
-### Backend: optional draft staging
+### Backend: optional local staging
 
-Backend `main` cannot yet run the service. Clone the private repository with an account that has access and check out the tip draft branch. Install Java 17, Docker with Compose, OpenSSL, and Python 3.10+; Windows development uses WSL with Docker integration. See the branch's [staging instructions](https://github.com/hunter-goller/Groovefolio-Backend/blob/VinylApp-125-staging-setup/docs/staging.md) before supplying real Discogs credentials.
+Clone the backend repository with an account that has access and use `main`. Install Java 17, Docker with Compose, OpenSSL, and Python 3.10+; Windows development uses WSL with Docker integration. See its [staging instructions](https://github.com/hunter-goller/Groovefolio-Backend/blob/main/docs/staging.md) before supplying real Discogs credentials.
 
 ```sh
 git clone https://github.com/hunter-goller/Groovefolio-Backend.git
 cd Groovefolio-Backend
-git checkout VinylApp-125-staging-setup
+git checkout main
 mkdir -p secrets
 chmod 700 secrets
 if [ ! -f secrets/db_password.txt ]; then
@@ -277,7 +276,7 @@ On PowerShell, `.\tools\verify_vinylapp_012.ps1` **formats files and writes the 
 | Schema | `test/db/migration_test.dart` and `migration_recovery_test.dart` | Fresh + prior-version data preserved, schema dump, dependent tests. |
 | NFC/native Android | Dart NFC tests; from `android/`, run `./gradlew :app:testDebugUnitTest --tests '*Nfc*Test'` (PowerShell: `.\gradlew.bat`) | Physical phone/tag, cold/warm/foreground delivery; see [NFC debugging](#nfc-debugging). |
 | Website | `npm run check`, `npm run test:browser` | Mobile/desktop, JS disabled, keyboard/dialog and reduced motion. |
-| Backend draft | `./mvnw verify` with a disposable PostgreSQL DB configured | Staging OAuth/catalog and restart/lifecycle tests before any app cutover. |
+| Backend | `./mvnw verify` with a disposable PostgreSQL DB configured | Staging OAuth/catalog and restart/lifecycle tests before any app cutover. |
 
 Use the app's [testing guide](development/testing.md) for the test-layer map. [Seed data](development/dev-seed.md) explains the debug runners and their destructive behavior. There is currently no `DEV_SEED_ALBUM_COUNT` build define wired into these runners; their `albumLimit` defaults to 10 in code.
 
@@ -287,8 +286,8 @@ Configuration decides which external systems a process can reach; it is separate
 
 | Where | Setting | Needed for / location |
 |---|---|---|
-| App build | `DISCOGS_CONSUMER_KEY`, `DISCOGS_CONSUMER_SECRET` | Optional live direct Discogs calls, passed as `--dart-define`; empty values still allow local app/testing. A distributed secret is not a production secret. |
-| App runtime | OAuth access token/secret | Obtained after connecting and kept in `flutter_secure_storage`, not SQLite. |
+| App build | `GROOVEFOLIO_API_ORIGIN` | Optional HTTPS backend origin override; defaults to `https://api.groovefolio.app`. No Discogs consumer credentials in the app. |
+| App runtime | Installation bearer token and pending flow metadata | Kept in origin-scoped `flutter_secure_storage`, not SQLite. Discogs OAuth credentials remain on the server. |
 | Android release build | `GROOVEFOLIO_UPLOAD_KEYSTORE`, `GROOVEFOLIO_UPLOAD_KEY_ALIAS`, `GROOVEFOLIO_UPLOAD_STORE_PASSWORD`, `GROOVEFOLIO_UPLOAD_KEY_PASSWORD` | Required to sign a real release AAB; set locally for the build. Never store the real key/passwords in GitHub. |
 | Website | No runtime environment variables | GitHub Pages publishes static files; Node/Playwright dependencies are development-only. |
 | Backend base | `DB_URL`, `DB_USER`, `DB_PASSWORD`, `PORT` | PostgreSQL connection and HTTP port; defaults/overrides in `application.yaml`, Compose and a local secret file. |
@@ -306,11 +305,11 @@ The backend Compose files mount secret files from `secrets/` into Spring's `conf
 | NFC help visibility | `GROOVEFOLIO_NFC_HELP_ENABLED` build define (default true) plus device availability | Hiding help is not a switch that disables NFC logging. Store URL remains a separate nullable provider. |
 | Theme choice | Secure storage key `groovefolio.appearance.theme` | Startup defaults to system; a failed save can leave the current session changed but next launch on the old setting. |
 | First-run/walkthrough progress | Secure storage completion `.v1` and progress `.v3` keys in `onboarding_service.dart` | Step layout changes require an explicit compatibility/version decision; replay and selected album are transient. |
-| Discogs tokens | `SecureDiscogsCredentialStore`, keys `discogs_access_token*` and `discogs_request_token*` | Clearing SQLite does not disconnect Discogs. Do not log the stored values while diagnosing login. |
+| Backend installation and flow | `SecureBackendStore`, origin-scoped session and flow keys | Clearing SQLite does not disconnect Discogs. Legacy direct OAuth keys are cleared on connect/disconnect. Never log these values. |
 | Albums/plays/etc. | SQLite `vinyl_app_db.sqlite` in application documents | Database-only exports omit artwork and preferences. There is no production restore feature yet. |
 | Artwork | `artwork/<albumId>.jpg` in application documents | Path references and file bytes are separate; the service does not transcode supplied image bytes. |
 
-`DISCOGS_*` names are used in **two different processes**: Dart defines configure the current direct mobile client, while backend environment/config-tree values configure the future server. Setting server variables does not connect today's Flutter app to the server. No backend base URL or installation-token client is wired into the current app.
+`DISCOGS_*` credentials configure the backend only. The app uses `GROOVEFOLIO_API_ORIGIN` and registers its own installation; never copy a staging bearer token into a build.
 
 ## 7. Key workflows
 
@@ -353,21 +352,19 @@ After a successful mutation, inspect every affected view. The table is a **revie
 
 ### Current Discogs connection and lookup
 
-1. Settings calls `DiscogsAuthorizationController.connect`. Missing build credentials produce a typed failure before opening a browser.
-2. `DiscogsAuthService.beginAuthorization` requests a temporary OAuth token, saves it securely, then returns the provider authorization URL.
-3. The browser returns through `groovefolio://discogs-auth`. `MyApp` routes that event to `handleCallback`; NFC URIs share the stream but use another handler.
-4. `completeAuthorization` verifies the callback token matches the saved pending token, exchanges the verifier, saves access credentials, clears the pending token and calls identity. A failure at the final identity check clears newly stored access credentials.
-5. Settings refreshes `discogsAccountProvider`. Its `currentAccount` method performs an HTTP identity request; an offline lookup error is different from null/disconnected state.
+1. Settings calls `DiscogsAuthorizationController.connect`. The app registers an installation if none is saved, then requests a server authorization flow.
+2. `DiscogsAuthService.beginAuthorization` saves the transaction ID and owner before opening the validated Discogs authorization URL. OAuth request/access credentials remain on the server.
+3. The browser completes the backend HTTPS callback. The callback page attempts app return and provides Open Groovefolio as a fallback. The app verifies the persisted transaction; manually resuming waiting Settings also checks it. A process restart can recover the same transaction.
+4. Legacy `groovefolio://discogs-auth` links only trigger a server check; their token/verifier fields are never trusted. NFC URIs retain their separate handler.
+5. Settings refreshes `discogsAccountProvider`. Offline errors preserve the saved installation and flow. Confirmed invalid installation credentials require an explicit reconnect.
 
-Search/barcode yields candidate **releases**. The user selects the exact pressing and the app fetches details for editable autofill. Nothing is saved merely because search returned a result. Barcode search tries normalized digits and at most one leading-zero UPC/EAN alternate after an empty eligible result.
-
-The direct client permits up to three GET attempts for selected transient failures, uses a 20-second request timeout, caps text responses at 4 MiB and artwork at 20 MiB, and caps provider retry delay at 30 seconds. OAuth POST exchanges have one attempt. These limits are app implementation choices in `DiscogsApiClient`, not the draft backend's separate limits or a guarantee of provider allowance. Use typed `DiscogsAuthenticationFailure`, `DiscogsNetworkFailure`, `DiscogsRateLimitFailure` and `DiscogsApiFailure` when tracing errors.
+Search/barcode yields candidate releases through normalized backend DTOs. The selected pressing supplies editable autofill; nothing is saved merely by searching. The backend owns barcode alternate handling. The transport uses a 30-second deadline, bounded 4 MiB JSON/20 MiB artwork bodies, no redirects, and no automatic request retries. Rate limits produce a typed failure and preserve credentials. See [Discogs integration](integrations/discogs.md) for renewal recovery and device tests.
 
 ### Discogs collection import and partial success
 
 `prepare(username)` walks numeric pages of folder 0 until pagination ends, filters vinyl, loads current local release IDs, and classifies candidates. Exact release matches are duplicates; normalized artist/title matches require explicit review. Multiple physical Discogs copies can share a release ID, but the current local mapping only permits one album per exact release, so only the first candidate is offered for import.
 
-`importCandidates` rechecks each release link after preview. Each metadata write is atomic **per record**; the batch is not. Authentication, rate-limit and network failures in the metadata path stop the batch; other item failures are collected. Artwork failures are handled as warnings so a valid metadata import can survive. The preview loop currently has no whole-collection size cap/cancellation argument, and the import service has no resume cursor. A future backend cutover must add deliberate waiting/cancellation for its shared request limits rather than claiming those controls already exist.
+`importCandidates` rechecks each release link after preview. Each metadata write is atomic **per record**; the batch is not. Authentication, rate-limit and network failures in the metadata path stop the batch; other item failures are collected. Artwork failures are handled as warnings so a valid metadata import can survive. The preview loop currently has no whole-collection size cap/cancellation argument, and the import service has no resume cursor. On a rate limit, wait and start a fresh preview before retrying; automatic waiting/resume and cancellation are not implemented. Backend catalog limits can interrupt large imports.
 
 On a failed batch, refresh preview before retrying: the release links of previously committed records prevent reimport. The import screen refreshes providers on a normally returned result; its catch path does not invalidate those reads. If partial records appear only after reopening a screen, check both the database and this refresh path. An error message alone is not a count of rolled-back records.
 
@@ -421,15 +418,15 @@ The walkthrough exercises real forms and writes real records/plays. Only the del
 
 `OnboardingService` checks completion first. For an unmarked install, saved progress resumes; an existing populated collection without progress is marked complete so an upgrade does not force first-run onboarding. Only the step is persisted, not `albumId` or practice state. On resume at an album-dependent step, the user may need to select the record again. `WalkthroughController._persist` keeps the old visible step while saving and preserves a pending transition for retry on storage failure. Settings replay remains transient and does not reset completion.
 
-### Website and future backend
+### Website and backend
 
 For the website, edit HTML/CSS/JS, run the fast checks and browser tests, review at narrow/mobile widths and merge only when public copy is approved. Its feature panels, screenshot dialog and navigation are progressively enhanced: basic content/links remain usable without JavaScript. There is no collection database in the browser.
 
-For the draft backend, the future app would register an installation, securely save its bearer token, start server-owned OAuth, open the authorization URL, poll the transaction and call catalog endpoints. The callback currently shows a static completion page; no automatic app return deep link exists there. Live staging and Flutter cutover are still required. All collection review and record writes stay local. See [API](#8-api-endpoints) and [deployment](#10-deployment-process).
+The app registers an installation, securely saves its bearer token, opens server-owned OAuth, checks the saved transaction, and calls backend catalog endpoints. The callback attempts to reopen the app using a fixed credential-free URI and provides Open Groovefolio as a fallback. Returning to waiting Settings also refreshes the connection. All collection review and record writes stay local.
 
 ## 8. API endpoints
 
-There is **no hosted Groovefolio API wired into the current app** and the website has none. The current app calls Discogs directly through `lib/services/discogs/`. The following routes exist only on the backend draft branch, are not deployed, and require production HTTPS before use. Protected `/v1` routes accept `Authorization: Bearer <installation token>` except registration. Errors use safe JSON such as `{"code":"authentication_required"}`; rate limits return HTTP 429 and `Retry-After`. Full request/response schemas are in the draft [OpenAPI files](https://github.com/hunter-goller/Groovefolio-Backend/tree/VinylApp-125-staging-setup/docs).
+The app uses `https://api.groovefolio.app`; the website has no API dependency. Protected `/v1` routes accept `Authorization: Bearer <installation token>` except registration. Errors use safe JSON codes; rate limits return HTTP 429. Contracts live in the backend [OpenAPI files](https://github.com/hunter-goller/Groovefolio-Backend/tree/main/docs).
 
 | Method and route | Input → output / purpose |
 |---|---|
@@ -447,7 +444,7 @@ There is **no hosted Groovefolio API wired into the current app** and the websit
 | `GET /v1/discogs/releases/{releaseId}` | Connected bearer and positive canonical release ID → title, artist, year, genres/styles, artwork URL and ordered tracks. |
 | `GET /v1/discogs/collection?page=1&perPage=100` | Connected bearer → one page containing all formats and distinct physical instances; app filters/reviews/saves vinyl locally. |
 
-For example, release lookup returns selected fields rather than arbitrary upstream Discogs JSON: `{"releaseId":123,"title":"Example","artist":"Artist","year":1971,"label":"Label","genres":["Rock"],"styles":[],"artworkUrl":null,"tracks":[{"title":"Song","sequence":0,"position":"A1","side":"A","durationSeconds":185}]}`. The catalog endpoints use a shared request budget; large future imports must respect `Retry-After` and offer cancellation.
+For example, release lookup returns selected fields rather than arbitrary upstream Discogs JSON: `{"releaseId":123,"title":"Example","artist":"Artist","year":1971,"label":"Label","genres":["Rock"],"styles":[],"artworkUrl":null,"tracks":[{"title":"Song","sequence":0,"position":"A1","side":"A","durationSeconds":185}]}`. The catalog endpoints use a shared request budget; large imports must respect `Retry-After` and offer cancellation.
 
 ### API debugging and client obligations
 
@@ -462,11 +459,11 @@ An HTTP status tells you which boundary failed; the stable `code` tells the clie
 | 502 `discogs_invalid_response` / `discogs_unavailable` | Bounded upstream parsing/transport failed. A malformed response must not become a successful empty collection. |
 | 503 configuration/storage/service code | Check enabled config, encryption key version, PostgreSQL and readiness. Restarting without the right key cannot decrypt an existing envelope. |
 
-The server validates installation ownership before and after catalog calls. Disconnect, revoke, reconnect or token rotation during a request may cause a response to be withheld even after Discogs answered. Tests deliberately cover these races. A future app client must preserve that behavior rather than retrying with stale credentials indefinitely.
+The server validates installation ownership before and after catalog calls. Disconnect, revoke, reconnect or token rotation during a request may cause a response to be withheld even after Discogs answered. Tests deliberately cover these races. The app must preserve that behavior rather than retrying with stale credentials indefinitely.
 
-**Rotation recovery:** installation tokens have a 30-day lifetime in the draft implementation. The client must generate and securely save a successor token before rotation, retain the previous token until it knows the outcome, and probe using the saved successor if the response is lost. This client behavior is a future Flutter task, not implemented mobile functionality. See the backend [installation contract](https://github.com/hunter-goller/Groovefolio-Backend/blob/VinylApp-125-staging-setup/docs/installation-api.yaml).
+**Rotation recovery:** Installation tokens last 30 days. `InstallationSession` saves a successor before rotation and retains the previous token until the outcome is known. After an ambiguous response it probes the successor before trying the old token. See [app lifecycle and tests](integrations/discogs.md) and the backend [installation contract](https://github.com/hunter-goller/Groovefolio-Backend/blob/main/docs/installation-api.yaml).
 
-**Current direct endpoints:** `DiscogsApiClient` calls Discogs `/oauth/request_token`, `/oauth/access_token`, `/oauth/identity`, `/database/search`, `/releases/{id}`, and `/users/{username}/collection/folders/0/releases`. It downloads approved HTTPS artwork separately without an OAuth header. Debug its Dart typed failures rather than expecting the draft server's JSON envelope. The current mobile callback scheme and future server HTTPS callback are different configurations.
+The app calls backend account, connection, search, barcode, release and owned collection endpoints. Artwork downloads use approved Discogs HTTPS CDN hosts without the installation bearer header.
 
 ## 9. Database and data model
 
@@ -495,7 +492,7 @@ erDiagram
 
 See [database architecture](architecture/database.md) and `lib/db/schema/` for exact Drift definitions. Migrations v1–v6 are historical and frozen. Add a new version and schema snapshot for a physical schema change; test both fresh install and upgrade from an older database. Migration operations and `user_version` commit together, so a failed upgrade can retry without a half-applied version. Artwork is a local file referenced by path, not a SQLite blob.
 
-The **draft server's PostgreSQL** V1–V4 migrations contain `installations` (UUID, hashed bearer token, expiry/revocation), shared and peer registration counters, `discogs_connections` (one encrypted credential envelope and verified identity per installation), `discogs_flows` (single-use OAuth state and encrypted temporary request credentials), and OAuth/catalog limit counters. Foreign keys cascade from installation to connection/flow. The server has no albums, plays, NFC mappings or artwork table. Its Flyway migrations run at startup; do not edit an already-applied migration in a shared database.
+The **server's PostgreSQL** V1–V4 migrations contain `installations` (UUID, hashed bearer token, expiry/revocation), shared and peer registration counters, `discogs_connections` (one encrypted credential envelope and verified identity per installation), `discogs_flows` (single-use OAuth state and encrypted temporary request credentials), and OAuth/catalog limit counters. Foreign keys cascade from installation to connection/flow. The server has no albums, plays, NFC mappings or artwork table. Its Flyway migrations run at startup; do not edit an already-applied migration in a shared database.
 
 ### Schema history and invariants
 
@@ -530,7 +527,7 @@ A migration is how a phone with yesterday's database opens tomorrow's app. Modif
 
 **Website:** PR checks validate assets, links, JavaScript and browser behavior. A push/merge to site `main` invokes `.github/workflows/pages.yml`, which uploads the repository's static files and deploys GitHub Pages at `groovefolio.app`. This publishes public copy immediately; confirm privacy/support/marketing claims and the real Play link first. `sitemap.xml` currently includes home, privacy and support.
 
-**Backend:** There is no deployed backend or production deployment workflow. Review the dependent draft PRs in stack order, then validate with a live Discogs developer app, HTTPS callback, authenticated catalog calls, database restart, and representative host capacity/backup tests. `docs/staging.md` gives disposable staging setup and teardown. Only after that should the Flutter integration and final hosting/cutover be built and reviewed. Do not assume a Docker image build in CI means the backend is live.
+**Backend:** The Pi runs the merged backend behind a permanent Cloudflare Tunnel. Follow the backend deployment docs and retain all staging/dashboard/Cloudflare Compose overrides when updating it. Readiness, authentication, OAuth callback and restart behavior must be checked after deployment. A Docker build alone is not deployment verification.
 
 ### Release verification and rollback
 
@@ -538,7 +535,7 @@ A migration is how a phone with yesterday's database opens tomorrow's app. Modif
 |---|---|---|
 | Android app | Correct version/build and `app.groovefolio`; real upload certificate; offline add/edit/play; upgrade using preserved data; NFC/device flows | Prefer a forward fix when schema changed. An older app may reject a newer DB. A different signing certificate can prevent installing over an existing app; do not casually uninstall the only copy of a local collection. |
 | Website | Published home/privacy/support URLs, assets, mobile layout, actual CTA destination | Revert the specific site commit through a reviewed change; deploying that revert is another public update. |
-| Backend draft/future host | Readiness, login/catalog access, restart persistence, matching encryption keys and DB migrations | Rolling back the Java image does not undo Flyway migrations. Use a tested schema-compatible version or a deliberately restored backup with its required encryption keys. |
+| Backend Pi host | Readiness, login/catalog access, restart persistence, matching encryption keys and DB migrations | Rolling back the Java image does not undo Flyway migrations. Use a tested schema-compatible version or a deliberately restored backup with its required encryption keys. |
 
 The app workflow currently uses Flutter's moving `stable` channel. Record `flutter --version`, Java/Gradle error details and the failing commit when CI differs from local; do not assume both environments resolved identical tool versions. App `pubspec.lock` and website `package-lock.json` record resolved dependencies. The website deployment workflow is separate from its validation workflow; do not assume a push deployment waits for all validation checks unless repository protections enforce that policy.
 
@@ -571,7 +568,7 @@ Useful tools: your Dart debugger's exception breakpoint and variable watch, `flu
 | Genre totals exceed plays | `getGenreBreakdown` | Each genre gets a contribution; this is expected for a multi-genre record. Compare shares' denominator, not raw sum to total plays. |
 | Discover empty/different than expected | `getRecommendations`, `_buildTastePicks`, `_buildEraPicks` | History requirements, recent suppression, shelf exclusions, missing year/genre metadata and self-evidence removal; freeze clock in `recommendation_service_test`. |
 | Discogs Connected state fails offline | `currentAccount` and `discogsAccountProvider` | Stored credentials cause a live identity lookup; network error is not the same as no credentials. |
-| OAuth returns but cannot finish | `handleCallback`, `completeAuthorization`, root app-link listener | Scheme/host/path, matching pending token, verifier, secure-store persistence and cold/warm callback delivery; don't paste token values into logs. |
+| OAuth returns but cannot finish | `authorizationStatus`, saved transaction, account endpoint | Use Open Groovefolio or return to Settings; Check connection is a fallback. Verify server status and persistence without logging token values. |
 | Import stops / retry shows duplicates | Import service and screen catch path | Previously committed records remain; refresh preview and examine exact release links. Test metadata failure separately from artwork warning. |
 | Theme works until restart | `ThemeModeController.setMode` | Boolean return tells persistence success; optimistic session state is retained on failed save. Test reordered reads/writes with the store fake. |
 | Walkthrough resumes on Collection | `WalkthroughController.start`, `WalkthroughState.route` | Only step persists; selected album ID does not. Use existing-record selection to reestablish it. |
@@ -633,12 +630,12 @@ Run relevant Dart tests, native NFC tests, and then these phone scenarios. A man
 ## 12. Future development notes
 
 1. **Preserve the local-first boundary.** Keep offline CRUD, plays, Stats and Discover independent of the backend; an optional network feature must degrade cleanly. Avoid putting collection rows or listening history in the backend without a deliberate product/data-model change.
-2. **Finish release dependencies in the right order.** The real upload key and signed AAB, listing/screenshots, permissions and Data Safety review, Play account/internal testing, phone NFC checks, and a production Discogs credential decision remain. Backend staging and Flutter cutover are separate tasks; the server work is still a draft stack. See [Play readiness](development/google-play-readiness.md).
+2. **Finish release dependencies in the right order.** The real upload key and signed AAB, listing/screenshots, permissions and Data Safety review, Play account/internal testing, phone NFC checks, and a production Discogs credential decision remain. The server is deployed; the app cutover still requires the documented phone tests. See [Play readiness](development/google-play-readiness.md).
 3. **Protect data and credentials.** Local backup is currently disabled; reinstalling or moving phones does not restore records. A future export/restore needs versioned, consistent data plus artwork and must exclude OAuth/bearer secrets. Do not ship a consumer secret assuming a compiled mobile binary hides it.
-4. **Change schemas and contracts deliberately.** Freeze prior Drift/Flyway migrations, add new ones, update tests/snapshots, and keep the app's direct Discogs models aligned with the backend DTOs during any cutover. The backend's per-minute catalog cap can interrupt a multi-page import; plan waiting, cancellation and retry behavior before switching clients.
+4. **Change schemas and contracts deliberately.** Freeze prior Drift/Flyway migrations, add new ones, update tests/snapshots, and keep app models aligned with backend DTOs. The backend's per-minute catalog cap can interrupt a multi-page import; plan waiting, cancellation and retry behavior before switching clients.
 5. **Treat UI and policy copy as release artifacts.** Verify website claims, screenshots, privacy/support links and Data Safety against the actual shipping build. Update the site CTA only when a real Play listing URL exists. Broad accessibility work and Side A/B listening breakdown are deferred beyond the first release, but maintain readable UI and reduced-motion behavior now.
 
-For the current task list use [ROADMAP.md](../ROADMAP.md); for implementation details use the app [documentation index](README.md), the site [README](https://github.com/hunter-goller/Groovefolio-Site/blob/main/README.md), and the backend's [draft API/staging docs](https://github.com/hunter-goller/Groovefolio-Backend/tree/VinylApp-125-staging-setup/docs). Recheck PR, CI, hosting and Play Console state before calling any draft feature released.
+For the current task list use [ROADMAP.md](../ROADMAP.md); for implementation details use the app [documentation index](README.md), the site [README](https://github.com/hunter-goller/Groovefolio-Site/blob/main/README.md), and the backend's [API/staging docs](https://github.com/hunter-goller/Groovefolio-Backend/tree/main/docs). Recheck PR, CI, hosting and Play Console state before calling any draft feature released.
 
 
 ### Feature recipes
@@ -689,8 +686,8 @@ Write the intended formula and a small example before changing code. Decide rang
 
 1. Define the typed request/result and safe error states; include empty, malformed, unauthorized, throttled and timed-out responses.
 2. Put request signing, destination restrictions, size bounds and retry policy in the integration client; keep provider JSON out of widgets.
-3. Use existing parser/signer fixtures and injected transport tests before a live staging test. Never replay an ambiguous OAuth POST exchange automatically.
-4. For a backend cutover, implement installation registration/rotation recovery and secure token storage, server OAuth polling, DTO mapping, shared rate-limit waiting/cancellation and explicit removal/replacement of direct-client credentials.
+3. Use existing DTO/session fixtures and injected transport tests before a live staging test. Never replay an ambiguous OAuth POST exchange automatically.
+4. Preserve installation rotation recovery, secure storage, transaction ownership and DTO mapping. Rate-limit waiting/resume and import cancellation remain follow-up work; do not introduce automatic mutation replays.
 5. Test disconnection/token changes during in-flight work. Preserve manual/offline flows when the integration is unavailable. Update configuration, guide and disclosures to match the behavior that actually ships.
 
 ### Dependency upgrades and routine maintenance

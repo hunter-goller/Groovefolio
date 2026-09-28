@@ -14,6 +14,7 @@ class DiscogsConnectionCard extends StatelessWidget {
     required this.authorization,
     required this.onConnect,
     required this.onCancel,
+    required this.onCheck,
     required this.onDisconnect,
     required this.onImport,
     required this.onRetryIdentity,
@@ -25,6 +26,7 @@ class DiscogsConnectionCard extends StatelessWidget {
   final DiscogsAuthorizationState authorization;
   final Future<void> Function() onConnect;
   final Future<void> Function() onCancel;
+  final Future<void> Function() onCheck;
   final Future<void> Function() onDisconnect;
   final VoidCallback onImport;
   final VoidCallback onRetryIdentity;
@@ -88,6 +90,7 @@ class DiscogsConnectionCard extends StatelessWidget {
                   authorization: authorization,
                   onConnect: onConnect,
                   onCancel: onCancel,
+                  onCheck: onCheck,
                   onDisconnect: onDisconnect,
                   onImport: onImport,
                   onClearFailure: onClearFailure,
@@ -116,6 +119,7 @@ class _ConnectionBody extends StatelessWidget {
     required this.authorization,
     required this.onConnect,
     required this.onCancel,
+    required this.onCheck,
     required this.onDisconnect,
     required this.onImport,
     required this.onClearFailure,
@@ -125,6 +129,7 @@ class _ConnectionBody extends StatelessWidget {
   final DiscogsAuthorizationState authorization;
   final Future<void> Function() onConnect;
   final Future<void> Function() onCancel;
+  final Future<void> Function() onCheck;
   final Future<void> Function() onDisconnect;
   final VoidCallback onImport;
   final VoidCallback onClearFailure;
@@ -184,9 +189,13 @@ class _ConnectionBody extends StatelessWidget {
           const _MessagePanel(
             icon: Icons.open_in_browser_rounded,
             message:
-                'Finish authorization in your browser. Groovefolio will return here automatically.',
+                'Finish authorization in your browser. Your connection will update when you return.',
           ),
           SizedBox(height: tokens.space12),
+          FilledButton(
+            onPressed: () => onCheck(),
+            child: const Text('Check connection'),
+          ),
           OutlinedButton(
             onPressed: () => onCancel(),
             child: const Text('Cancel connection'),
@@ -240,15 +249,24 @@ class _ConnectionBody extends StatelessWidget {
       );
     }
 
-    return GuideTarget(
-      steps: const [0],
-      outlineGap: true,
-      child: FilledButton.icon(
-        key: const Key('connect-discogs-button'),
-        onPressed: () => onConnect(),
-        icon: const Icon(Icons.link_rounded),
-        label: const Text('Connect Discogs'),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GuideTarget(
+          steps: const [0],
+          outlineGap: true,
+          child: FilledButton.icon(
+            key: const Key('connect-discogs-button'),
+            onPressed: () => onConnect(),
+            icon: const Icon(Icons.link_rounded),
+            label: const Text('Connect Discogs'),
+          ),
+        ),
+        TextButton(
+          onPressed: () => onCheck(),
+          child: const Text('Check connection'),
+        ),
+      ],
     );
   }
 }

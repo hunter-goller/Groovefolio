@@ -1,37 +1,36 @@
-/// Configuration for the app's current direct Discogs integration.
-///
-/// [fromEnvironment] is compiled into a mobile build. A consumer secret in
-/// an APK is extractable, so this is development configuration until the
-/// production credential strategy and Flutter cutover are complete.
+/// Public backend origin only. Discogs consumer credentials live on the server.
 class DiscogsConfig {
-  const DiscogsConfig({
-    required this.consumerKey,
-    required this.consumerSecret,
-    this.callbackUri = 'groovefolio://discogs-auth',
-    this.userAgent = 'Groovefolio/0.1',
-  });
-
-  final String consumerKey;
-  final String consumerSecret;
-  final String callbackUri;
-  final String userAgent;
-
-  bool get isConfigured =>
-      consumerKey.trim().isNotEmpty && consumerSecret.trim().isNotEmpty;
-
-  Uri get callback => Uri.parse(callbackUri);
-
-  /// Accepts only the registered scheme, host, and path; OAuth parameters
-  /// in the query are validated separately by the authorization controller.
-  bool matchesCallback(Uri uri) {
-    final expected = callback;
-    return uri.scheme == expected.scheme &&
-        uri.host == expected.host &&
-        uri.path == expected.path;
+  const DiscogsConfig({this.backendUrl = 'https://api.groovefolio.app'});
+  final String backendUrl;
+  bool get isConfigured {
+    final uri = Uri.tryParse(backendUrl);
+    return uri != null &&
+        uri.scheme == 'https' &&
+        uri.host.isNotEmpty &&
+        uri.userInfo.isEmpty &&
+        !uri.hasQuery &&
+        !uri.hasFragment &&
+        (uri.path.isEmpty || uri.path == '/');
   }
 
+  Uri get origin {
+    if (!isConfigured) {
+      throw StateError('Invalid HTTPS backend origin');
+    }
+    return Uri.parse(backendUrl).replace(path: '');
+  }
+
+  // Legacy deep links are a hint to query the saved server transaction only.
+  bool matchesCallback(Uri uri) =>
+      uri.scheme == 'groovefolio' &&
+      uri.host == 'discogs-auth' &&
+      uri.path.isEmpty &&
+      uri.userInfo.isEmpty &&
+      !uri.hasPort;
   static const fromEnvironment = DiscogsConfig(
-    consumerKey: String.fromEnvironment('DISCOGS_CONSUMER_KEY'),
-    consumerSecret: String.fromEnvironment('DISCOGS_CONSUMER_SECRET'),
+    backendUrl: String.fromEnvironment(
+      'GROOVEFOLIO_API_ORIGIN',
+      defaultValue: 'https://api.groovefolio.app',
+    ),
   );
 }

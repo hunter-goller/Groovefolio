@@ -1,225 +1,193 @@
-import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
-
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vinyl_app/services/backend/backend_transport.dart';
+import 'package:vinyl_app/services/backend/installation_session.dart';
 import 'package:vinyl_app/services/discogs/discogs_api_client.dart';
-import 'package:vinyl_app/services/discogs/discogs_config.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
+import '../backend/backend_test_support.dart';
 
 void main() {
-  const config = DiscogsConfig(
-    consumerKey: 'consumer-key',
-    consumerSecret: 'consumer-secret',
-    userAgent: 'Groovefolio/test',
-  );
-  const credentials = DiscogsOAuthCredentials(
-    token: 'access-token',
-    tokenSecret: 'access-secret',
-  );
-
-  test('identity converts malformed JSON into a typed API failure', () async {
-    final client = DiscogsApiClient(
-      config: config,
-      requestSender: (method, uri, headers, maxBytes) async =>
-          DiscogsHttpResponse(
-            statusCode: 200,
-            body: Uint8List.fromList(utf8.encode('{not-json')),
-          ),
-    );
-    addTearDown(client.close);
-
-    await expectLater(
-      client.identity(credentials),
-      throwsA(
-        isA<DiscogsApiFailure>().having(
-          (failure) => failure.message,
-          'message',
-          contains('malformed JSON'),
-        ),
+  DiscogsApiClient make(BackendSender sender) {
+    final store = MemoryBackendStore()..seed();
+    final transport = BackendTransport(sender: sender);
+    addTearDown(transport.close);
+    return DiscogsApiClient(
+      InstallationSession(
+        origin: Uri.parse('https://api.groovefolio.app'),
+        store: store,
+        transport: transport,
+        now: () => fixedNow,
       ),
+      transport,
     );
-  });
+  }
 
   test(
-    'identity rejects missing required fields with a typed failure',
+    'account uses installation bearer at the fixed backend origin',
     () async {
-      final client = DiscogsApiClient(
-        config: config,
-        requestSender: (method, uri, headers, maxBytes) async =>
-            DiscogsHttpResponse(
-              statusCode: 200,
-              body: Uint8List.fromList(utf8.encode('{"username":"hunter"}')),
-            ),
-      );
-      addTearDown(client.close);
-
-      await expectLater(
-        client.identity(credentials),
-        throwsA(isA<DiscogsApiFailure>()),
-      );
+      final api = make((method, uri, headers, body, limit) async {
+        expect(
+          uri.toString(),
+          'https://api.groovefolio.app/v1/discogs/account',
+        );
+        expect(headers['Authorization'], 'Bearer $oldToken');
+        expect(body, isNull);
+        return response(200, {
+          'connected': true,
+          'discogsId': 7,
+          'username': 'listener',
+        });
+      });
+      expect((await api.account())!.username, 'listener');
     },
   );
-
-  test('GET honors Retry-After and retries a 429 before succeeding', () async {
-    var requests = 0;
-    final delays = <Duration>[];
-    final client = DiscogsApiClient(
-      config: config,
-      random: Random(1),
-      delay: (duration) async => delays.add(duration),
-      requestSender: (method, uri, headers, maxBytes) async {
-        requests += 1;
-        if (requests == 1) {
-          return DiscogsHttpResponse(
-            statusCode: 429,
-            body: Uint8List(0),
-            headers: {HttpHeaders.retryAfterHeader: '2'},
-          );
-        }
-        return DiscogsHttpResponse(
-          statusCode: 200,
-          body: Uint8List.fromList(utf8.encode('{"id":1,"username":"hunter"}')),
-        );
-      },
+  test('malformed metadata produces a safe typed failure', () async {
+    final api = make(
+      (method, uri, headers, body, limit) async =>
+          response(200, {'releaseId': 'invalid'}),
     );
-    addTearDown(client.close);
-
-    final account = await client.identity(credentials);
-
-    expect(account.username, 'hunter');
-    expect(requests, 2);
-    expect(delays, [const Duration(seconds: 2)]);
-  });
-
-  test('401 is typed and is not retried', () async {
-    var requests = 0;
-    final client = DiscogsApiClient(
-      config: config,
-      delay: (_) async {},
-      requestSender: (method, uri, headers, maxBytes) async {
-        requests += 1;
-        return DiscogsHttpResponse(statusCode: 401, body: Uint8List(0));
-      },
-    );
-    addTearDown(client.close);
-
     await expectLater(
-      client.identity(credentials),
-      throwsA(isA<DiscogsAuthenticationFailure>()),
-    );
-    expect(requests, 1);
-  });
-
-  test('request timeout becomes a typed network failure', () async {
-    final client = DiscogsApiClient(
-      config: config,
-      requestTimeout: const Duration(milliseconds: 2),
-      delay: (_) async {},
-      requestSender: (method, uri, headers, maxBytes) =>
-          Completer<DiscogsHttpResponse>().future,
-    );
-    addTearDown(client.close);
-
-    await expectLater(
-      client.identity(credentials),
-      throwsA(isA<DiscogsNetworkFailure>()),
-    );
-  });
-
-  test('barcode search retries UPC-A as zero-prefixed EAN-13', () async {
-    final requestedBarcodes = <String>[];
-    final client = DiscogsApiClient(
-      config: config,
-      requestSender: (method, uri, headers, maxBytes) async {
-        requestedBarcodes.add(uri.queryParameters['barcode'] ?? '');
-        final hasMatch = uri.queryParameters['barcode'] == '0074643377512';
-        final body = hasMatch
-            ? jsonEncode({
-                'results': [
-                  {
-                    'id': 456,
-                    'title': 'John Coltrane - Blue Train',
-                    'format': ['Vinyl', 'LP'],
-                  },
-                ],
-              })
-            : jsonEncode({'results': <Object>[]});
-        return DiscogsHttpResponse(
-          statusCode: 200,
-          body: Uint8List.fromList(utf8.encode(body)),
-        );
-      },
-    );
-    addTearDown(client.close);
-
-    final results = await client.searchReleasesByBarcode(
-      credentials: credentials,
-      barcode: '074643377512',
-    );
-
-    expect(requestedBarcodes, ['074643377512', '0074643377512']);
-    expect(results, hasLength(1));
-    expect(results.single.releaseId, 456);
-    expect(results.single.artist, 'John Coltrane');
-    expect(results.single.title, 'Blue Train');
-  });
-
-  test('artwork rejects non-HTTPS and non-Discogs image hosts', () async {
-    var requests = 0;
-    final client = DiscogsApiClient(
-      config: config,
-      requestSender: (method, uri, headers, maxBytes) async {
-        requests += 1;
-        return DiscogsHttpResponse(statusCode: 200, body: Uint8List(0));
-      },
-    );
-    addTearDown(client.close);
-
-    await expectLater(
-      client.downloadImage(
-        credentials: credentials,
-        url: 'https://example.test/cover.jpg',
-      ),
+      api.release(releaseId: 12),
       throwsA(isA<DiscogsApiFailure>()),
     );
-    await expectLater(
-      client.downloadImage(
-        credentials: credentials,
-        url: 'http://i.discogs.com/cover.jpg',
-      ),
-      throwsA(isA<DiscogsApiFailure>()),
-    );
-    expect(requests, 0);
   });
 
   test(
-    'trusted Discogs artwork is fetched without OAuth Authorization',
+    'normalized search, barcode, release and collection contracts are mapped',
     () async {
-      Map<String, String>? sentHeaders;
-      final client = DiscogsApiClient(
-        config: config,
-        requestSender: (method, uri, headers, maxBytes) async {
-          sentHeaders = Map.of(headers);
-          return DiscogsHttpResponse(
-            statusCode: 200,
-            body: Uint8List.fromList([1, 2, 3]),
-          );
-        },
+      final paths = <String>[];
+      final item = {
+        'releaseId': 12,
+        'instanceId': 34,
+        'title': 'Blue Train',
+        'artist': 'John Coltrane',
+        'year': 1957,
+        'label': 'Blue Note',
+        'country': 'US',
+        'formats': ['Vinyl', 'LP'],
+        'coverImageUrl': null,
+      };
+      final api = make((method, uri, headers, body, limit) async {
+        paths.add(uri.path);
+        expect(headers['Authorization'], 'Bearer $oldToken');
+        expect(uri.queryParameters.containsKey('username'), isFalse);
+        if (uri.path.endsWith('/releases/12')) {
+          return response(200, {
+            ...item,
+            'genres': ['Jazz'],
+            'styles': ['Hard Bop'],
+            'artworkUrl': null,
+            'tracks': [
+              {
+                'title': 'Blue Train',
+                'sequence': 0,
+                'position': 'A1',
+                'side': 'A',
+                'durationSeconds': null,
+              },
+            ],
+          });
+        }
+        return response(200, {
+          'items': [item],
+          'page': 1,
+          'pages': 2,
+          'totalItems': 101,
+        });
+      });
+      expect(
+        (await api.searchReleases(
+          artist: 'John Coltrane',
+          title: 'Blue Train',
+        )).single.title,
+        'Blue Train',
       );
-      addTearDown(client.close);
-
-      final bytes = await client.downloadImage(
-        credentials: credentials,
-        url: 'https://i.discogs.com/example/cover.jpg',
+      expect(
+        (await api.searchReleasesByBarcode(
+          barcode: '074643377512',
+        )).single.releaseId,
+        12,
       );
-
-      expect(bytes, [1, 2, 3]);
-      expect(sentHeaders, isNotNull);
-      expect(sentHeaders, isNot(contains(HttpHeaders.authorizationHeader)));
-      expect(sentHeaders?[HttpHeaders.userAgentHeader], 'Groovefolio/test');
+      expect((await api.release(releaseId: 12)).tracks.single.side, 'A');
+      final collection = await api.collectionFolderReleases(page: 1);
+      expect(collection.items.single.instanceId, 34);
+      expect(collection.hasNextPage, isTrue);
+      expect(paths, [
+        '/v1/discogs/search',
+        '/v1/discogs/barcode/074643377512',
+        '/v1/discogs/releases/12',
+        '/v1/discogs/collection',
+      ]);
+    },
+  );
+  test('malformed JSON is a typed failure without response text', () async {
+    final api = make(
+      (method, uri, headers, body, limit) async => BackendResponse(
+        200,
+        Uint8List.fromList(utf8.encode('secret-malformed-json')),
+      ),
+    );
+    await expectLater(api.account(), throwsA(isA<DiscogsApiFailure>()));
+  });
+  test(
+    'artwork has no bearer and rejects arbitrary hosts, ports and schemes',
+    () async {
+      var calls = 0;
+      final api = make((method, uri, headers, body, limit) async {
+        calls++;
+        expect(headers.containsKey('Authorization'), isFalse);
+        return BackendResponse(200, Uint8List.fromList([1, 2]));
+      });
+      for (final url in [
+        'http://i.discogs.com/x',
+        'https://evil.example/x',
+        'https://i.discogs.com:8443/x',
+        'https://user@i.discogs.com/x',
+        'https://i.discogs.com.evil.example/x',
+      ]) {
+        await expectLater(
+          api.downloadImage(url: url),
+          throwsA(isA<DiscogsApiFailure>()),
+        );
+      }
+      expect(calls, 0);
+      expect(await api.downloadImage(url: 'https://i.discogs.com/x'), [1, 2]);
+      expect(calls, 1);
+    },
+  );
+  test(
+    'redirects and HTML edge failures do not retry or erase the bearer',
+    () async {
+      var calls = 0;
+      final api = make((method, uri, headers, body, limit) async {
+        calls++;
+        return response(302, null, {'location': 'https://evil.example/'});
+      });
+      await expectLater(api.account(), throwsA(isA<DiscogsApiFailure>()));
+      expect(calls, 1);
+      expect(await api.session.hasSession(), isTrue);
+    },
+  );
+  test(
+    'rate limit exposes Retry-After without tight automatic retries',
+    () async {
+      var calls = 0;
+      final api = make((method, uri, headers, body, limit) async {
+        calls++;
+        return response(429, null, {'retry-after': '60'});
+      });
+      await expectLater(
+        api.account(),
+        throwsA(
+          isA<DiscogsRateLimitFailure>().having(
+            (e) => e.retryAfter,
+            'retryAfter',
+            const Duration(seconds: 60),
+          ),
+        ),
+      );
+      expect(calls, 1);
     },
   );
 }

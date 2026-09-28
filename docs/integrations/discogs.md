@@ -1,86 +1,82 @@
-# Discogs integration
+# Discogs through the Groovefolio backend
 
-Discogs is an optional enhancement; Groovefolio's local collection remains usable without connecting an account.
+The app defaults to `https://api.groovefolio.app`. Discogs consumer keys, OAuth signing,
+access tokens and verifier exchange live on the backend. The app contains no consumer secret.
+Collection records, play history, NFC tags and imported artwork remain local.
 
-## Implemented integration
+## Connect and reconnect
 
-### VinylApp-106 — account connection + shared API foundation
-Implemented across Parts 1 and 2:
-- `DiscogsConfig`
-- OAuth 1.0a HMAC-SHA1 signer
-- request-token exchange
-- access-token exchange
-- identity lookup
-- typed auth/network/API/rate-limit failures
-- secure credential store
-- `DiscogsAuthService`
-- Riverpod providers
-- Settings integration
-- Connect Discogs browser authorization
-- `groovefolio://discogs-auth` platform callback via `app_links`
-- verifier exchange and secure access-token persistence
-- `Connected as <username>` identity UI
-- disconnect and cancelled-authorization cleanup
-- Discogs attribution/disclaimer UI
+In Settings, tap **Connect Discogs**. The app registers an installation on first use, saves
+its random bearer token in platform secure storage, creates a backend authorization flow and
+opens the allowlisted Discogs authorization URL. The backend callback completes OAuth and
+attempts to open `groovefolio://discogs-auth`, with an **Open Groovefolio** link if the browser
+requires a tap. The URI contains no tokens or identity. The app verifies its saved transaction
+with the server before showing success. Browsers may block automatic app launches; manual
+return to the waiting Settings screen also triggers one connection check on resume.
+**Check connection** remains available as a retry/fallback. Deploy the backend app-return
+change to enable the browser handoff; app resume checking also works with the older page.
 
-### VinylApp-090 — search/autofill
-Implemented:
-- search connected Discogs by artist/title
-- show up to five release candidates with cover/year/label/country/format metadata
-- fetch the exact selected release before autofill
-- populate editable title, artist, year, label, genres/styles, and artwork
-- persist downloaded artwork through `ArtworkStorageService`
-- persist the exact Discogs release ID in schema v4 for future duplicate detection/import/barcode work
-- surface typed empty/error/rate-limit states without breaking manual Add Record
+Pending transaction ID and owner ID are saved securely before opening the browser. After a
+process restart, Settings reads the account from the backend; Check connection also restores
+pending flow state. Canceled, expired or failed flows offer another attempt. Cancel calls the
+server, and Disconnect removes that installation's server-side Discogs connection. A network
+failure preserves local state for retry. Disconnect does not delete local albums or revoke the
+grant in Discogs' own application settings.
 
-### VinylApp-107 — collection import
-Implemented:
-- read the connected user's Discogs collection across every API page
-- import vinyl releases only; non-vinyl collection items are ignored
-- classify exact Discogs release duplicates before import
-- surface title + artist local matches for explicit review instead of silently duplicating/overwriting
-- preselect only clearly new releases
-- fetch exact release metadata before each write
-- import Artists, Albums, Genres/styles, artwork, and exact Discogs release IDs into the local collection
-- persist artwork through `ArtworkStorageService`
-- show progress for large imports
-- continue after per-release failures and summarize failures/warnings at the end
+Users upgrading from the former direct Discogs integration must connect again. Legacy OAuth
+credentials are never uploaded and are removed when connecting or disconnecting. Existing
+local collection and listening data need no migration.
 
-### VinylApp-105 — tracklist persistence/import
-Implemented on `main`:
-- schema v5 `Tracks` table with album cascade cleanup
-- ordered `TrackRepository` reads and transactional complete-tracklist replacement
-- release JSON parsing for track title, Discogs position, inferred vinyl side, duration, and original order
-- Add Record persists the selected Discogs release tracklist with the album
-- Discogs collection import persists tracklists for imported releases
-- Album Detail groups side-aware positions such as A1/A2/B1/B2 and falls back to ordered rows when side data is absent
-- manual/local records remain valid with an empty tracklist
+## Installation token lifecycle
 
-### VinylApp-091 — barcode lookup
-Implemented on `main`: camera scanning normalizes UPC/EAN barcodes, searches Discogs vinyl releases, and asks the user to select the exact pressing before editable autofill.
+`InstallationSession` registers only on explicit Connect. Settings/manual collection use does
+not create installations. Tokens and pending successors are one JSON secure-storage value,
+scoped to the configured backend origin. The app serializes authenticated requests and rotates
+when less than three days remain on the backend's 30-day lifetime. It saves a cryptographically
+random successor before sending it. After an ambiguous response or process death, it probes the
+successor, then the original only if the successor is definitely rejected. Both are retained on
+network, server or storage errors. A confirmed invalid token clears the saved session/flow and
+asks for reconnection; mutations are not replayed and registration is not silently retried.
 
-## Development credentials
+If the app does not use the backend for 30 days, the installation can expire and require a fresh
+Discogs connection. The app has no background renewal worker. Lost successful registration
+responses may leave an unused installation until backend cleanup; a later explicit retry can
+register again. No token, OAuth URL, raw response body or credentials are printed in app logs.
 
-The app-level Consumer Key/Secret are read from compile-time defines:
+## Catalog and imports
 
-```powershell
-flutter run `
-  --dart-define=DISCOGS_CONSUMER_KEY=YOUR_KEY `
-  --dart-define=DISCOGS_CONSUMER_SECRET=YOUR_SECRET
-```
+Search, barcode, release detail and owned collection calls use the installation bearer token.
+The server selects collection ownership; the app never forwards a supplied username to the
+backend. Normalized DTOs preserve release and instance IDs, genres/styles, track positions,
+sides, durations and pagination. Duplicate review and local writes remain in the importer.
+Artwork uses approved Discogs HTTPS CDN hosts without any bearer header. Redirects are disabled.
 
-Never commit real values.
+HTTP 429 stops the operation and exposes Retry-After as a typed failure; no tight retry loop is
+used. The user can retry after waiting. An interrupted import preserves earlier successful
+records; reload the preview to exclude those exact release IDs before retrying. The current
+backend caps (30 catalog calls/minute per installation, shared server budgets and edge limits)
+can interrupt large imports. Server outages and expired authorization do not erase local data.
 
-OAuth callback URI: `groovefolio://discogs-auth`. Android and iOS register the custom scheme, while `app_links` captures cold-start and warm-app callbacks.
+## Development and device validation
 
-The code can compile and unit-test with empty values; live API calls require valid application credentials.
+Use `flutter run` or `tools/run_dev.ps1`; neither needs Discogs keys. To test a different backend,
+use `--dart-define=GROOVEFOLIO_API_ORIGIN=https://your-test-api.example`. Only HTTPS origins with
+no user info, path, query or fragment are accepted. Credentials are isolated per origin.
 
-## User credentials
+After CI passes, validate on an Android device against the Pi:
 
-After OAuth authorization, the user's access token + token secret are stored through `flutter_secure_storage` rather than SQLite or source control.
+1. Open an existing collection and verify records/plays still work offline.
+2. Connect from Settings and authorize in the browser. Verify automatic return or tap Open Groovefolio; confirm the username appears without Check connection. Also test manually switching back to the waiting app.
+3. Cancel a fresh pending connection, then check the old browser URL cannot attach that flow.
+4. Start again, close the app while the browser is open, authorize and use Open Groovefolio. Verify cold-start server verification succeeds. Check connection remains a fallback.
+5. Search John Coltrane / Blue Train, select a release, and inspect artwork, genres and side/track data.
+6. Scan a known barcode and review candidates before saving.
+7. Preview your collection, review duplicates, import a few releases and verify local tracks/artwork.
+8. Disable networking during a lookup and disconnect attempt; restore it and retry. The saved
+   connection must not be reported successfully disconnected while the server was unreachable.
+9. Disconnect, confirm the backend reports disconnected, and reconnect; local records stay intact.
 
-`flutter_secure_storage` is pinned to **10.3.1** on the current Android SDK 36 toolchain.
-
-## Production security note
-
-A Consumer Secret compiled into a distributed mobile application cannot be assumed to remain secret. Before Play Store release, choose and verify a production credential strategy. A Java/Spring Boot backend is proposed in a separate, unmerged repository; the current app still calls Discogs directly.
+Deterministic tests cover renewal timing/recovery, single registration under concurrency,
+malformed JSON, DTO mapping, origin restrictions, artwork header isolation, flow recovery,
+terminal statuses and failure retention. Live OAuth, Android secure storage and browser switching
+require the device checklist. Tests and CI never use the Pi's staging bearer token or Discogs keys.

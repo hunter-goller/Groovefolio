@@ -41,4 +41,4 @@ Discogs credentials or a backend installation token.
 ## Discogs-specific release work
 The current client reads a Discogs Consumer Key/Secret from build-time configuration for development. A secret compiled into a mobile APK should not be treated as truly confidential. The proposed Java/Spring Boot backend is separate, unmerged, and undeployed. Resolve and validate the production credential architecture before public distribution.
 
-User OAuth access credentials are stored with `flutter_secure_storage`; this is separate from protecting the app-level Consumer Secret.
+The app stores only its installation bearer token and pending flow metadata with `flutter_secure_storage`. Consumer secrets and user OAuth credentials stay on the backend. Validate the app/backend integration on-device before release.
