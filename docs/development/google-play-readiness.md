@@ -39,6 +39,18 @@ It must remain independent of Android automatic backup and must never export
 Discogs credentials or a backend installation token.
 
 ## Discogs-specific release work
-The current client reads a Discogs Consumer Key/Secret from build-time configuration for development. A secret compiled into a mobile APK should not be treated as truly confidential. The proposed Java/Spring Boot backend is separate, unmerged, and undeployed. Resolve and validate the production credential architecture before public distribution.
+The merged app calls `https://api.groovefolio.app`; the Java/Spring Boot backend
+has been deployed behind Cloudflare Tunnel. The production app must not receive
+Discogs consumer secrets or user OAuth credentials through build-time defines.
 
 The app stores only its installation bearer token and pending flow metadata with `flutter_secure_storage`. Consumer secrets and user OAuth credentials stay on the backend. Validate the app/backend integration on-device before release.
+
+## No-ads release
+
+The release scope is ad-free: no AdMob SDK, advertising ID permission, banner
+initialization, or consent SDK is included in `main`. Do not merge the separate
+ads-preview PR #92 into this release. ML Kit's technical data collection still
+needs Data Safety review; no ads does not mean no data leaves the device.
+
+See [September 28 release audit](release-audit-2026-09-28.md) for the reconciled
+Trello/code checklist and the privacy retention decisions still outstanding.
