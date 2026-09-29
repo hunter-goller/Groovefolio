@@ -28,8 +28,9 @@ void main() {
         reason: source.path,
       );
     }
-    final manifest = File('android/app/src/main/AndroidManifest.xml')
-        .readAsStringSync();
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
     expect(manifest, contains('android:taskAffinity="app.groovefolio.nfc"'));
     expect(manifest, contains('android:scheme="groovefolio"'));
     expect(manifest, contains('android:host="discogs-auth"'));
