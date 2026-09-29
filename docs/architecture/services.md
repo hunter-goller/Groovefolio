@@ -26,7 +26,7 @@ A service coordinates the steps of a user operation. A repository reads or write
 The filesystem and SQLite do not share one commit/rollback mechanism. Inspect the caller before changing ordering:
 
 - **Add/import:** commit metadata first, then save artwork and attach its path.
-- **Edit:** retain old bytes and replace artwork before the metadata transaction; on failure, attempt to restore old bytes or remove the new file. This recovery is best effort, not crash-atomic.
+- **Edit:** retain old bytes and replace artwork before the metadata transaction; on metadata failure, attempt to restore old bytes or remove the new file. A UI failure after the metadata commit must not trigger restoration. This recovery is best effort, not crash-atomic.
 - **Delete:** commit database deletion first, then attempt file cleanup.
 
 A failed final step therefore does not always mean “nothing was saved.” Return or present results that let the caller distinguish durable success, optional failure, and a failed main operation. The [developer guide](../developer-guide.md#7-key-workflows) follows the concrete callers end to end.

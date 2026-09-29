@@ -11,6 +11,7 @@ class EmptyState extends StatelessWidget {
     required this.subtitle,
     this.ctaLabel,
     this.onCtaTap,
+    this.ctaKey,
     this.guideSteps = const [],
     super.key,
   }) : assert(
@@ -23,6 +24,7 @@ class EmptyState extends StatelessWidget {
   final String subtitle;
   final String? ctaLabel;
   final VoidCallback? onCtaTap;
+  final Key? ctaKey;
   final List<int> guideSteps;
 
   @override
@@ -68,12 +70,16 @@ class EmptyState extends StatelessWidget {
           if (ctaLabel != null) ...[
             SizedBox(height: tokens.space24),
             if (guideSteps.isEmpty)
-              PrimaryButton(label: ctaLabel!, onPressed: onCtaTap)
+              PrimaryButton(key: ctaKey, label: ctaLabel!, onPressed: onCtaTap)
             else
               GuideTarget(
                 steps: guideSteps,
                 outlineGap: true,
-                child: PrimaryButton(label: ctaLabel!, onPressed: onCtaTap),
+                child: PrimaryButton(
+                  key: ctaKey,
+                  label: ctaLabel!,
+                  onPressed: onCtaTap,
+                ),
               ),
           ],
         ],

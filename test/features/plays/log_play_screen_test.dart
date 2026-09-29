@@ -11,6 +11,27 @@ import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
 void main() {
+  testWidgets('failed play save keeps form usable and retry writes once', (
+    tester,
+  ) async {
+    final fixture = _Fixture.single();
+    fixture.playRepository.failCreate = true;
+    await _pumpLogPlay(tester, fixture: fixture);
+    await tester.tap(find.text('Blue Train'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Save play'));
+    await tester.tap(find.text('Save play'));
+    await tester.pumpAndSettle();
+    expect(find.text('Couldn’t log this play. Try again.'), findsOneWidget);
+    expect(find.textContaining('private insert failure'), findsNothing);
+    expect(fixture.playRepository.plays, isEmpty);
+    fixture.playRepository.failCreate = false;
+    await tester.tap(find.text('Save play'));
+    await tester.pumpAndSettle();
+    expect(fixture.playRepository.plays, hasLength(1));
+    expect(find.text('Collection test'), findsOneWidget);
+  });
+
   testWidgets('manual selection logs a play and returns to Collection', (
     tester,
   ) async {
@@ -329,6 +350,7 @@ class _FakePlayRepository implements IPlayRepository {
   _FakePlayRepository(List<Play> plays) : plays = List.of(plays);
 
   final List<Play> plays;
+  bool failCreate = false;
 
   @override
   Future<Play> create({
@@ -336,6 +358,7 @@ class _FakePlayRepository implements IPlayRepository {
     required DateTime playedAt,
     required SidePlayed sidePlayed,
   }) async {
+    if (failCreate) throw StateError('private insert failure');
     final play = Play(
       id: 'play-${plays.length + 1}',
       albumId: albumId,
