@@ -86,7 +86,7 @@ void main() {
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
-    expect(router.routeInformationProvider.value.uri.path, AppRoutes.stats);
+    expect(router.state.uri.path, AppRoutes.stats);
     expect(find.widgetWithText(AppBar, 'Settings'), findsNothing);
     expect(router.canPop(), isFalse);
     expect(tester.takeException(), isNull);

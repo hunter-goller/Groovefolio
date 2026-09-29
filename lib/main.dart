@@ -259,12 +259,12 @@ class MyApp extends ConsumerWidget {
           if (guide.active) {
             // A late callback must not pull the user out of a later form.
             if (guide.step == 0) router.go(AppRoutes.settings);
-          } else if (router.routeInformationProvider.value.uri.path !=
-              AppRoutes.onboarding) {
+          } else if (router.state.uri.path != AppRoutes.onboarding) {
             if (pending) {
               router.go(AppRoutes.collection);
-            } else if (router.routeInformationProvider.value.uri.path !=
-                AppRoutes.settings) {
+            } else if (router.state.uri.path != AppRoutes.settings) {
+              // The router state includes pushed pages; the route information
+              // provider may still describe the screen underneath Settings.
               // Keep the current screen as a Back destination, including on
               // cold starts. If Settings is already open, retain its stack;
               // replacing it with go() would strand the user after login.
