@@ -261,7 +261,15 @@ class MyApp extends ConsumerWidget {
             if (guide.step == 0) router.go(AppRoutes.settings);
           } else if (router.routeInformationProvider.value.uri.path !=
               AppRoutes.onboarding) {
-            router.go(pending ? AppRoutes.collection : AppRoutes.settings);
+            if (pending) {
+              router.go(AppRoutes.collection);
+            } else if (router.routeInformationProvider.value.uri.path !=
+                AppRoutes.settings) {
+              // Keep the current screen as a Back destination, including on
+              // cold starts. If Settings is already open, retain its stack;
+              // replacing it with go() would strand the user after login.
+              unawaited(router.push<void>(AppRoutes.settings));
+            }
           }
           await controller.handleCallback(uri);
         });
