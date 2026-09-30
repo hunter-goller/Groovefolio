@@ -110,8 +110,8 @@ void main() {
         overrides: [
           discogsConfigProvider.overrideWithValue(const DiscogsConfig()),
           discogsAccountProvider.overrideWithValue(
-            AsyncError<DiscogsAccount?>(
-              const DiscogsNetworkFailure('Offline'),
+            const AsyncError<DiscogsAccount?>(
+              DiscogsNetworkFailure('Offline'),
               StackTrace.empty,
             ),
           ),
@@ -138,8 +138,8 @@ void main() {
         overrides: [
           discogsConfigProvider.overrideWithValue(const DiscogsConfig()),
           discogsAccountProvider.overrideWithValue(
-            AsyncError<DiscogsAccount?>(
-              const DiscogsNetworkFailure('Offline'),
+            const AsyncError<DiscogsAccount?>(
+              DiscogsNetworkFailure('Offline'),
               StackTrace.empty,
             ),
           ),
