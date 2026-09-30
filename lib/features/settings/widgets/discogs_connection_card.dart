@@ -79,6 +79,35 @@ class DiscogsConnectionCard extends StatelessWidget {
                 message:
                     'Discogs is unavailable in this build. You can still add records manually.',
               )
+            else if (authorization.status ==
+                DiscogsAuthorizationStatus.completing)
+              const _LoadingRow(label: 'Checking Discogs connection…')
+            else if (authorization.status ==
+                DiscogsAuthorizationStatus.disconnecting)
+              const _LoadingRow(label: 'Disconnecting Discogs…')
+            else if (authorization.status == DiscogsAuthorizationStatus.failed)
+              AppErrorState.inline(
+                key: const Key('discogs-authorization-error-state'),
+                title: 'Couldn’t update your Discogs connection',
+                message:
+                    authorization.failure?.message ??
+                    'Check your connection and try again.',
+                error:
+                    authorization.failure ??
+                    const DiscogsApiFailure(
+                      'Discogs authorization could not be completed.',
+                    ),
+                stackTrace: StackTrace.empty,
+                operation: 'update Discogs connection',
+                onRetry: onRetryIdentity,
+                retryLabel: 'Retry',
+                retryButtonKey: const Key('discogs-authorization-retry'),
+                secondaryActionLabel: 'Disconnect',
+                onSecondaryAction: () => onDisconnect(),
+                secondaryButtonKey: const Key(
+                  'discogs-authorization-disconnect',
+                ),
+              )
             else
               accountAsync.when(
                 loading: () => const _LoadingRow(label: 'Checking connection…'),
@@ -95,6 +124,9 @@ class DiscogsConnectionCard extends StatelessWidget {
                   retryButtonKey: const Key('discogs-identity-retry'),
                   secondaryActionLabel: 'Disconnect',
                   onSecondaryAction: () => onDisconnect(),
+                  secondaryButtonKey: const Key(
+                    'discogs-identity-disconnect',
+                  ),
                 ),
                 data: (account) => _ConnectionBody(
                   account: account,

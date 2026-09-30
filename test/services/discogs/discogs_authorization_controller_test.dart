@@ -128,6 +128,33 @@ void main() {
       );
     },
   );
+  test('disconnect supersedes an in-flight connection check', () async {
+    final result = Completer<String>();
+    auth.pendingCheck = result.future;
+    final controller = container.read(
+      discogsAuthorizationControllerProvider.notifier,
+    );
+
+    final checking = controller.checkAuthorization();
+    expect(
+      container.read(discogsAuthorizationControllerProvider).status,
+      DiscogsAuthorizationStatus.completing,
+    );
+
+    await controller.disconnect();
+    expect(auth.disconnected, isTrue);
+    expect(
+      container.read(discogsAuthorizationControllerProvider).status,
+      DiscogsAuthorizationStatus.idle,
+    );
+
+    result.complete('connected');
+    await checking;
+    expect(
+      container.read(discogsAuthorizationControllerProvider).status,
+      DiscogsAuthorizationStatus.idle,
+    );
+  });
   test('provider cancellation returns a clear disconnected result', () async {
     auth.status = 'canceled';
     final controller = container.read(
@@ -144,7 +171,7 @@ void main() {
 }
 
 class FakeAuth implements DiscogsAuthService {
-  bool launched = false, canceled = false;
+  bool launched = false, canceled = false, disconnected = false;
   int checks = 0;
   String status = 'pending';
   DiscogsFailure? failure;
@@ -174,5 +201,7 @@ class FakeAuth implements DiscogsAuthService {
   }
 
   @override
-  Future<void> disconnect() async {}
+  Future<void> disconnect() async {
+    disconnected = true;
+  }
 }

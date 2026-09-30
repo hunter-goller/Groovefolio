@@ -12,6 +12,7 @@ import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/providers/track_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/local_data_reset_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
@@ -62,8 +63,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final config = ref.watch(discogsConfigProvider);
-    final accountAsync = ref.watch(discogsAccountProvider);
     final authorization = ref.watch(discogsAuthorizationControllerProvider);
+    final pauseAccountLookup =
+        authorization.status == DiscogsAuthorizationStatus.completing ||
+        authorization.status == DiscogsAuthorizationStatus.disconnecting ||
+        authorization.status == DiscogsAuthorizationStatus.failed;
+    final accountAsync = pauseAccountLookup
+        ? const AsyncLoading<DiscogsAccount?>()
+        : ref.watch(discogsAccountProvider);
     final showDeveloperTools = ref.watch(developerToolsEnabledProvider);
 
     return Scaffold(
@@ -100,7 +107,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     .read(discogsAuthorizationControllerProvider.notifier)
                     .disconnect(),
                 onImport: () => context.push(AppRoutes.discogsCollectionImport),
-                onRetryIdentity: () => ref.invalidate(discogsAccountProvider),
+                onRetryIdentity: () => ref
+                    .read(discogsAuthorizationControllerProvider.notifier)
+                    .checkAuthorization(),
                 onClearFailure: () => ref
                     .read(discogsAuthorizationControllerProvider.notifier)
                     .clearFailure(),

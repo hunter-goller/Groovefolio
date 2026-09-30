@@ -123,6 +123,8 @@ class DiscogsAuthorizationState {
 /// callbacks; the root widget routes them to a different handler.
 class DiscogsAuthorizationController
     extends Notifier<DiscogsAuthorizationState> {
+  int _operationId = 0;
+
   @override
   DiscogsAuthorizationState build() => const DiscogsAuthorizationState.idle();
 
@@ -139,11 +141,14 @@ class DiscogsAuthorizationController
       return;
     }
 
+    final operationId = ++_operationId;
     state = const DiscogsAuthorizationState.awaitingCallback();
     try {
       await ref.read(discogsAuthServiceProvider).launchAuthorization();
     } catch (error) {
-      state = DiscogsAuthorizationState.failed(_typedFailure(error));
+      if (operationId == _operationId) {
+        state = DiscogsAuthorizationState.failed(_typedFailure(error));
+      }
     }
   }
 
@@ -165,11 +170,15 @@ class DiscogsAuthorizationController
         state.status == DiscogsAuthorizationStatus.disconnecting) {
       return;
     }
+    final operationId = ++_operationId;
     state = const DiscogsAuthorizationState.completing();
     try {
       final status = await ref
           .read(discogsAuthServiceProvider)
           .authorizationStatus();
+      if (operationId != _operationId) {
+        return;
+      }
       ref.invalidate(discogsAccountProvider);
       state = switch (status) {
         'pending' => const DiscogsAuthorizationState.awaitingCallback(),
@@ -181,37 +190,51 @@ class DiscogsAuthorizationController
         _ => const DiscogsAuthorizationState.idle(),
       };
     } catch (error) {
-      ref.invalidate(discogsAccountProvider);
-      state = DiscogsAuthorizationState.failed(_typedFailure(error));
+      if (operationId == _operationId) {
+        state = DiscogsAuthorizationState.failed(_typedFailure(error));
+      }
     }
   }
 
   Future<void> cancelAuthorization() async {
+    final operationId = ++_operationId;
     try {
       await ref.read(discogsAuthServiceProvider).cancelAuthorization();
+      if (operationId != _operationId) {
+        return;
+      }
       ref.invalidate(discogsAccountProvider);
       state = const DiscogsAuthorizationState.idle();
     } catch (error) {
-      state = DiscogsAuthorizationState.failed(_typedFailure(error));
+      if (operationId == _operationId) {
+        state = DiscogsAuthorizationState.failed(_typedFailure(error));
+      }
     }
   }
 
   Future<void> disconnect() async {
-    if (state.isBusy) {
+    if (state.status == DiscogsAuthorizationStatus.disconnecting) {
       return;
     }
 
+    final operationId = ++_operationId;
     state = const DiscogsAuthorizationState.disconnecting();
     try {
       await ref.read(discogsAuthServiceProvider).disconnect();
+      if (operationId != _operationId) {
+        return;
+      }
       ref.invalidate(discogsAccountProvider);
       state = const DiscogsAuthorizationState.idle();
     } catch (error) {
-      state = DiscogsAuthorizationState.failed(_typedFailure(error));
+      if (operationId == _operationId) {
+        state = DiscogsAuthorizationState.failed(_typedFailure(error));
+      }
     }
   }
 
   void clearFailure() {
+    _operationId++;
     state = const DiscogsAuthorizationState.idle();
   }
 

@@ -116,6 +116,7 @@ class DiscogsAuthService {
       progress = await _api.call(
         'GET',
         '/v1/discogs/connections/${flow['transactionId']}',
+        timeout: DiscogsApiClient.connectionTimeout,
       );
     } on DiscogsApiFailure catch (error) {
       if (error.statusCode == 404) {
@@ -156,6 +157,7 @@ class DiscogsAuthService {
       await _api.call(
         'DELETE',
         '/v1/discogs/connections/${flow['transactionId']}',
+        timeout: DiscogsApiClient.connectionTimeout,
       );
     } on DiscogsApiFailure catch (error) {
       if (error.statusCode != 404 && error.statusCode != 409) {
@@ -173,7 +175,11 @@ class DiscogsAuthService {
   });
   Future<void> disconnect() => _serial(() async {
     if (await _api.session.hasSession()) {
-      await _api.call('DELETE', '/v1/discogs/account');
+      await _api.call(
+        'DELETE',
+        '/v1/discogs/account',
+        timeout: DiscogsApiClient.connectionTimeout,
+      );
     }
     await _backendStore.delete('flow');
     await _backendStore.clearLegacyDiscogs();

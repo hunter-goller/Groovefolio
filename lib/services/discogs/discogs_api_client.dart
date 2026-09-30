@@ -7,6 +7,8 @@ import 'package:vinyl_app/services/discogs/discogs_models.dart';
 /// The backend owns Discogs OAuth and returns normalized metadata.
 class DiscogsApiClient {
   const DiscogsApiClient(this.session, this.transport);
+  static const connectionTimeout = Duration(seconds: 10);
+
   final InstallationSession session;
   final BackendTransport transport;
 
@@ -14,8 +16,14 @@ class DiscogsApiClient {
     String method,
     String path, {
     Map<String, String>? query,
+    Duration? timeout,
   }) async {
-    final response = await session.request(method, path, query: query);
+    final response = await session.request(
+      method,
+      path,
+      query: query,
+      timeout: timeout,
+    );
     return response.status == 204 ? const {} : response.json();
   }
 
@@ -23,7 +31,11 @@ class DiscogsApiClient {
     if (!await session.hasSession()) {
       return null;
     }
-    final json = await call('GET', '/v1/discogs/account');
+    final json = await call(
+      'GET',
+      '/v1/discogs/account',
+      timeout: connectionTimeout,
+    );
     if (json['connected'] == false) {
       return null;
     }
