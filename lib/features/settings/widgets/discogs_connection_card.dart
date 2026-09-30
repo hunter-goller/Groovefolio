@@ -76,8 +76,7 @@ class DiscogsConnectionCard extends StatelessWidget {
             if (!configured)
               const _MessagePanel(
                 icon: Icons.key_off_outlined,
-                message:
-                    'Discogs is unavailable in this build. You can still add records manually.',
+                message: 'Discogs is unavailable in this build. You can still add records manually.',
               )
             else if (authorization.status ==
                 DiscogsAuthorizationStatus.completing)
@@ -114,8 +113,7 @@ class DiscogsConnectionCard extends StatelessWidget {
                 error: (error, stackTrace) => AppErrorState.inline(
                   key: const Key('discogs-identity-error-state'),
                   title: 'Couldn’t verify your Discogs connection',
-                  message:
-                      'Check your connection and retry. You can keep using your local collection.',
+                  message: 'Check your connection and retry. You can keep using your local collection.',
                   error: error,
                   stackTrace: stackTrace,
                   operation: 'verify Discogs connection',
@@ -124,9 +122,7 @@ class DiscogsConnectionCard extends StatelessWidget {
                   retryButtonKey: const Key('discogs-identity-retry'),
                   secondaryActionLabel: 'Disconnect',
                   onSecondaryAction: () => onDisconnect(),
-                  secondaryButtonKey: const Key(
-                    'discogs-identity-disconnect',
-                  ),
+                  secondaryButtonKey: const Key('discogs-identity-disconnect'),
                 ),
                 data: (account) => _ConnectionBody(
                   account: account,
@@ -231,8 +227,7 @@ class _ConnectionBody extends StatelessWidget {
         children: [
           const _MessagePanel(
             icon: Icons.open_in_browser_rounded,
-            message:
-                'Finish authorization in your browser. Your connection will update when you return.',
+            message: 'Finish authorization in your browser. Your connection will update when you return.',
           ),
           SizedBox(height: tokens.space12),
           FilledButton(
