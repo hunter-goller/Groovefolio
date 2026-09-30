@@ -34,7 +34,7 @@ class DriftDatabaseTransactionRunner implements DatabaseTransactionRunner {
 ///
 /// Artwork bytes cannot join a SQLite transaction. Add/import save their files
 /// after creating the record; Edit stages replacement bytes before updating and
-/// attempts to restore the previous file if the database write fails. Those
+/// attempts to restore the previous file only if the metadata did not commit. Those
 /// policies belong to the callers, not this service. Callers also refresh UI
 /// providers after a successful write.
 class RecordWriteService {

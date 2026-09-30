@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +11,7 @@ import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
+import 'package:vinyl_app/utils/error_reporting.dart';
 
 /// Reviews Discogs collection candidates before local import.
 /// Only clearly new releases are preselected; possible local matches require
@@ -30,6 +32,7 @@ class _DiscogsCollectionImportScreenState
   Object? _error;
   bool _loading = true;
   bool _importing = false;
+  bool _importInterrupted = false;
   Set<int> _selectedReleaseIds = <int>{};
 
   @override
@@ -44,10 +47,12 @@ class _DiscogsCollectionImportScreenState
         _loading = true;
         _error = null;
         _result = null;
+        _importInterrupted = false;
       });
     }
 
     try {
+      ref.invalidate(discogsAccountProvider);
       final account = await ref.read(discogsAccountProvider.future);
       if (account == null) {
         throw const DiscogsAuthenticationFailure(
@@ -67,7 +72,8 @@ class _DiscogsCollectionImportScreenState
         };
         _loading = false;
       });
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logAppError('prepare Discogs collection import', error, stackTrace);
       if (!mounted) return;
       setState(() {
         _error = error;
@@ -106,21 +112,26 @@ class _DiscogsCollectionImportScreenState
             },
           );
 
-      ref.invalidate(albumsProvider);
-      ref.invalidate(genresProvider);
-      ref.invalidate(albumGenresProvider);
-
       if (!mounted) return;
       setState(() {
         _result = result;
         _importing = false;
       });
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logAppError('import Discogs collection', error, stackTrace);
       if (!mounted) return;
       setState(() {
         _error = error;
+        _importInterrupted = true;
         _importing = false;
       });
+    } finally {
+      // The batch can commit earlier records before a later failure.
+      if (mounted) {
+        ref.invalidate(albumsProvider);
+        ref.invalidate(genresProvider);
+        ref.invalidate(albumGenresProvider);
+      }
     }
   }
 
@@ -183,8 +194,12 @@ class _DiscogsCollectionImportScreenState
   }
 
   String _errorMessage(Object error) {
-    if (error is DiscogsFailure) return error.message;
-    return 'Could not prepare the Discogs collection import.';
+    final message = error is DiscogsFailure
+        ? error.message
+        : 'Couldn’t load or finish the Discogs import. Try again.';
+    return _importInterrupted
+        ? '$message Records already imported are kept. Retry reloads the preview so you can review what remains.'
+        : message;
   }
 }
 

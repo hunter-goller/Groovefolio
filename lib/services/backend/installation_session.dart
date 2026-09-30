@@ -74,6 +74,7 @@ class InstallationSession {
     String path, {
     Map<String, String>? query,
     String? body,
+    Duration? timeout,
   }) => _serial(() async {
     var session = await _read();
     if (session == null) {
@@ -100,6 +101,7 @@ class InstallationSession {
         uri(path, query),
         token: session.token,
         body: body,
+        requestTimeout: timeout,
       );
     } on BackendError catch (error) {
       if (error.invalidToken) {

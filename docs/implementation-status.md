@@ -12,6 +12,8 @@ This page describes the app code on `main`, not unmerged backend branches or a p
 - First-run interactive walkthrough and replay from Settings; privacy and support links.
 - Riverpod, Drift/SQLite, go_router, and CI. Schema `v6` includes artists, albums, plays, NFC tags, genres, Discogs release links, tracks, cascade cleanup, and a play-history index. See [database](architecture/database.md).
 
+- Friendly page/inline errors, provider retry, broken-artwork fallbacks, and database startup recovery without automatic data reset. See [error recovery](features/error-recovery.md).
+
 ## Release work still open
 
 - Create and back up the real Android upload key on the developer's computer, then verify a signed AAB. CI uses a disposable key for compilation only.

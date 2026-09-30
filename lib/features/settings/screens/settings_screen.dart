@@ -12,9 +12,11 @@ import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/providers/track_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/local_data_reset_service.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
+import 'package:vinyl_app/utils/error_reporting.dart';
 
 final developerToolsEnabledProvider = Provider<bool>((ref) => kDebugMode);
 
@@ -61,8 +63,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final config = ref.watch(discogsConfigProvider);
-    final accountAsync = ref.watch(discogsAccountProvider);
     final authorization = ref.watch(discogsAuthorizationControllerProvider);
+    final pauseAccountLookup =
+        authorization.status == DiscogsAuthorizationStatus.completing ||
+        authorization.status == DiscogsAuthorizationStatus.disconnecting ||
+        authorization.status == DiscogsAuthorizationStatus.failed;
+    final accountAsync = pauseAccountLookup
+        ? const AsyncLoading<DiscogsAccount?>()
+        : ref.watch(discogsAccountProvider);
     final showDeveloperTools = ref.watch(developerToolsEnabledProvider);
 
     return Scaffold(
@@ -99,7 +107,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     .read(discogsAuthorizationControllerProvider.notifier)
                     .disconnect(),
                 onImport: () => context.push(AppRoutes.discogsCollectionImport),
-                onRetryIdentity: () => ref.invalidate(discogsAccountProvider),
+                onRetryIdentity: () => ref
+                    .read(discogsAuthorizationControllerProvider.notifier)
+                    .checkAuthorization(),
                 onClearFailure: () => ref
                     .read(discogsAuthorizationControllerProvider.notifier)
                     .clearFailure(),
@@ -198,34 +208,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     try {
       await ref.read(localDataResetServiceProvider).reset();
 
-      ref.read(collectionFiltersProvider.notifier).reset();
-      ref.invalidate(albumsProvider);
-      ref.invalidate(albumSearchProvider);
-      ref.invalidate(albumProvider);
-      ref.invalidate(albumDetailProvider);
-      ref.invalidate(playCountProvider);
-      ref.invalidate(recentlyPlayedProvider);
-      ref.invalidate(genresProvider);
-      ref.invalidate(albumGenresProvider);
-      ref.invalidate(albumTracksProvider);
-
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Local app data reset. Discogs connection kept.'),
         ),
       );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
+    } catch (error, stackTrace) {
+      logAppError('reset local data', error, stackTrace);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Couldn’t reset local data: $error')),
+        const SnackBar(
+          content: Text(
+            'Couldn’t finish the reset. Some data may already have been cleared. Check your collection before retrying.',
+          ),
+        ),
       );
     } finally {
       if (mounted) {
+        ref.read(collectionFiltersProvider.notifier).reset();
+        ref.invalidate(albumsProvider);
+        ref.invalidate(albumSearchProvider);
+        ref.invalidate(albumProvider);
+        ref.invalidate(albumDetailProvider);
+        ref.invalidate(playCountProvider);
+        ref.invalidate(recentlyPlayedProvider);
+        ref.invalidate(genresProvider);
+        ref.invalidate(albumGenresProvider);
+        ref.invalidate(albumTracksProvider);
+
         setState(() => _isResettingLocalData = false);
       }
     }

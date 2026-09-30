@@ -101,6 +101,62 @@ void main() {
     expect(find.text('Connect Discogs'), findsOneWidget);
   });
 
+  testWidgets('Discogs identity retry starts a visible connection check', (
+    tester,
+  ) async {
+    final controller = _ActionAuthorizationController();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          discogsConfigProvider.overrideWithValue(const DiscogsConfig()),
+          discogsAccountProvider.overrideWithValue(
+            const AsyncError<DiscogsAccount?>(
+              DiscogsNetworkFailure('Offline'),
+              StackTrace.empty,
+            ),
+          ),
+          discogsAuthorizationControllerProvider.overrideWith(() => controller),
+        ],
+        child: MaterialApp(theme: AppTheme.light, home: const SettingsScreen()),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('discogs-identity-retry')));
+    await tester.pump();
+
+    expect(controller.checks, 1);
+    expect(find.text('Checking Discogs connection…'), findsOneWidget);
+  });
+
+  testWidgets('Discogs identity disconnect starts a visible disconnect', (
+    tester,
+  ) async {
+    final controller = _ActionAuthorizationController();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          discogsConfigProvider.overrideWithValue(const DiscogsConfig()),
+          discogsAccountProvider.overrideWithValue(
+            const AsyncError<DiscogsAccount?>(
+              DiscogsNetworkFailure('Offline'),
+              StackTrace.empty,
+            ),
+          ),
+          discogsAuthorizationControllerProvider.overrideWith(() => controller),
+        ],
+        child: MaterialApp(theme: AppTheme.light, home: const SettingsScreen()),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('discogs-identity-disconnect')));
+    await tester.pump();
+
+    expect(controller.disconnects, 1);
+    expect(find.text('Disconnecting Discogs…'), findsOneWidget);
+  });
+
   testWidgets('developer tools can be hidden for release/profile UI', (
     tester,
   ) async {
@@ -215,5 +271,25 @@ class _ResumeAuthorizationController extends DiscogsAuthorizationController {
   Future<void> checkAuthorization() async {
     checks++;
     state = const DiscogsAuthorizationState.idle();
+  }
+}
+
+class _ActionAuthorizationController extends DiscogsAuthorizationController {
+  int checks = 0;
+  int disconnects = 0;
+
+  @override
+  DiscogsAuthorizationState build() => const DiscogsAuthorizationState.idle();
+
+  @override
+  Future<void> checkAuthorization() async {
+    checks++;
+    state = const DiscogsAuthorizationState.completing();
+  }
+
+  @override
+  Future<void> disconnect() async {
+    disconnects++;
+    state = const DiscogsAuthorizationState.disconnecting();
   }
 }

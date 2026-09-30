@@ -60,6 +60,7 @@ class BackendTransport {
     String? token,
     String? body,
     int limit = 4 * 1024 * 1024,
+    Duration? requestTimeout,
   }) async {
     if (uri.scheme != 'https' ||
         uri.userInfo.isNotEmpty ||
@@ -72,14 +73,12 @@ class BackendTransport {
       if (token != null) 'Authorization': 'Bearer $token',
       if (body != null) 'Content-Type': 'application/json',
     };
+    final effectiveTimeout = requestTimeout ?? timeout;
     try {
-      final response = await (sender ?? _send)(
-        method,
-        uri,
-        headers,
-        body,
-        limit,
-      ).timeout(timeout);
+      final operation = sender == null
+          ? _send(method, uri, headers, body, limit, effectiveTimeout)
+          : sender!(method, uri, headers, body, limit);
+      final response = await operation.timeout(effectiveTimeout);
       if (response.body.length > limit) {
         throw const DiscogsApiFailure('The server response was too large.');
       }
@@ -115,10 +114,11 @@ class BackendTransport {
     Map<String, String> headers,
     String? body,
     int limit,
+    Duration requestTimeout,
   ) async {
     HttpClientRequest? request;
     var expired = false;
-    final timer = Timer(timeout, () {
+    final timer = Timer(requestTimeout, () {
       expired = true;
       request?.abort();
     });
