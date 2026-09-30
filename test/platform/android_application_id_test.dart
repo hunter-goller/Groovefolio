@@ -37,6 +37,27 @@ void main() {
     expect(manifest, isNot(contains('com.huntergoller.vinyl_app')));
   });
 
+  test('camera and NFC hardware remain optional for Play compatibility', () {
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+
+    expect(
+      manifest,
+      contains(
+        '<uses-feature android:name="android.hardware.camera" '
+        'android:required="false"/>',
+      ),
+    );
+    expect(
+      manifest,
+      contains(
+        '<uses-feature android:name="android.hardware.nfc" '
+        'android:required="false"/>',
+      ),
+    );
+  });
+
   test('release source remains free of AdMob and advertising identifiers', () {
     for (final path in ['pubspec.yaml', 'pubspec.lock']) {
       final contents = File(path).readAsStringSync();

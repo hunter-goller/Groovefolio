@@ -4,6 +4,9 @@
     <uses-permission android:name="android.permission.NFC"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
+    <!-- Barcode scanning is optional; devices without a camera can still use
+         Groovefolio's manual search and collection flows. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <!-- NFC remains optional so devices without hardware can still install and
          use Groovefolio's manual collection and play-logging flows. -->
     <uses-feature android:name="android.hardware.nfc" android:required="false"/>
