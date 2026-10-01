@@ -19,7 +19,6 @@ A service coordinates the steps of a user operation. A repository reads or write
 | `DiscogsCatalogService` | Search and typed release metadata | Keeps external response interpretation out of screens. |
 | `DiscogsCollectionImportService` | Preview, duplicate review, and per-record import | Earlier records can remain committed after a later error; artwork failures can be warnings. |
 | `OnboardingService` / `WalkthroughController` | Persist progress and coordinate walkthrough steps | Replay uses real screens and operations except the intercepted practice delete; selected album state is not persisted. |
-| `LocalDataResetService` | Clear local collection tables, then artwork | Database clearing can succeed before a filesystem error. Secure state remains. The Settings UI owns the debug-only entry gate. |
 
 ## Artwork is not part of a SQLite transaction
 
