@@ -13,7 +13,6 @@ An error message should explain what failed and what the user can do next. It mu
 | Add / Log Play | Screen save handler | Record completion immediately after persistence. A later failure says the operation was saved; the same form's next action opens/exits instead of inserting again. |
 | Edit artwork compensation | `EditAlbumScreen._save` | Restore old bytes only when metadata did not commit. If restoration also fails, say that the cover needs checking; never undo artwork because navigation failed after a successful save. |
 | Discogs batch import | Import screen/service | Previously committed records remain. Refresh cached collection reads on success and failure; Retry refreshes identity and preview before another import. |
-| Developer reset | Settings / `LocalDataResetService` | A filesystem failure can follow committed database clearing. Refresh views and warn of possible partial completion; never say nothing changed. |
 | Physical NFC writing | `NfcWriteDialog` / `NfcService` | Keep the current typed device messages, retry and Skip behavior. The old `NFCPrompt` prototype is gone. |
 
 `logAppError` writes diagnostic exception/stack details only in debug mode. Friendly UI copy is separate; release/profile builds omit this helper's output. It is not a remote crash-reporting service. Do not add credentials, callback URLs, authorization headers, or personal records to diagnostic messages.

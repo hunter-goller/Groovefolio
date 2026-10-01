@@ -250,7 +250,6 @@ Widget _app(
         ),
       ),
       nfcHelpVisibleProvider.overrideWithValue(false),
-      developerToolsEnabledProvider.overrideWithValue(false),
     ],
     child: MaterialApp.router(
       theme: AppTheme.light,

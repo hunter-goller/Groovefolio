@@ -36,4 +36,4 @@ Both seed service functions accept an `albumLimit` argument, defaulting to **10*
 ## Important
 This runner is destructive by design. Use it only against development app data.
 
-Both entry points use the same database and application ID as the ordinary app. A debug build does not create a separate safe copy of your collection. The seed reset removes referenced artwork **before** its database transaction; it is a disposable development helper, not the production deletion/recovery workflow. The Settings debug reset follows a different DB-first policy through `LocalDataResetService`. Stop the seed runner and launch normal `flutter run` afterward.
+Both entry points use the same database and application ID as the ordinary app. A debug build does not create a separate safe copy of your collection. The seed reset removes referenced artwork **before** its database transaction; it is a disposable development helper and is not exposed from Settings. Stop the seed runner and launch normal `flutter run` afterward.
