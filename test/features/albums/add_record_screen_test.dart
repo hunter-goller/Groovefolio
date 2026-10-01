@@ -20,6 +20,55 @@ import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 
 void main() {
+  testWidgets('Discogs results remain usable with a tall keyboard', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(360, 740);
+    addTearDown(tester.view.reset);
+    final catalog = _FakeDiscogsCatalogService(
+      results: [
+        for (var id = 1; id <= 5; id++)
+          DiscogsReleaseSearchResult(
+            releaseId: id,
+            title: 'A long album title for release $id',
+            artist: 'An artist with a long name',
+          ),
+      ],
+    );
+    await tester.pumpWidget(_testApp(connected: true, catalogService: catalog));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Search Discogs to autofill'));
+    await tester.tap(find.text('Search Discogs to autofill'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('discogs-search-artist')),
+      'artist',
+    );
+    await tester.tap(find.byKey(const Key('discogs-search-submit')));
+    await tester.pumpAndSettle();
+
+    // Reopening the keyboard after results loaded caused the reported overflow.
+    await tester.tap(find.byKey(const Key('discogs-search-title')));
+    tester.view.viewInsets = const FakeViewPadding(bottom: 340);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.byKey(const Key('discogs-search-submit')));
+    expect(
+      find.byKey(const Key('discogs-search-submit')).hitTestable(),
+      findsOneWidget,
+    );
+    await tester.ensureVisible(find.byKey(const Key('discogs-result-5')));
+    expect(
+      find.byKey(const Key('discogs-result-5')).hitTestable(),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byKey(const Key('discogs-result-5')));
+    await tester.pumpAndSettle();
+    expect(find.text('Search Discogs'), findsNothing);
+  });
+
   testWidgets(
     'saved record survives follow-up failure without duplicate retry',
     (tester) async {

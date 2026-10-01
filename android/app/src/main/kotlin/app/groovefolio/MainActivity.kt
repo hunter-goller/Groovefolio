@@ -15,6 +15,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import io.flutter.embedding.android.FlutterActivity
@@ -89,6 +90,26 @@ open class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         retainedEngine = flutterEngine
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
+            "app.groovefolio/app_settings")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "openAppSettings") {
+                    result.notImplemented()
+                } else {
+                    try {
+                        val settingsIntent = Intent(
+                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.fromParts("package", packageName, null),
+                        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        applicationContext.startActivity(settingsIntent)
+                        result.success(true)
+                    } catch (error: android.content.ActivityNotFoundException) {
+                        result.success(false)
+                    } catch (error: SecurityException) {
+                        result.success(false)
+                    }
+                }
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
             "app.groovefolio/app_info")
             .setMethodCallHandler { call, result ->

@@ -339,8 +339,7 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
               );
             }
           }
-          artworkWarning =
-              'Record added, but its artwork could not be saved. You can add it again from Edit record.';
+          artworkWarning = 'Record added, but its artwork could not be saved. You can add it again from Edit record.';
         }
       }
 
@@ -951,83 +950,85 @@ class _DiscogsSearchSheetState extends ConsumerState<_DiscogsSearchSheet> {
         top: tokens.space16,
         bottom: MediaQuery.viewInsetsOf(context).bottom + tokens.space16,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Search Discogs', style: context.theme.textTheme.headlineSmall),
-          SizedBox(height: tokens.space4),
-          Text(
-            'Choose the exact release or pressing. Nothing is saved until you add the record.',
-            style: context.theme.textTheme.bodySmall?.copyWith(
-              color: tokens.textMuted,
-            ),
-          ),
-          SizedBox(height: tokens.space16),
-          TextField(
-            key: const Key('discogs-search-artist'),
-            controller: _artistController,
-            decoration: const InputDecoration(labelText: 'Artist'),
-            textInputAction: TextInputAction.next,
-          ),
-          SizedBox(height: tokens.space12),
-          TextField(
-            key: const Key('discogs-search-title'),
-            controller: _titleController,
-            decoration: const InputDecoration(labelText: 'Title'),
-            textInputAction: TextInputAction.search,
-            onSubmitted: (_) => _search(),
-          ),
-          SizedBox(height: tokens.space12),
-          FilledButton.icon(
-            key: const Key('discogs-search-submit'),
-            onPressed: _searching ? null : _search,
-            icon: _searching
-                ? const SizedBox.square(
-                    dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.search_rounded),
-            label: const Text('Search releases'),
-          ),
-          if (_failure != null) ...[
-            SizedBox(height: tokens.space12),
-            _DiscogsFailurePanel(failure: _failure!, onRetry: _search),
-          ],
-          if (!_searching &&
-              _failure == null &&
-              _results.isEmpty &&
-              !_hasSearched) ...[
-            SizedBox(height: tokens.space16),
+      child: SingleChildScrollView(
+        key: const Key('discogs-search-scroll'),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
             Text(
-              'Search Discogs to see up to 5 matching releases.',
-              textAlign: TextAlign.center,
-              style: context.theme.textTheme.bodyMedium?.copyWith(
+              'Search Discogs',
+              style: context.theme.textTheme.headlineSmall,
+            ),
+            SizedBox(height: tokens.space4),
+            Text(
+              'Choose the exact release or pressing. Nothing is saved until you add the record.',
+              style: context.theme.textTheme.bodySmall?.copyWith(
                 color: tokens.textMuted,
               ),
             ),
-          ],
-          if (!_searching &&
-              _failure == null &&
-              _results.isEmpty &&
-              _hasSearched) ...[
             SizedBox(height: tokens.space16),
-            Text(
-              'No matching Discogs releases found.',
-              textAlign: TextAlign.center,
-              style: context.theme.textTheme.bodyMedium?.copyWith(
-                color: tokens.textMuted,
-              ),
+            TextField(
+              key: const Key('discogs-search-artist'),
+              controller: _artistController,
+              decoration: const InputDecoration(labelText: 'Artist'),
+              textInputAction: TextInputAction.next,
             ),
-          ],
-          if (_results.isNotEmpty) ...[
             SizedBox(height: tokens.space12),
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(context).height * 0.42,
+            TextField(
+              key: const Key('discogs-search-title'),
+              controller: _titleController,
+              decoration: const InputDecoration(labelText: 'Title'),
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _search(),
+            ),
+            SizedBox(height: tokens.space12),
+            FilledButton.icon(
+              key: const Key('discogs-search-submit'),
+              onPressed: _searching ? null : _search,
+              icon: _searching
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.search_rounded),
+              label: const Text('Search releases'),
+            ),
+            if (_failure != null) ...[
+              SizedBox(height: tokens.space12),
+              _DiscogsFailurePanel(failure: _failure!, onRetry: _search),
+            ],
+            if (!_searching &&
+                _failure == null &&
+                _results.isEmpty &&
+                !_hasSearched) ...[
+              SizedBox(height: tokens.space16),
+              Text(
+                'Search Discogs to see up to 5 matching releases.',
+                textAlign: TextAlign.center,
+                style: context.theme.textTheme.bodyMedium?.copyWith(
+                  color: tokens.textMuted,
+                ),
               ),
-              child: ListView.separated(
+            ],
+            if (!_searching &&
+                _failure == null &&
+                _results.isEmpty &&
+                _hasSearched) ...[
+              SizedBox(height: tokens.space16),
+              Text(
+                'No matching Discogs releases found.',
+                textAlign: TextAlign.center,
+                style: context.theme.textTheme.bodyMedium?.copyWith(
+                  color: tokens.textMuted,
+                ),
+              ),
+            ],
+            if (_results.isNotEmpty) ...[
+              SizedBox(height: tokens.space12),
+              ListView.separated(
                 shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
                 itemCount: _results.length,
                 separatorBuilder: (_, _) => const Divider(height: 1),
                 itemBuilder: (context, index) {
@@ -1059,17 +1060,17 @@ class _DiscogsSearchSheetState extends ConsumerState<_DiscogsSearchSheet> {
                   );
                 },
               ),
+            ],
+            SizedBox(height: tokens.space8),
+            Text(
+              'Metadata provided by Discogs.',
+              textAlign: TextAlign.center,
+              style: context.theme.textTheme.labelSmall?.copyWith(
+                color: tokens.textMuted,
+              ),
             ),
           ],
-          SizedBox(height: tokens.space8),
-          Text(
-            'Metadata provided by Discogs.',
-            textAlign: TextAlign.center,
-            style: context.theme.textTheme.labelSmall?.copyWith(
-              color: tokens.textMuted,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

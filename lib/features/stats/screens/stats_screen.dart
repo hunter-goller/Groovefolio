@@ -375,38 +375,48 @@ class _SummaryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: 1.75,
+    final tiles = <Widget>[
+      _StatTile(
+        label: 'COLLECTION',
+        value: '${summary.playedAlbums} / ${summary.totalAlbums}',
+        detail: range == StatsRange.currentYear
+            ? 'played in $currentYear'
+            : 'played all time',
+      ),
+      _StatTile(
+        label: 'TOTAL PLAYS',
+        value: '${summary.totalPlays}',
+        detail: range == StatsRange.currentYear
+            ? 'in $currentYear'
+            : 'all time',
+      ),
+      _StatTile(
+        label: _monthName(DateTime.now().month).toUpperCase(),
+        value: '$currentMonthPlays',
+        detail: 'plays',
+      ),
+      _StatTile(
+        label: 'AVG / WEEK',
+        value: summary.averagePlaysPerWeek.toStringAsFixed(1),
+        detail: 'plays',
+      ),
+    ];
+    // Let each row grow with text size instead of fixing card height to width.
+    return Column(
       children: [
-        _StatTile(
-          label: 'COLLECTION',
-          value: '${summary.playedAlbums} / ${summary.totalAlbums}',
-          detail: range == StatsRange.currentYear
-              ? 'played in $currentYear'
-              : 'played all time',
-        ),
-        _StatTile(
-          label: 'TOTAL PLAYS',
-          value: '${summary.totalPlays}',
-          detail: range == StatsRange.currentYear
-              ? 'in $currentYear'
-              : 'all time',
-        ),
-        _StatTile(
-          label: _monthName(DateTime.now().month).toUpperCase(),
-          value: '$currentMonthPlays',
-          detail: 'plays',
-        ),
-        _StatTile(
-          label: 'AVG / WEEK',
-          value: summary.averagePlaysPerWeek.toStringAsFixed(1),
-          detail: 'plays',
-        ),
+        for (var index = 0; index < tiles.length; index += 2) ...[
+          if (index > 0) const SizedBox(height: 10),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: tiles[index]),
+                const SizedBox(width: 10),
+                Expanded(child: tiles[index + 1]),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -447,31 +457,27 @@ class _StatTile extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 2),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Flexible(
-                  child: Text(
-                    value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      height: 1,
-                    ),
+            SizedBox(
+              width: double.infinity,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  style: context.theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    height: 1,
                   ),
                 ),
-                const SizedBox(width: 6),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
-                  child: Text(
-                    detail,
-                    style: context.theme.textTheme.labelSmall?.copyWith(
-                      color: tokens.textMuted,
-                    ),
-                  ),
-                ),
-              ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              detail,
+              style: context.theme.textTheme.labelSmall?.copyWith(
+                color: tokens.textMuted,
+              ),
             ),
           ],
         ),
