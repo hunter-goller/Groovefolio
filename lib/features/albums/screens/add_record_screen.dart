@@ -339,7 +339,8 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
               );
             }
           }
-          artworkWarning = 'Record added, but its artwork could not be saved. You can add it again from Edit record.';
+          artworkWarning =
+              'Record added, but its artwork could not be saved. You can add it again from Edit record.';
         }
       }
 
