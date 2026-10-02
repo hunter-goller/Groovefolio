@@ -16,6 +16,7 @@ class BarcodeScannerScreen extends StatefulWidget {
 class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
     with WidgetsBindingObserver {
   late final MobileScannerController _controller = MobileScannerController(
+    autoStart: false,
     detectionSpeed: DetectionSpeed.noDuplicates,
     formats: const [
       BarcodeFormat.ean13,
@@ -34,6 +35,11 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Starting during MobileScanner's build notifies listeners in the app bar
+    // and body before their layout has finished.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_retryCamera());
+    });
   }
 
   @override

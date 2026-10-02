@@ -149,53 +149,76 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
     final currentYear = DateTime.now().year;
     final dataAsync = ref.watch(statsDashboardProvider(_range));
     final tokens = context.tokens;
+    final compactRangePicker =
+        MediaQuery.sizeOf(context).width < 380 ||
+        MediaQuery.textScalerOf(context).scale(14) > 18;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Your stats'),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: SegmentedButton<StatsRange>(
-              segments: [
-                ButtonSegment(
+          if (compactRangePicker)
+            PopupMenuButton<StatsRange>(
+              key: const Key('stats-range-menu'),
+              tooltip:
+                  'Stats range: ${_range == StatsRange.currentYear ? currentYear : 'All time'}',
+              icon: const Icon(Icons.date_range_outlined),
+              initialValue: _range,
+              onSelected: (range) => setState(() => _range = range),
+              itemBuilder: (context) => [
+                PopupMenuItem(
                   value: StatsRange.currentYear,
-                  label: Text('$currentYear'),
+                  child: Text('$currentYear'),
                 ),
-                const ButtonSegment(
+                const PopupMenuItem(
                   value: StatsRange.allTime,
-                  label: Text('All time'),
+                  child: Text('All time'),
                 ),
               ],
-              selected: {_range},
-              showSelectedIcon: false,
-              style: ButtonStyle(
-                backgroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return AppThemeTokens.accent.withValues(alpha: 0.18);
-                  }
-                  return Colors.transparent;
-                }),
-                foregroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return AppThemeTokens.accent;
-                  }
-                  return tokens.text;
-                }),
-                side: WidgetStateProperty.resolveWith((states) {
-                  final selected = states.contains(WidgetState.selected);
-                  return BorderSide(
-                    color: selected
-                        ? AppThemeTokens.accent.withValues(alpha: 0.78)
-                        : tokens.textMuted.withValues(alpha: 0.55),
-                  );
-                }),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: SegmentedButton<StatsRange>(
+                segments: [
+                  ButtonSegment(
+                    value: StatsRange.currentYear,
+                    label: Text('$currentYear'),
+                  ),
+                  const ButtonSegment(
+                    value: StatsRange.allTime,
+                    label: Text('All time'),
+                  ),
+                ],
+                selected: {_range},
+                showSelectedIcon: false,
+                style: ButtonStyle(
+                  backgroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return AppThemeTokens.accent.withValues(alpha: 0.18);
+                    }
+                    return Colors.transparent;
+                  }),
+                  foregroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return AppThemeTokens.accent;
+                    }
+                    return tokens.text;
+                  }),
+                  side: WidgetStateProperty.resolveWith((states) {
+                    final selected = states.contains(WidgetState.selected);
+                    return BorderSide(
+                      color: selected
+                          ? AppThemeTokens.accent.withValues(alpha: 0.78)
+                          : tokens.textMuted.withValues(alpha: 0.55),
+                    );
+                  }),
+                ),
+                onSelectionChanged: (selection) {
+                  setState(() => _range = selection.single);
+                },
               ),
-              onSelectionChanged: (selection) {
-                setState(() => _range = selection.single);
-              },
             ),
-          ),
         ],
       ),
       body: SafeArea(

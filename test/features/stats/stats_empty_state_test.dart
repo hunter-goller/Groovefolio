@@ -9,60 +9,78 @@ import 'package:vinyl_app/services/stats_service.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 
 void main() {
-  for (final scale in [1.0, 1.8]) {
-    testWidgets('full collection count fits at 360px and text scale $scale', (
-      tester,
-    ) async {
-      await tester.binding.setSurfaceSize(const Size(360, 780));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            statsDashboardProvider.overrideWith(
-              (ref, range) async => const StatsDashboardData(
-                summary: CollectionSummary(
-                  totalAlbums: 1234,
-                  playedAlbums: 567,
-                  totalPlays: 9876,
-                  averagePlaysPerWeek: 23.4,
+  for (final (width, scale) in [(360.0, 1.0), (360.0, 1.8), (430.0, 1.0)]) {
+    testWidgets(
+      'full collection count fits at ${width}px and text scale $scale',
+      (tester) async {
+        await tester.binding.setSurfaceSize(Size(width, 780));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final currentYear = DateTime.now().year;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              statsDashboardProvider.overrideWith(
+                (ref, range) async => StatsDashboardData(
+                  summary: const CollectionSummary(
+                    totalAlbums: 1234,
+                    playedAlbums: 567,
+                    totalPlays: 9876,
+                    averagePlaysPerWeek: 23.4,
+                  ),
+                  months: [
+                    for (var month = 1; month <= 12; month++)
+                      MonthlyPlays(
+                        year: currentYear,
+                        month: month,
+                        playCount: 0,
+                      ),
+                  ],
+                  years: const [],
+                  genres: const [],
+                  mostPlayed: const [],
+                  topArtists: const [],
+                  firstVinyl: null,
+                  firstVinylArtistName: null,
                 ),
-                months: [],
-                years: [],
-                genres: [],
-                mostPlayed: [],
-                topArtists: [],
-                firstVinyl: null,
-                firstVinylArtistName: null,
               ),
+            ],
+            child: MaterialApp(
+              theme: AppTheme.light,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(scale)),
+                child: child!,
+              ),
+              home: const StatsScreen(),
             ),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.light,
-            builder: (context, child) => MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(textScaler: TextScaler.linear(scale)),
-              child: child!,
-            ),
-            home: const StatsScreen(),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      for (final allTime in [false, true]) {
-        if (allTime) {
-          await tester.tap(find.text('All time'));
-          await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
+        for (final allTime in [false, true]) {
+          if (allTime) {
+            final menu = find.byKey(const Key('stats-range-menu'));
+            if (menu.evaluate().isNotEmpty) {
+              await tester.tap(menu);
+              await tester.pumpAndSettle();
+            }
+            await tester.tap(find.text('All time'));
+            await tester.pumpAndSettle();
+          }
+          final count = find.text('567 / 1234');
+          final paragraph = tester.renderObject<RenderParagraph>(count);
+          expect(paragraph.didExceedMaxLines, isFalse);
+          final rect = tester.getRect(count);
+          expect(rect.left, greaterThanOrEqualTo(0));
+          expect(rect.right, lessThanOrEqualTo(width));
+          expect(
+            find.text(allTime ? 'played all time' : 'played in $currentYear'),
+            findsOneWidget,
+          );
+          expect(tester.takeException(), isNull);
         }
-        final count = find.text('567 / 1234');
-        final paragraph = tester.renderObject<RenderParagraph>(count);
-        expect(paragraph.didExceedMaxLines, isFalse);
-        final rect = tester.getRect(count);
-        expect(rect.left, greaterThanOrEqualTo(0));
-        expect(rect.right, lessThanOrEqualTo(360));
-        expect(tester.takeException(), isNull);
-      }
-    });
+      },
+    );
   }
 
   testWidgets('no-play Stats state opens Log Play from its CTA', (
