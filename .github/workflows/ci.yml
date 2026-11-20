@@ -19,11 +19,15 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          # Pinned so CI matches pubspec.lock. A floating "stable" channel
+          # silently changes Flutter-pinned packages and can break resolution.
+          # Upgrade Flutter deliberately in its own PR, together with the lock.
           channel: stable
+          flutter-version: 3.44.9
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Generate code
         run: dart run build_runner build
