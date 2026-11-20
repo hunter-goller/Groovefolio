@@ -45,6 +45,58 @@ void main() {
     },
   );
 
+  test(
+    'no manifest lets Android route arbitrary NFC tags or payment cards',
+    () {
+      // Payment cards and unrelated tags only reach an app through broad
+      // TECH_DISCOVERED or TAG_DISCOVERED filters, or an NDEF filter without
+      // the Groovefolio URI. Debug and profile manifests merge into builds.
+      final manifests = Directory('android/app/src')
+          .listSync()
+          .whereType<Directory>()
+          .map((dir) => File('${dir.path}/AndroidManifest.xml'))
+          .where((file) => file.existsSync())
+          .toList();
+      expect(
+        manifests.map((file) => file.path),
+        contains(endsWith('main/AndroidManifest.xml')),
+      );
+
+      for (final file in manifests) {
+        final manifest = file.readAsStringSync();
+        expect(
+          manifest,
+          isNot(contains('android.nfc.action.TECH_DISCOVERED')),
+          reason: '${file.path} must not declare TECH_DISCOVERED',
+        );
+        expect(
+          manifest,
+          isNot(contains('android.nfc.action.TAG_DISCOVERED')),
+          reason: '${file.path} must not declare TAG_DISCOVERED',
+        );
+
+        final ndefFilters =
+            RegExp(r'<intent-filter\b[^>]*>[\s\S]*?</intent-filter>')
+                .allMatches(manifest)
+                .map((match) => match.group(0)!)
+                .where((filter) => filter.contains('NDEF_DISCOVERED'));
+        for (final filter in ndefFilters) {
+          final data = RegExp(
+            r'<data\b[^>]*/>',
+          ).allMatches(filter).map((match) => match.group(0)!).toList();
+          expect(
+            data,
+            hasLength(1),
+            reason: 'NDEF filters must declare exactly one <data> element',
+          );
+          expect(data.single, contains('android:scheme="groovefolio"'));
+          expect(data.single, contains('android:host="album"'));
+          expect(data.single, isNot(contains('android:mimeType')));
+        }
+      }
+    },
+  );
+
   test('cold launch guards the payload before Flutter attaches', () {
     final activity = File(
       'android/app/src/main/kotlin/app/groovefolio/MainActivity.kt',

@@ -8,7 +8,7 @@ cd Groovefolio
 ```
 
 ## Flutter
-Use the Flutter/Dart versions compatible with the repository's `pubspec.yaml` (`sdk: ^3.12.2` at this checkpoint).
+Use Flutter `3.44.9` (Dart `3.12.2`), the version CI pins. Newer Flutter releases change Flutter-pinned packages and are not yet supported by this lockfile.
 
 ```powershell
 flutter doctor
