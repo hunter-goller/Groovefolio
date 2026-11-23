@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/albums/album_delete_flow.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
 import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
@@ -344,6 +345,7 @@ class _CollectionAlbumTileState extends ConsumerState<_CollectionAlbumTile> {
     widget.openSwipeAlbumId.value = album.id;
     setState(() => _offset = _revealedOffset);
     ref.read(walkthroughProvider.notifier).swipeRevealed();
+    ref.tutorialEvent(TutorialEvent.swiped);
   }
 
   void _close() {

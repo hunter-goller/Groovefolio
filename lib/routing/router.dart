@@ -7,6 +7,9 @@ import 'package:vinyl_app/features/albums/screens/collection_screen.dart';
 import 'package:vinyl_app/features/albums/screens/edit_album_screen.dart';
 import 'package:vinyl_app/features/discover/screens/discover_screen.dart';
 import 'package:vinyl_app/features/onboarding/screens/onboarding_screen.dart';
+import 'package:vinyl_app/features/onboarding/tracks/screens/gold_record_screen.dart';
+import 'package:vinyl_app/features/onboarding/tracks/screens/tracklist_screen.dart';
+import 'package:vinyl_app/features/onboarding/tracks/widgets/tutorial_overlay_host.dart';
 import 'package:vinyl_app/features/onboarding/widgets/onboarding_gate.dart';
 import 'package:vinyl_app/features/onboarding/widgets/walkthrough_frame.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
@@ -29,8 +32,9 @@ GoRouter router(Ref ref) {
     initialLocation: AppRoutes.collection,
     routes: [
       ShellRoute(
-        builder: (context, state, child) =>
-            WalkthroughFrame(path: state.uri.path, child: child),
+        builder: (context, state, child) => TutorialOverlayHost(
+          child: WalkthroughFrame(path: state.uri.path, child: child),
+        ),
         routes: [
           GoRoute(
             path: AppRoutes.collection,
@@ -84,6 +88,14 @@ GoRouter router(Ref ref) {
           GoRoute(
             path: AppRoutes.onboarding,
             builder: (context, state) => const OnboardingScreen(replay: true),
+          ),
+          GoRoute(
+            path: AppRoutes.tutorial,
+            builder: (context, state) => const TracklistScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.tutorialGold,
+            builder: (context, state) => const GoldRecordScreen(),
           ),
           GoRoute(
             path: AppRoutes.discogsCollectionImport,

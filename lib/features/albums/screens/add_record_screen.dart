@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:vinyl_app/db/app_database.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
 import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
@@ -374,6 +375,7 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
         return;
       }
       final messenger = ScaffoldMessenger.of(context);
+      ref.tutorialEvent(TutorialEvent.recordAdded);
       if (ref.read(walkthroughProvider).active) {
         await ref
             .read(walkthroughProvider.notifier)

@@ -44,6 +44,13 @@ Future<TutorialEvidence> readTutorialEvidence(AppDatabase db) async {
   );
 }
 
+/// Reads [TutorialEvidence] from the collection. Overridable in tests.
+final tutorialEvidenceReaderProvider =
+    Provider<Future<TutorialEvidence> Function()>(
+      (ref) =>
+          () => readTutorialEvidence(ref.read(databaseProvider)),
+    );
+
 /// Saved progress merged with evidence from the collection.
 class TutorialProgressState {
   const TutorialProgressState({required this.data, required this.evidence});
@@ -94,7 +101,7 @@ class TutorialProgressController extends AsyncNotifier<TutorialProgressState> {
 
   Future<TutorialEvidence> _readEvidence() async {
     try {
-      return await readTutorialEvidence(ref.read(databaseProvider));
+      return await ref.read(tutorialEvidenceReaderProvider)();
     } catch (error, stackTrace) {
       logAppError('read tutorial evidence', error, stackTrace);
       return TutorialEvidence.none;

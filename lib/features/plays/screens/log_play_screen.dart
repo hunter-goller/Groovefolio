@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
 import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
@@ -163,6 +164,7 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
 
       _playSaved = true;
       if (!mounted) return;
+      ref.tutorialEvent(TutorialEvent.playLogged);
       ref.invalidate(albumsProvider);
       ref.invalidate(recentlyPlayedProvider);
       ref.invalidate(playCountProvider(album.id));

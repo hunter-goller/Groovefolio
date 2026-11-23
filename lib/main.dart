@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/db/database_provider.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
 import 'package:vinyl_app/features/startup/app_startup.dart';
 import 'package:vinyl_app/features/stats/screens/stats_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
@@ -90,6 +91,7 @@ class MyApp extends ConsumerWidget {
 
     final repository = ref.read(playRepositoryProvider);
     _refreshPlayData(ref, result.album.id);
+    ref.tutorialEvent(TutorialEvent.playLogged);
 
     if (delivery.isExternal) {
       final notificationShown = await ref

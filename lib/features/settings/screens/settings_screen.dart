@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_progress.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
 import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
 import 'package:vinyl_app/features/settings/widgets/discogs_connection_card.dart';
@@ -111,19 +113,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               ),
             ),
             SizedBox(height: tokens.space12),
-            Card(
-              child: ListTile(
-                key: const Key('replay-onboarding'),
-                contentPadding: EdgeInsets.all(tokens.space16),
-                leading: const Icon(Icons.school_outlined),
-                title: const Text('Replay getting started'),
-                subtitle: const Text(
-                  'Review how to build your shelf, log plays, and use Groovefolio.',
+            if (ref.watch(newTutorialEnabledProvider))
+              Card(
+                child: ListTile(
+                  key: const Key('settings-getting-started'),
+                  contentPadding: EdgeInsets.all(tokens.space16),
+                  leading: const Icon(Icons.album_rounded),
+                  title: const Text('Getting started'),
+                  subtitle: Text(switch (ref
+                      .watch(tutorialViewProvider)
+                      .value) {
+                    final view? when view.isGold =>
+                      'Gold record · ${view.badges.length} badges',
+                    final view? =>
+                      '${view.requiredDone} of ${view.required.length} tracks · '
+                          '${view.badges.length} badges',
+                    null => 'Learn the app, one track at a time.',
+                  }),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => context.push(AppRoutes.tutorial),
                 ),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => context.push(AppRoutes.onboarding),
+              )
+            else
+              Card(
+                child: ListTile(
+                  key: const Key('replay-onboarding'),
+                  contentPadding: EdgeInsets.all(tokens.space16),
+                  leading: const Icon(Icons.school_outlined),
+                  title: const Text('Replay getting started'),
+                  subtitle: const Text(
+                    'Review how to build your shelf, log plays, and use Groovefolio.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => context.push(AppRoutes.onboarding),
+                ),
               ),
-            ),
             if (ref.watch(nfcHelpVisibleProvider))
               Card(
                 child: ListTile(

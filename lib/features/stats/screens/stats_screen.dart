@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/stats_service.dart';
@@ -143,6 +144,12 @@ class StatsScreen extends ConsumerStatefulWidget {
 
 class _StatsScreenState extends ConsumerState<StatsScreen> {
   StatsRange _range = StatsRange.currentYear;
+
+  @override
+  void initState() {
+    super.initState();
+    ref.tutorialEvent(TutorialEvent.statsViewed);
+  }
 
   @override
   Widget build(BuildContext context) {
