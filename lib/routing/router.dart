@@ -6,12 +6,10 @@ import 'package:vinyl_app/features/albums/screens/barcode_scanner_screen.dart';
 import 'package:vinyl_app/features/albums/screens/collection_screen.dart';
 import 'package:vinyl_app/features/albums/screens/edit_album_screen.dart';
 import 'package:vinyl_app/features/discover/screens/discover_screen.dart';
-import 'package:vinyl_app/features/onboarding/screens/onboarding_screen.dart';
 import 'package:vinyl_app/features/onboarding/tracks/screens/gold_record_screen.dart';
 import 'package:vinyl_app/features/onboarding/tracks/screens/tracklist_screen.dart';
 import 'package:vinyl_app/features/onboarding/tracks/widgets/tutorial_overlay_host.dart';
 import 'package:vinyl_app/features/onboarding/widgets/onboarding_gate.dart';
-import 'package:vinyl_app/features/onboarding/widgets/walkthrough_frame.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/features/settings/screens/discogs_collection_import_screen.dart';
 import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
@@ -24,7 +22,7 @@ part 'router.g.dart';
 /// Exposes the app's GoRouter instance via Riverpod.
 ///
 /// The generated `routerProvider` is rebuilt with build_runner. A ShellRoute
-/// keeps walkthrough cues mounted across screens, while OnboardingGate runs
+/// keeps the tutorial spotlight mounted across screens, while OnboardingGate runs
 /// only on the ordinary Collection entry route.
 @riverpod
 GoRouter router(Ref ref) {
@@ -32,9 +30,7 @@ GoRouter router(Ref ref) {
     initialLocation: AppRoutes.collection,
     routes: [
       ShellRoute(
-        builder: (context, state, child) => TutorialOverlayHost(
-          child: WalkthroughFrame(path: state.uri.path, child: child),
-        ),
+        builder: (context, state, child) => TutorialOverlayHost(child: child),
         routes: [
           GoRoute(
             path: AppRoutes.collection,
@@ -84,10 +80,6 @@ GoRouter router(Ref ref) {
           GoRoute(
             path: AppRoutes.settings,
             builder: (context, state) => const SettingsScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.onboarding,
-            builder: (context, state) => const OnboardingScreen(replay: true),
           ),
           GoRoute(
             path: AppRoutes.tutorial,

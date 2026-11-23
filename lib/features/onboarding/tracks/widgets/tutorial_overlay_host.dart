@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vinyl_app/features/onboarding/tracks/spotlight/spotlight_overlay.dart';
 import 'package:vinyl_app/features/onboarding/tracks/track_launcher.dart';
 import 'package:vinyl_app/features/onboarding/tracks/tutorial_progress.dart';
 import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
@@ -9,90 +10,22 @@ import 'package:vinyl_app/features/onboarding/tracks/widgets/tutorial_visuals.da
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 
-/// Wraps every screen: a compact hint bar while a track is playing, and the
-/// "Track complete" celebration when one finishes. Does nothing while the
-/// new tutorial is switched off. (Part 3 replaces the bar with a spotlight.)
+/// Wraps every screen: the spotlight while a track is playing, and the
+/// "Track complete" celebration when one finishes.
 class TutorialOverlayHost extends ConsumerWidget {
   const TutorialOverlayHost({super.key, required this.child});
   final Widget child;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!ref.watch(newTutorialEnabledProvider)) return child;
-    final session = ref.watch(tutorialSessionProvider);
-    final active = session.active;
-    final celebrating = session.celebrating;
+    final celebrating = ref.watch(tutorialSessionProvider).celebrating;
     return Stack(
       children: [
-        Column(
-          children: [
-            if (active != null) _HintBar(track: active),
-            Expanded(child: child),
-          ],
-        ),
+        child,
+        const Positioned.fill(child: SpotlightOverlay()),
         if (celebrating != null)
           Positioned.fill(child: _TrackComplete(track: celebrating)),
       ],
-    );
-  }
-}
-
-class _HintBar extends ConsumerWidget {
-  const _HintBar({required this.track});
-  final TutorialTrack track;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.theme.colorScheme;
-    return Material(
-      color: colors.surfaceContainerHigh,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: colors.primary,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-                child: Text(
-                  'TRACK ${track.number}',
-                  style: TextStyle(
-                    color: colors.onPrimary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    trackHint(track),
-                    key: const Key('tutorial-hint'),
-                    style: context.theme.textTheme.bodyMedium,
-                  ),
-                ),
-              ),
-              IconButton(
-                key: const Key('tutorial-quit'),
-                tooltip: 'Stop this track',
-                onPressed: () =>
-                    ref.read(tutorialSessionProvider.notifier).quit(),
-                icon: const Icon(Icons.close_rounded),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

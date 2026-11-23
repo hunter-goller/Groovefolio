@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
+import 'package:vinyl_app/features/onboarding/tracks/spotlight/spotlight_target.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 
@@ -12,7 +12,7 @@ class EmptyState extends StatelessWidget {
     this.ctaLabel,
     this.onCtaTap,
     this.ctaKey,
-    this.guideSteps = const [],
+    this.ctaSpotlight,
     super.key,
   }) : assert(
          (ctaLabel == null) == (onCtaTap == null),
@@ -25,7 +25,9 @@ class EmptyState extends StatelessWidget {
   final String? ctaLabel;
   final VoidCallback? onCtaTap;
   final Key? ctaKey;
-  final List<int> guideSteps;
+
+  /// Lets the tutorial spotlight the button.
+  final SpotlightId? ctaSpotlight;
 
   @override
   Widget build(BuildContext context) {
@@ -69,12 +71,11 @@ class EmptyState extends StatelessWidget {
           ),
           if (ctaLabel != null) ...[
             SizedBox(height: tokens.space24),
-            if (guideSteps.isEmpty)
+            if (ctaSpotlight == null)
               PrimaryButton(key: ctaKey, label: ctaLabel!, onPressed: onCtaTap)
             else
-              GuideTarget(
-                steps: guideSteps,
-                outlineGap: true,
+              SpotlightTarget(
+                id: ctaSpotlight!,
                 child: PrimaryButton(
                   key: ctaKey,
                   label: ctaLabel!,

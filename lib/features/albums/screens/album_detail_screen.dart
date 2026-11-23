@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/albums/album_delete_flow.dart';
+import 'package:vinyl_app/features/onboarding/tracks/spotlight/spotlight_target.dart';
 import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
-import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
@@ -12,7 +12,6 @@ import 'package:vinyl_app/providers/track_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
-import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/types/side_played.dart';
@@ -57,8 +56,8 @@ class AlbumDetailScreen extends ConsumerWidget {
           leading: BackButton(onPressed: () => _goBack(context)),
           title: const Text('Album Details'),
           actions: [
-            GuideTarget(
-              steps: const [4],
+            SpotlightTarget(
+              id: SpotlightId.recordMenu,
               child: PopupMenuButton<_AlbumMenuAction>(
                 tooltip: 'Record actions',
                 onSelected: (action) {
@@ -174,30 +173,24 @@ class AlbumDetailScreen extends ConsumerWidget {
     AlbumDetailData detail,
   ) async {
     final tokens = context.tokens;
-    final playForm = ref.read(walkthroughPlayFormProvider.notifier);
-    playForm.setOpen(true);
-    try {
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        backgroundColor: tokens.background,
-        builder: (sheetContext) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
-          ),
-          child: FractionallySizedBox(
-            heightFactor: 0.92,
-            child: LogPlayScreen(
-              isBottomSheet: true,
-              initialAlbum: detail.collectionAlbum,
-            ),
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: tokens.background,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+        ),
+        child: FractionallySizedBox(
+          heightFactor: 0.92,
+          child: LogPlayScreen(
+            isBottomSheet: true,
+            initialAlbum: detail.collectionAlbum,
           ),
         ),
-      );
-    } finally {
-      playForm.setOpen(false);
-    }
+      ),
+    );
     if (context.mounted) ref.invalidate(albumDetailProvider(detail.album.id));
   }
 
@@ -219,7 +212,6 @@ class AlbumDetailScreen extends ConsumerWidget {
     );
     if (!context.mounted || outcome != NfcWriteOutcome.written) return;
 
-    await ref.read(walkthroughProvider.notifier).nfcLinked();
     ref.tutorialEvent(TutorialEvent.nfcLinked);
     if (!context.mounted) return;
     ref.invalidate(albumNfcTagProvider(albumId));
@@ -272,17 +264,10 @@ class _AlbumDetailBody extends StatelessWidget {
         SizedBox(height: tokens.space16),
         _ListeningSummary(detail: detail),
         SizedBox(height: tokens.space16),
-        GuideTarget(
-          steps: const [3],
-          reveal: true,
-          outlineGap: true,
-          child: PrimaryButton(
-            label: detail.playCount == 0
-                ? 'Log first play'
-                : 'Log another play',
-            icon: Icons.play_arrow_rounded,
-            onPressed: () async => onLogPlay(),
-          ),
+        PrimaryButton(
+          label: detail.playCount == 0 ? 'Log first play' : 'Log another play',
+          icon: Icons.play_arrow_rounded,
+          onPressed: () async => onLogPlay(),
         ),
         SizedBox(height: tokens.space24),
         SectionHeader(

@@ -8,7 +8,8 @@ import 'package:vinyl_app/main.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
-import 'package:vinyl_app/services/onboarding_service.dart';
+
+import 'support/tutorial_test_support.dart';
 
 void main() {
   testWidgets('App boots and resolves to the Collection screen', (
@@ -23,7 +24,7 @@ void main() {
         overrides: [
           databaseProvider.overrideWithValue(db),
           appLinksEnabledProvider.overrideWithValue(false),
-          onboardingRequiredProvider.overrideWithValue(const AsyncData(false)),
+          skipTutorialWelcome(),
           nfcAvailabilityProvider.overrideWith((ref) async {
             nfcAvailabilityChecks += 1;
             return NfcAvailabilityState.unsupported;

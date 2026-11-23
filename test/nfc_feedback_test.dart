@@ -13,8 +13,9 @@ import 'package:vinyl_app/services/nfc/nfc_delivery_context.dart';
 import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/notifications/nfc_play_notification_service.dart';
-import 'package:vinyl_app/services/onboarding_service.dart';
 import 'package:vinyl_app/types/side_played.dart';
+
+import 'support/tutorial_test_support.dart';
 
 class _Notifications implements INfcPlayNotificationService {
   _Notifications(this.allowed);
@@ -255,7 +256,7 @@ Future<_NfcAppFixture> _pumpNfcApp(
       overrides: [
         databaseProvider.overrideWithValue(db),
         incomingAppLinkStreamProvider.overrideWithValue(uris.stream),
-        onboardingRequiredProvider.overrideWithValue(const AsyncData(false)),
+        skipTutorialWelcome(),
         nfcAvailabilityProvider.overrideWith(
           (ref) async => NfcAvailabilityState.unsupported,
         ),

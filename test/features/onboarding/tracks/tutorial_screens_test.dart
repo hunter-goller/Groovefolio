@@ -29,8 +29,7 @@ class _Harness {
   late ProviderContainer container;
   late GoRouter router;
 
-  List<Override> overrides({bool enabled = true}) => [
-    newTutorialEnabledProvider.overrideWithValue(enabled),
+  List<Override> overrides() => [
     tutorialProgressStoreProvider.overrideWithValue(store),
     onboardingStoreProvider.overrideWithValue(MemoryLegacyStore()),
     nfcHelpVisibleProvider.overrideWithValue(false),
@@ -42,7 +41,6 @@ class _Harness {
   Future<void> pump(
     WidgetTester tester, {
     String initial = AppRoutes.collection,
-    bool enabled = true,
   }) async {
     Widget page(String name) => Scaffold(body: Center(child: Text(name)));
     router = GoRouter(
@@ -83,7 +81,7 @@ class _Harness {
         ),
       ],
     );
-    container = ProviderContainer(overrides: overrides(enabled: enabled));
+    container = ProviderContainer(overrides: overrides());
     addTearDown(container.dispose);
     await tester.pumpWidget(
       UncontrolledProviderScope(
@@ -163,9 +161,9 @@ void main() {
 
         await tester.tap(find.byKey(const Key('shelf-choice-by-hand')));
         await h.settle(tester);
-        expect(h.path, AppRoutes.addAlbum);
+        expect(h.path, AppRoutes.collection);
         expect(h.session.active, TutorialTrack.addRecord);
-        expect(find.byKey(const Key('tutorial-hint')), findsOneWidget);
+        expect(find.text('Add your first record'), findsWidgets);
         expect(h.store.saved!.introSeen, isTrue);
       },
     );
@@ -246,7 +244,7 @@ void main() {
           .read(tutorialSessionProvider.notifier)
           .play(TutorialTrack.logSpin);
       await h.settle(tester);
-      expect(find.byKey(const Key('tutorial-hint')), findsOneWidget);
+      expect(find.byKey(const Key('spotlight-title')), findsOneWidget);
 
       h.plays = 1;
       await h.container
@@ -256,7 +254,7 @@ void main() {
       expect(find.text('TRACK 2 COMPLETE'), findsOneWidget);
       expect(find.byKey(const Key('track-complete-badge')), findsOneWidget);
       expect(find.text('First Spin'), findsOneWidget);
-      expect(find.byKey(const Key('tutorial-hint')), findsNothing);
+      expect(find.byKey(const Key('spotlight-title')), findsNothing);
 
       await tester.tap(find.byKey(const Key('track-complete-shelf')));
       await h.settle(tester);
@@ -349,68 +347,14 @@ void main() {
           .read(tutorialSessionProvider.notifier)
           .play(TutorialTrack.stats);
       await h.settle(tester);
-      await tester.tap(find.byKey(const Key('tutorial-quit')));
+      await tester.tap(find.byKey(const Key('spotlight-pause')));
       await h.settle(tester);
       expect(h.session.active, isNull);
-      expect(find.byKey(const Key('tutorial-hint')), findsNothing);
+      expect(find.byKey(const Key('spotlight-title')), findsNothing);
       expect(
         h.container.read(tutorialViewProvider).requireValue.badges,
         isEmpty,
       );
-    });
-  });
-
-  group('switched off (the default until part 3)', () {
-    testWidgets('no hint bar or celebration is shown', (tester) async {
-      final h = _Harness();
-      final container = ProviderContainer(
-        overrides: h.overrides(enabled: false),
-      );
-      addTearDown(container.dispose);
-      container
-          .read(tutorialSessionProvider.notifier)
-          .play(TutorialTrack.stats);
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(
-            home: TutorialOverlayHost(child: Text('Old app')),
-          ),
-        ),
-      );
-      expect(find.text('Old app'), findsOneWidget);
-      expect(find.byKey(const Key('tutorial-hint')), findsNothing);
-    });
-
-    testWidgets('events from screens are ignored and nothing is saved', (
-      tester,
-    ) async {
-      final h = _Harness(saved: const TutorialProgressData(introSeen: true));
-      final container = ProviderContainer(
-        overrides: h.overrides(enabled: false),
-      );
-      addTearDown(container.dispose);
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            home: Consumer(
-              builder: (context, ref, _) => TextButton(
-                onPressed: () {
-                  for (final event in TutorialEvent.values) {
-                    ref.tutorialEvent(event, imported: 5);
-                  }
-                },
-                child: const Text('Do things'),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.tap(find.text('Do things'));
-      await tester.pump(const Duration(milliseconds: 200));
-      expect(container.exists(tutorialProgressProvider), isFalse);
-      expect(h.store.writes, 0);
     });
   });
 }

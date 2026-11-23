@@ -222,6 +222,24 @@ class TutorialView {
 
   bool get isGold => required.isNotEmpty && requiredDone == required.length;
 
+  /// The track to suggest after skipping [current]: like [next], but never
+  /// [current] itself, and the tracks after it come first.
+  TutorialTrack? nextAfter(TutorialTrack current) {
+    bool playable(TutorialTrack track) =>
+        track != current && statusOf(track) == TutorialTrackStatus.available;
+    final order = [
+      ...tracks.where((t) => t.number > current.number),
+      ...tracks.where((t) => t.number < current.number),
+    ];
+    for (final track in order) {
+      if (!track.optional && playable(track)) return track;
+    }
+    for (final track in order) {
+      if (track.optional && playable(track)) return track;
+    }
+    return null;
+  }
+
   /// The track to suggest next: the first playable required one, then the
   /// first playable optional one. Null when there's nothing left to play.
   TutorialTrack? get next {

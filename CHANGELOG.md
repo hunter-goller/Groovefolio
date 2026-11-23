@@ -4,6 +4,10 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ## Unreleased
 
+### Tutorial tracks (part 3a)
+- Turned on the game-style tutorial for everyone and removed the old 8-step walkthrough.
+- Added the spotlight guide: dims all but one real control, a coach bubble with Pause and Skip, a short hand demonstration (still with reduced motion), Show me when off track, and Add by hand instead on the Discogs path. Side A tracks are fully scripted.
+
 ### Tutorial tracks (part 2)
 - Added the game-style tutorial screens behind `GROOVEFOLIO_NEW_TUTORIAL` (off by default): Welcome, the Track 1 Discogs-or-by-hand choice, the NFC intro, a track hint bar, Track complete celebrations with badges, the Getting started tracklist and the Gold record.
 

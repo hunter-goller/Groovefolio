@@ -6,8 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:vinyl_app/db/app_database.dart';
+import 'package:vinyl_app/features/onboarding/tracks/spotlight/spotlight_target.dart';
 import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
-import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
@@ -19,7 +19,6 @@ import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/record_write_service.dart';
-import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/utils/error_reporting.dart';
 import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
@@ -376,15 +375,7 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
       }
       final messenger = ScaffoldMessenger.of(context);
       ref.tutorialEvent(TutorialEvent.recordAdded);
-      if (ref.read(walkthroughProvider).active) {
-        await ref
-            .read(walkthroughProvider.notifier)
-            .recordSaved(createdAlbum.id);
-        if (!mounted) {
-          return;
-        }
-        context.go(AppRoutes.collection);
-      } else if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+      if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
               'true' &&
           context.canPop()) {
         context.pop();
@@ -438,12 +429,8 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
       appBar: AppBar(
         title: const Text('Add a record'),
         actions: [
-          GuideTarget(
-            steps:
-                _titleController.text.trim().isNotEmpty &&
-                    _artistController.text.trim().isNotEmpty
-                ? const [1, 2]
-                : const [],
+          SpotlightTarget(
+            id: SpotlightId.addSave,
             child: TextButton(
               onPressed: isSaving ? null : _save,
               child: Text(_savedAlbumId == null ? 'Save' : 'View record'),
@@ -481,11 +468,8 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
                     Expanded(
                       child: Column(
                         children: [
-                          GuideTarget(
-                            steps: _titleController.text.trim().isEmpty
-                                ? const [1, 2]
-                                : const [],
-                            cue: GuideCue.field,
+                          SpotlightTarget(
+                            id: SpotlightId.addTitle,
                             child: LabeledTextField(
                               key: const Key('add-record-title'),
                               label: 'TITLE *',
@@ -497,13 +481,8 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
                             ),
                           ),
                           SizedBox(height: tokens.space12),
-                          GuideTarget(
-                            steps:
-                                _titleController.text.trim().isNotEmpty &&
-                                    _artistController.text.trim().isEmpty
-                                ? const [1, 2]
-                                : const [],
-                            cue: GuideCue.field,
+                          SpotlightTarget(
+                            id: SpotlightId.addArtist,
                             child: LabeledTextField(
                               key: const Key('add-record-artist'),
                               label: 'ARTIST *',

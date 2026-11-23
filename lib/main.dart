@@ -19,9 +19,7 @@ import 'package:vinyl_app/services/nfc/nfc_intent_play_handler.dart';
 import 'package:vinyl_app/services/nfc/nfc_play_undo.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/notifications/nfc_play_notification_service.dart';
-import 'package:vinyl_app/services/onboarding_service.dart';
 import 'package:vinyl_app/services/recommendation_service.dart';
-import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/theme/theme_provider.dart';
 
@@ -249,33 +247,16 @@ class MyApp extends ConsumerWidget {
           final config = ref.read(discogsConfigProvider);
           if (!config.matchesCallback(uri)) return;
 
-          final service = ref.read(onboardingServiceProvider);
           final controller = ref.read(
             discogsAuthorizationControllerProvider.notifier,
           );
-          // A live walkthrough (including replay) owns its return destination.
-          bool pending = false;
-          try {
-            pending = await service.hasPendingWalkthrough();
-          } catch (_) {
-            // Storage failure must not block the existing OAuth flow.
-          }
-          if (!context.mounted) return;
-          final guide = ref.read(walkthroughProvider);
-          if (guide.active) {
-            // A late callback must not pull the user out of a later form.
-            if (guide.step == 0) router.go(AppRoutes.settings);
-          } else if (router.state.uri.path != AppRoutes.onboarding) {
-            if (pending) {
-              router.go(AppRoutes.collection);
-            } else if (router.state.uri.path != AppRoutes.settings) {
-              // The router state includes pushed pages; the route information
-              // provider may still describe the screen underneath Settings.
-              // Keep the current screen as a Back destination, including on
-              // cold starts. If Settings is already open, retain its stack;
-              // replacing it with go() would strand the user after login.
-              unawaited(router.push<void>(AppRoutes.settings));
-            }
+          if (router.state.uri.path != AppRoutes.settings) {
+            // The router state includes pushed pages; the route information
+            // provider may still describe the screen underneath Settings.
+            // Keep the current screen as a Back destination, including on
+            // cold starts. If Settings is already open, retain its stack;
+            // replacing it with go() would strand the user after login.
+            unawaited(router.push<void>(AppRoutes.settings));
           }
           await controller.handleCallback(uri);
         });
