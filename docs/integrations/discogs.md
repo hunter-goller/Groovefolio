@@ -13,6 +13,9 @@ attempts to open `groovefolio://discogs-auth`, with an **Open Groovefolio** link
 requires a tap. The URI contains no tokens or identity. The app verifies its saved transaction
 with the server before showing success. Browsers may block automatic app launches; manual
 return to the waiting Settings screen also triggers one connection check on resume.
+If the resume check and the sign-in link overlap, they share one check; if that check still
+answers "pending" (the user came back before the backend saved the connection), exactly one
+more check runs, so the card doesn't stay on "waiting".
 **Check connection** remains available as a retry/fallback. Deploy the backend app-return
 change to enable the browser handoff; app resume checking also works with the older page.
 

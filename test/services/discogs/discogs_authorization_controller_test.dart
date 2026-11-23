@@ -70,6 +70,52 @@ void main() {
     },
   );
 
+  test(
+    'a pending check followed by the sign-in link checks once more',
+    () async {
+      // The user switches back before the backend has saved the connection;
+      // the sign-in link arrives while that first check is still running.
+      final first = Completer<String>();
+      auth.pendingCheck = first.future;
+      final controller = container.read(
+        discogsAuthorizationControllerProvider.notifier,
+      );
+      await controller.connect();
+      final resumed = controller.checkAuthorization();
+      expect(
+        await controller.handleCallback(
+          Uri.parse('groovefolio://discogs-auth'),
+        ),
+        isTrue,
+      );
+      expect(auth.checks, 1, reason: 'the link waits for the running check');
+
+      auth.pendingCheck = null;
+      auth.status = 'connected';
+      first.complete('pending');
+      await resumed;
+
+      expect(auth.checks, 2, reason: 'one follow-up check, not a loop');
+      expect(
+        container.read(discogsAuthorizationControllerProvider).status,
+        DiscogsAuthorizationStatus.idle,
+      );
+    },
+  );
+
+  test('a pending check with no other request just keeps waiting', () async {
+    final controller = container.read(
+      discogsAuthorizationControllerProvider.notifier,
+    );
+    await controller.connect();
+    await controller.checkAuthorization();
+    expect(auth.checks, 1);
+    expect(
+      container.read(discogsAuthorizationControllerProvider).isAwaitingCallback,
+      isTrue,
+    );
+  });
+
   test('deep link parameters cannot complete authorization themselves', () async {
     final controller = container.read(
       discogsAuthorizationControllerProvider.notifier,

@@ -125,6 +125,10 @@ class DiscogsAuthorizationController
     extends Notifier<DiscogsAuthorizationState> {
   int _operationId = 0;
 
+  /// A check was asked for while one was already running (for example the
+  /// app resumed and the sign-in link arrived together).
+  bool _recheckRequested = false;
+
   @override
   DiscogsAuthorizationState build() => const DiscogsAuthorizationState.idle();
 
@@ -165,11 +169,22 @@ class DiscogsAuthorizationController
     return true;
   }
 
+  /// Asks the backend whether sign-in finished.
+  ///
+  /// Simultaneous requests share one check. But if that check answers
+  /// "pending" (the user came back before the backend saved the
+  /// connection) and another request arrived meanwhile, one more check runs
+  /// straight away, so the later, conclusive answer isn't lost and the
+  /// Settings card doesn't sit on "waiting" until the user retries.
   Future<void> checkAuthorization() async {
-    if (state.status == DiscogsAuthorizationStatus.completing ||
-        state.status == DiscogsAuthorizationStatus.disconnecting) {
+    if (state.status == DiscogsAuthorizationStatus.disconnecting) {
       return;
     }
+    if (state.status == DiscogsAuthorizationStatus.completing) {
+      _recheckRequested = true;
+      return;
+    }
+    _recheckRequested = false;
     final operationId = ++_operationId;
     state = const DiscogsAuthorizationState.completing();
     try {
@@ -178,6 +193,11 @@ class DiscogsAuthorizationController
           .authorizationStatus();
       if (operationId != _operationId) {
         return;
+      }
+      if (status == 'pending' && _recheckRequested) {
+        _recheckRequested = false;
+        state = const DiscogsAuthorizationState.awaitingCallback();
+        return checkAuthorization();
       }
       ref.invalidate(discogsAccountProvider);
       state = switch (status) {
@@ -235,6 +255,7 @@ class DiscogsAuthorizationController
 
   void clearFailure() {
     _operationId++;
+    _recheckRequested = false;
     state = const DiscogsAuthorizationState.idle();
   }
 
