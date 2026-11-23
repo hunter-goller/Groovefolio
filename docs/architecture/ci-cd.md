@@ -25,4 +25,4 @@ The current project compiles against Android SDK 36. `flutter_secure_storage` is
 
 ## Release compilation
 
-CI creates a disposable upload key for the release APK compilation check and discards both key and APK. It does not produce a Play upload artifact or use the developer's actual upload key. See [Android upload signing](../development/android-release-signing.md).
+CI creates a disposable upload key, builds the release **App Bundle** (`flutter build appbundle --release`, the format Google Play requires) and checks with `jarsigner` that it is signed with that upload key and never the debug key. Key and AAB are discarded with the runner. CI does not produce a Play upload artifact or use the developer's actual upload key; build the real AAB locally as described in Android upload signing. See [Android upload signing](../development/android-release-signing.md).
