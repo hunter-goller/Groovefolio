@@ -51,11 +51,16 @@ backend. Normalized DTOs preserve release and instance IDs, genres/styles, track
 sides, durations and pagination. Duplicate review and local writes remain in the importer.
 Artwork uses approved Discogs HTTPS CDN hosts without any bearer header. Redirects are disabled.
 
-HTTP 429 stops the operation and exposes Retry-After as a typed failure; no tight retry loop is
-used. The user can retry after waiting. An interrupted import preserves earlier successful
-records; reload the preview to exclude those exact release IDs before retrying. The current
-backend caps (30 catalog calls/minute per installation, shared server budgets and edge limits)
-can interrupt large imports. Server outages and expired authorization do not erase local data.
+HTTP 429 surfaces Retry-After as a typed failure. Search and lookups stop and the user can retry.
+**Collection import** instead waits as asked (at most 60 seconds; 20 seconds if Discogs gives no
+time), shows "Discogs asked us to slow down. Continuing in N seconds…", and retries the same
+record up to 3 times before stopping. The retry is safe: the limit hits while fetching the
+release, before anything is written. The user can **Cancel import** at any time, including during
+a wait; Back asks first. Each record is written on its own, so a stopped or interrupted import
+keeps earlier records; reload the preview to exclude those exact release IDs before importing the
+rest. The current backend caps (30 catalog calls/minute per installation, shared server budgets
+and edge limits) still slow large imports. Server outages and expired authorization do not erase
+local data.
 
 ## Development and device validation
 

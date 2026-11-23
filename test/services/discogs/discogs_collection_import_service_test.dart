@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -200,7 +201,7 @@ void main() {
     },
   );
 
-  test('systemic rate limit aborts the remaining import batch', () async {
+  test('a rate limit that persists after retries stops the batch', () async {
     final db = AppDatabase(NativeDatabase.memory());
     addTearDown(db.close);
     final albums = AlbumRepository(db);
@@ -219,6 +220,7 @@ void main() {
         ),
       },
     );
+    final waits = <Duration>[];
     final service = DefaultDiscogsCollectionImportService(
       catalog,
       albums,
@@ -226,6 +228,7 @@ void main() {
       links,
       artwork,
       _recordWriter(db, albums, artists, genres, tracks, links),
+      delay: (d) async => waits.add(d),
     );
 
     await expectLater(
@@ -242,8 +245,133 @@ void main() {
       throwsA(isA<DiscogsRateLimitFailure>()),
     );
 
-    expect(catalog.requestedReleases, [100]);
+    // One try plus three retries, each after the wait Discogs asked for.
+    expect(catalog.requestedReleases, [100, 100, 100, 100]);
+    expect(waits, List.filled(3, const Duration(seconds: 2)));
     expect(await albums.findAll(), isEmpty);
+  });
+
+  group('rate limits and cancelling', () {
+    late AppDatabase db;
+    late AlbumRepository albums;
+    late DiscogsReleaseLinkRepository links;
+    late RecordWriteService writer;
+    late ArtistRepository artists;
+
+    setUp(() {
+      db = AppDatabase(NativeDatabase.memory());
+      albums = AlbumRepository(db);
+      artists = ArtistRepository(db);
+      links = DiscogsReleaseLinkRepository(db);
+      writer = _recordWriter(
+        db,
+        albums,
+        artists,
+        GenreRepository(db),
+        TrackRepository(db),
+        links,
+      );
+    });
+    tearDown(() => db.close());
+
+    DefaultDiscogsCollectionImportService service(
+      _FakeCatalogService catalog, {
+      ImportDelay? delay,
+    }) => DefaultDiscogsCollectionImportService(
+      catalog,
+      albums,
+      artists,
+      links,
+      ArtworkStorageService(
+        documentsDirectoryResolver: () async => Directory.systemTemp,
+      ),
+      writer,
+      delay: delay ?? (_) async {},
+    );
+
+    List<DiscogsCollectionCandidate> candidates(List<int> ids) => [
+      for (final id in ids)
+        DiscogsCollectionCandidate(
+          item: _item(id, id, 'Record $id', 'Artist'),
+          status: DiscogsCollectionCandidateStatus.newRecord,
+        ),
+    ];
+
+    test(
+      'waits as Discogs asks, then carries on with the same record',
+      () async {
+        final catalog = _FakeCatalogService(rateLimitedTimes: {101: 2});
+        final waits = <Duration>[];
+        final progress = <DiscogsImportProgress>[];
+        final result = await service(catalog, delay: (d) async => waits.add(d))
+            .importCandidates(
+              candidates([100, 101, 102]),
+              onProgress: progress.add,
+            );
+
+        expect(result.imported, 3);
+        expect(result.cancelled, isFalse);
+        expect(catalog.requestedReleases, [100, 101, 101, 101, 102]);
+        expect(waits, List.filled(2, const Duration(seconds: 5)));
+        expect(
+          progress
+              .where((p) => p.waitingFor != null)
+              .map((p) => p.currentTitle),
+          ['Record 101', 'Record 101'],
+        );
+        expect(await albums.findAll(), hasLength(3));
+      },
+    );
+
+    test('never waits longer than a minute at a time', () async {
+      final catalog = _FakeCatalogService(
+        rateLimitedTimes: {100: 1},
+        retryAfter: const Duration(minutes: 10),
+      );
+      final waits = <Duration>[];
+      await service(
+        catalog,
+        delay: (d) async => waits.add(d),
+      ).importCandidates(candidates([100]));
+      expect(waits, [const Duration(seconds: 60)]);
+    });
+
+    test(
+      'cancelling stops between records and keeps what was imported',
+      () async {
+        final cancellation = DiscogsImportCancellation();
+        final result = await service(_FakeCatalogService()).importCandidates(
+          candidates([100, 101, 102]),
+          onProgress: (p) {
+            if (p.completed == 1) cancellation.cancel();
+          },
+          cancellation: cancellation,
+        );
+        expect(result.cancelled, isTrue);
+        expect(result.imported, 1);
+        expect(await albums.findAll(), hasLength(1));
+      },
+    );
+
+    test('cancelling during a rate-limit wait stops straight away', () async {
+      final cancellation = DiscogsImportCancellation();
+      final never = Completer<void>();
+      final catalog = _FakeCatalogService(rateLimitedTimes: {101: 3});
+      final result =
+          await service(
+            catalog,
+            delay: (_) {
+              cancellation.cancel();
+              return never.future;
+            },
+          ).importCandidates(
+            candidates([100, 101, 102]),
+            cancellation: cancellation,
+          );
+      expect(result.cancelled, isTrue);
+      expect(result.imported, 1);
+      expect(catalog.requestedReleases, [100, 101]);
+    });
   });
 }
 
@@ -287,11 +415,17 @@ class _FakeCatalogService implements DiscogsCatalogService {
     this.pages = const {},
     this.details = const {},
     this.releaseFailures = const {},
-  });
+    Map<int, int> rateLimitedTimes = const {},
+    this.retryAfter = const Duration(seconds: 5),
+  }) : _rateLimitsLeft = Map.of(rateLimitedTimes);
 
   final Map<int, DiscogsCollectionPage> pages;
   final Map<int, DiscogsReleaseDetails> details;
   final Map<int, DiscogsFailure> releaseFailures;
+
+  /// Rate-limit this many requests for a release, then succeed.
+  final Map<int, int> _rateLimitsLeft;
+  final Duration retryAfter;
   final List<int> requestedPages = [];
   final List<int> requestedReleases = [];
 
@@ -321,6 +455,11 @@ class _FakeCatalogService implements DiscogsCatalogService {
     requestedReleases.add(releaseId);
     final failure = releaseFailures[releaseId];
     if (failure != null) throw failure;
+    final left = _rateLimitsLeft[releaseId] ?? 0;
+    if (left > 0) {
+      _rateLimitsLeft[releaseId] = left - 1;
+      throw DiscogsRateLimitFailure('Rate limited.', retryAfter: retryAfter);
+    }
     return details[releaseId] ??
         DiscogsReleaseDetails(
           releaseId: releaseId,

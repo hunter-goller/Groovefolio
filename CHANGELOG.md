@@ -4,6 +4,10 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ## Unreleased
 
+### Discogs import
+- Collection import now waits and retries when Discogs asks it to slow down (up to a minute at a time, 3 retries per record) instead of stopping, and shows that it's waiting.
+- Added Cancel import, and Back asks before stopping an import. Records already imported stay.
+
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
 - Selected the permanent Android application ID `app.groovefolio` before public release and required explicit upload signing for release builds. The developer's real upload key and AAB remain outstanding.

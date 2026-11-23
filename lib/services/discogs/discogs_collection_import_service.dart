@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,11 +69,30 @@ class DiscogsImportProgress {
     required this.completed,
     required this.total,
     this.currentTitle,
+    this.waitingFor,
   });
 
   final int completed;
   final int total;
   final String? currentTitle;
+
+  /// Set while pausing because Discogs asked to slow down.
+  final Duration? waitingFor;
+}
+
+/// Lets the import screen stop an import between records. Records already
+/// imported stay: each one is written on its own.
+class DiscogsImportCancellation {
+  final _cancelled = Completer<void>();
+
+  bool get isCancelled => _cancelled.isCompleted;
+
+  /// Completes when [cancel] is called; used to cut a rate-limit wait short.
+  Future<void> get whenCancelled => _cancelled.future;
+
+  void cancel() {
+    if (!_cancelled.isCompleted) _cancelled.complete();
+  }
 }
 
 class DiscogsImportFailure {
@@ -106,6 +126,7 @@ class DiscogsCollectionImportResult {
     required this.skipped,
     required this.failures,
     required this.warnings,
+    this.cancelled = false,
   });
 
   final int requested;
@@ -113,6 +134,9 @@ class DiscogsCollectionImportResult {
   final int skipped;
   final List<DiscogsImportFailure> failures;
   final List<DiscogsImportWarning> warnings;
+
+  /// The user stopped the import; records after that point weren't tried.
+  final bool cancelled;
 
   int get failed => failures.length;
 }
@@ -132,11 +156,20 @@ abstract interface class DiscogsCollectionImportService {
   /// Earlier successful records stay committed if a later candidate throws.
   /// Artwork download/save failures can instead produce a warning for a
   /// successfully imported record; the entire batch is not one transaction.
+  ///
+  /// When Discogs rate-limits a record, the import waits as asked (at most
+  /// [maxRateLimitWait] each time) and retries that record a few times
+  /// before giving up with [DiscogsRateLimitFailure]. [cancellation] stops it
+  /// between records, or during such a wait.
   Future<DiscogsCollectionImportResult> importCandidates(
     Iterable<DiscogsCollectionCandidate> candidates, {
     void Function(DiscogsImportProgress progress)? onProgress,
+    DiscogsImportCancellation? cancellation,
   });
 }
+
+/// Waits, but returns early if [cancellation] fires. Overridable in tests.
+typedef ImportDelay = Future<void> Function(Duration duration);
 
 class DefaultDiscogsCollectionImportService
     implements DiscogsCollectionImportService {
@@ -146,8 +179,20 @@ class DefaultDiscogsCollectionImportService
     this._artistRepository,
     this._releaseLinkRepository,
     this._artworkStorageService,
-    this._recordWriteService,
-  );
+    this._recordWriteService, {
+    this._delay = Future<void>.delayed,
+  });
+
+  /// Retries per record after a rate limit, before giving up.
+  static const maxRateLimitRetries = 3;
+
+  /// Longest single wait, even if Discogs asks for more.
+  static const maxRateLimitWait = Duration(seconds: 60);
+
+  /// Used when Discogs doesn't say how long to wait.
+  static const defaultRateLimitWait = Duration(seconds: 20);
+
+  final ImportDelay _delay;
 
   final DiscogsCatalogService _catalogService;
   final IAlbumRepository _albumRepository;
@@ -248,6 +293,7 @@ class DefaultDiscogsCollectionImportService
   Future<DiscogsCollectionImportResult> importCandidates(
     Iterable<DiscogsCollectionCandidate> candidates, {
     void Function(DiscogsImportProgress progress)? onProgress,
+    DiscogsImportCancellation? cancellation,
   }) async {
     final selected = candidates
         .where((candidate) => candidate.canImport)
@@ -261,7 +307,12 @@ class DefaultDiscogsCollectionImportService
       DiscogsImportProgress(completed: 0, total: selected.length),
     );
 
+    var stopped = false;
     for (var index = 0; index < selected.length; index++) {
+      if (cancellation?.isCancelled ?? false) {
+        stopped = true;
+        break;
+      }
       final candidate = selected[index];
       onProgress?.call(
         DiscogsImportProgress(
@@ -279,7 +330,22 @@ class DefaultDiscogsCollectionImportService
         if (alreadyLinked != null) {
           skipped += 1;
         } else {
-          final warning = await _importOne(candidate);
+          final (:cancelled, :warning) = await _withRateLimitRetries(
+            () => _importOne(candidate),
+            onWait: (wait) => onProgress?.call(
+              DiscogsImportProgress(
+                completed: index,
+                total: selected.length,
+                currentTitle: candidate.item.title,
+                waitingFor: wait,
+              ),
+            ),
+            cancellation: cancellation,
+          );
+          if (cancelled) {
+            stopped = true;
+            break;
+          }
           if (warning != null) warnings.add(warning);
           imported += 1;
         }
@@ -314,7 +380,36 @@ class DefaultDiscogsCollectionImportService
       skipped: skipped,
       failures: List.unmodifiable(failures),
       warnings: List.unmodifiable(warnings),
+      cancelled: stopped,
     );
+  }
+
+  /// Runs [attempt], waiting and retrying when Discogs rate-limits it.
+  /// Safe to retry: the limit hits while fetching, before anything is saved.
+  Future<({bool cancelled, DiscogsImportWarning? warning})>
+  _withRateLimitRetries(
+    Future<DiscogsImportWarning?> Function() attempt, {
+    required void Function(Duration wait) onWait,
+    DiscogsImportCancellation? cancellation,
+  }) async {
+    for (var retry = 0; ; retry++) {
+      try {
+        return (cancelled: false, warning: await attempt());
+      } on DiscogsRateLimitFailure catch (failure) {
+        if (retry >= maxRateLimitRetries) rethrow;
+        var wait = failure.retryAfter ?? defaultRateLimitWait;
+        if (wait > maxRateLimitWait) wait = maxRateLimitWait;
+        if (wait.isNegative) wait = Duration.zero;
+        onWait(wait);
+        await Future.any([
+          _delay(wait),
+          if (cancellation != null) cancellation.whenCancelled,
+        ]);
+        if (cancellation?.isCancelled ?? false) {
+          return (cancelled: true, warning: null);
+        }
+      }
+    }
   }
 
   Future<DiscogsImportWarning?> _importOne(
