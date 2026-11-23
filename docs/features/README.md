@@ -8,6 +8,7 @@
 - [Discover](discover.md) and [local recommendations](recommendations.md)
 - [Discogs integration](../integrations/discogs.md) — optional; production credentials remain release work
 
+- [Tutorial tracks](tutorial.md) — progress model for the upcoming game-style tutorial; screens in follow-up PRs.
 - [Errors and recovery](error-recovery.md) — retry behavior, saved-operation boundaries, and phone review.
 
 ## Planned

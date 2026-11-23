@@ -4,6 +4,10 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ## Unreleased
 
+### Tutorial tracks (part 1)
+- Added the progress model for the upcoming game-style tutorial: tracks, badges, locking, a gold record, and auto-completion from existing records, plays and NFC tags. Stored on the device only. No visible change yet.
+- If first-run status can't be read from secure storage, the collection now opens instead of a full-screen error with only Retry.
+
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
 - Selected the permanent Android application ID `app.groovefolio` before public release and required explicit upload signing for release builds. The developer's real upload key and AAB remain outstanding.
