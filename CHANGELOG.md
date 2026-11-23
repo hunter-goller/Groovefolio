@@ -6,6 +6,7 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ### Backup and restore
 - Added Settings → Back up collection: a versioned `.zip` with every local table and stored covers, saved wherever the user chooses through the system Save dialog.
+- Added **Save a copy of my data** to the startup error screen: copies the raw database and covers to a rescue file without opening the database.
 - Added Settings → Restore from backup for an empty collection, with a summary and confirmation, one-transaction restore and validation of damaged, foreign or newer-version files.
 
 ### Documentation and release preparation
