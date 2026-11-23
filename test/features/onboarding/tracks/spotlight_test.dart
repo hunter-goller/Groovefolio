@@ -16,6 +16,8 @@ import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
 import 'package:vinyl_app/routing/router.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
+import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
+import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/onboarding_service.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/types/side_played.dart';
@@ -76,7 +78,11 @@ void main() {
     }
   }
 
-  Future<void> pumpApp(WidgetTester tester, {bool records = true}) async {
+  Future<void> pumpApp(
+    WidgetTester tester, {
+    bool records = true,
+    bool nfc = false,
+  }) async {
     await tester.binding.setSurfaceSize(const Size(412, 892));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     db = AppDatabase(NativeDatabase.memory());
@@ -87,7 +93,12 @@ void main() {
         databaseProvider.overrideWithValue(db),
         skipTutorialWelcome(),
         onboardingStoreProvider.overrideWithValue(MemoryLegacyStore()),
-        nfcHelpVisibleProvider.overrideWithValue(false),
+        nfcHelpVisibleProvider.overrideWithValue(nfc),
+        nfcAvailabilityProvider.overrideWith(
+          (ref) async => nfc
+              ? NfcAvailabilityState.available
+              : NfcAvailabilityState.unsupported,
+        ),
         discogsAccountProvider.overrideWithValue(
           const AsyncData<DiscogsAccount?>(null),
         ),
@@ -260,6 +271,90 @@ void main() {
     expect(title(tester), 'Add your first record');
     expect(tester.binding.hasScheduledFrame, isFalse);
     await finish(tester);
+  });
+
+  testWidgets('Track 4: record menu, then Link NFC tag inside the menu', (
+    tester,
+  ) async {
+    await pumpApp(tester, nfc: true);
+    session().play(TutorialTrack.nfc, home: '/album/album-1');
+    unawaited(router().push('/album/album-1'));
+    await settle(tester);
+    expect(title(tester), 'Open the record menu');
+    await tester.tapAt(rectOf(SpotlightId.recordMenu).center);
+    await settle(tester);
+    expect(title(tester), 'Tap Link NFC tag');
+    // The menu item sits in the menu's own layer and stays tappable.
+    expect(find.text('Link NFC tag'), findsOneWidget);
+    expect(
+      container
+          .read(spotlightRegistryProvider)
+          .isMounted(SpotlightId.linkNfcItem),
+      isTrue,
+    );
+    await finish(tester);
+  });
+
+  testWidgets('Track 5: swipe, then Delete is practice and keeps the record', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    session().play(TutorialTrack.swipe, home: '/');
+    await settle(tester);
+    expect(title(tester), 'Swipe for quick actions');
+    final row = rectOf(SpotlightId.firstRecordRow);
+    await tester.dragFrom(
+      row.centerRight - const Offset(20, 0),
+      const Offset(-260, 0),
+    );
+    await settle(tester);
+    expect(title(tester), 'Edit or Delete');
+
+    await tester.tapAt(rectOf(SpotlightId.swipeDelete).center);
+    await settle(tester);
+    expect(find.byKey(const Key('practice-delete')), findsOneWidget);
+    expect(find.byKey(const Key('delete-record-confirm')), findsNothing);
+    await tester.tap(find.byKey(const Key('practice-delete-ok')));
+    await settle(tester);
+    expect(find.text('TRACK 5 COMPLETE'), findsOneWidget);
+    expect(find.text('Smooth Operator'), findsOneWidget);
+    final albums = await tester.runAsync(() => db.select(db.albums).get());
+    expect(albums, hasLength(2), reason: 'nothing was deleted');
+    await finish(tester);
+  });
+
+  testWidgets('Show me goes back to where the track started, at step 1', (
+    tester,
+  ) async {
+    await pumpApp(tester, nfc: true);
+    session().play(TutorialTrack.nfc, home: '/album/album-2');
+    unawaited(router().push('/album/album-2'));
+    await settle(tester);
+    router().go('/stats');
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('spotlight-show-me')));
+    await settle(tester);
+    expect(router().state.uri.path, '/album/album-2');
+    expect(title(tester), 'Open the record menu');
+    await finish(tester);
+  });
+
+  test('every script step names a control, except the quiet NFC wait', () {
+    for (final track in TutorialTrack.values) {
+      for (final path in ShelfPath.values) {
+        for (final step in trackScript(track, path: path)) {
+          expect(
+            step.targets.isNotEmpty || step.quiet,
+            isTrue,
+            reason: '$track',
+          );
+        }
+      }
+    }
+    expect(trackScript(TutorialTrack.backup).map((s) => s.targets.single), [
+      SpotlightId.settingsGear,
+      SpotlightId.backupTile,
+    ]);
   });
 
   group('session rules', () {

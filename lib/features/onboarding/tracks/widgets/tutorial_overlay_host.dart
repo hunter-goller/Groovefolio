@@ -92,6 +92,18 @@ class _TrackComplete extends ConsumerWidget {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
+                    if (track == TutorialTrack.nfc) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        'Tap the tag after you listen to log a play. It '
+                        'works even when Groovefolio is closed.',
+                        key: const Key('track-complete-tip'),
+                        textAlign: TextAlign.center,
+                        style: text.bodyMedium?.copyWith(
+                          color: tokens.textMuted,
+                        ),
+                      ),
+                    ],
                     if (!track.optional) ...[
                       const SizedBox(height: 18),
                       Row(

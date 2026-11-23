@@ -97,7 +97,9 @@ Future<bool> startTrack(
 
   location ??= trackStartLocation(track, path: path);
   await beforeStart?.call();
-  ref.read(tutorialSessionProvider.notifier).play(track, path: path);
+  ref
+      .read(tutorialSessionProvider.notifier)
+      .play(track, path: path, home: location);
   // Tabs replace the stack; everything else opens on top so Back works.
   if (location == AppRoutes.collection || location == AppRoutes.stats) {
     router.go(location);

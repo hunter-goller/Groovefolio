@@ -72,22 +72,52 @@ class _SpotlightOverlayState extends ConsumerState<SpotlightOverlay> {
             return Stack(
               children: [
                 if (step.dim)
-                  Positioned.fill(child: _SpotlightBarrier(hole: padded)),
+                  Positioned.fill(child: _SpotlightBarrier(hole: padded))
+                else
+                  // Inside a menu: outline the item only; the menu already
+                  // takes the user's attention and handles its own taps.
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: ExcludeSemantics(
+                        child: CustomPaint(
+                          painter: _DimPainter(
+                            padded,
+                            Theme.of(context).colorScheme.primary,
+                            dim: false,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 if (step.gesture != SpotlightGesture.none &&
                     step.gesture != SpotlightGesture.field)
                   _Hand(
                     hole: padded,
                     swipe: step.gesture == SpotlightGesture.swipe,
+                    beside: !step.dim,
                   ),
-                Positioned(
-                  left: 12,
-                  right: 12,
-                  top: above ? null : padded.bottom + 14,
-                  bottom: above
-                      ? constraints.maxHeight - padded.top + 14
-                      : null,
-                  child: bubble,
-                ),
+                // Steps inside menus keep the bubble at the bottom, clear of
+                // the menu's other items.
+                if (!step.dim)
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 84),
+                        child: bubble,
+                      ),
+                    ),
+                  )
+                else
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    top: above ? null : padded.bottom + 14,
+                    bottom: above
+                        ? constraints.maxHeight - padded.top + 14
+                        : null,
+                    child: bubble,
+                  ),
               ],
             );
           },
@@ -164,20 +194,23 @@ class _DimPaint extends StatelessWidget {
 }
 
 class _DimPainter extends CustomPainter {
-  _DimPainter(this.hole, this.accent);
+  _DimPainter(this.hole, this.accent, {this.dim = true});
   final Rect hole;
   final Color accent;
+  final bool dim;
 
   @override
   void paint(Canvas canvas, Size size) {
     final rrect = RRect.fromRectAndRadius(hole, const Radius.circular(18));
-    canvas.drawPath(
-      Path()
-        ..fillType = PathFillType.evenOdd
-        ..addRect(Offset.zero & size)
-        ..addRRect(rrect),
-      Paint()..color = const Color(0xFF0E0B09).withValues(alpha: 0.72),
-    );
+    if (dim) {
+      canvas.drawPath(
+        Path()
+          ..fillType = PathFillType.evenOdd
+          ..addRect(Offset.zero & size)
+          ..addRRect(rrect),
+        Paint()..color = const Color(0xFF0E0B09).withValues(alpha: 0.72),
+      );
+    }
     canvas.drawRRect(
       rrect.inflate(4),
       Paint()
@@ -197,15 +230,18 @@ class _DimPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _DimPainter old) =>
-      old.hole != hole || old.accent != accent;
+      old.hole != hole || old.accent != accent || old.dim != dim;
 }
 
 /// A short demonstration: a few taps or swipes, then it rests. Static when
 /// the phone asks for reduced motion. It never fakes a gesture.
 class _Hand extends StatefulWidget {
-  const _Hand({required this.hole, required this.swipe});
+  const _Hand({required this.hole, required this.swipe, this.beside = false});
   final Rect hole;
   final bool swipe;
+
+  /// Points from the side (menu items, so the next item stays readable).
+  final bool beside;
 
   @override
   State<_Hand> createState() => _HandState();
@@ -263,7 +299,7 @@ class _HandState extends State<_Hand> with SingleTickerProviderStateMixin {
         final nearBottom =
             widget.hole.bottom > MediaQuery.sizeOf(context).height - 96;
         final bob = 4 * math.sin(math.pi * t);
-        final dy = widget.swipe
+        final dy = widget.swipe || widget.beside
             ? widget.hole.center.dy - size / 2
             : nearBottom
             ? widget.hole.top - size + 6 - bob
@@ -435,10 +471,14 @@ class _CoachBubble extends ConsumerWidget {
                   if (offTrack)
                     TextButton(
                       key: const Key('spotlight-show-me'),
-                      onPressed: () => context.go(
-                        trackStartLocation(track, path: session.path),
-                      ),
-                      child: const Text('Show me'),
+                      onPressed: () {
+                        controller.restart();
+                        context.go(
+                          session.home ??
+                              trackStartLocation(track, path: session.path),
+                        );
+                      },
+                      child: Text(current.quiet ? 'Start again' : 'Show me'),
                     ),
                   TextButton(
                     key: const Key('spotlight-skip'),
