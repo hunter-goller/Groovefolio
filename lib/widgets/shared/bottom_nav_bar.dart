@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
 import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
@@ -46,6 +47,7 @@ class BottomNavBar extends ConsumerWidget {
       child: NavigationBar(
         selectedIndex: currentIndex,
         onDestinationSelected: (index) {
+          if (index == 2) ref.tutorialEvent(TutorialEvent.discoverViewed);
           final guide = ref.read(walkthroughProvider);
           if (guide.active &&
               guide.step == 6 &&

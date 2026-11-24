@@ -43,6 +43,9 @@ part 'app_database.g.dart';
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
+  /// SQLite file in the app documents directory. Kept from the Vinyl App era.
+  static const fileName = 'vinyl_app_db.sqlite';
+
   @override
   int get schemaVersion => SchemaVersions.current;
 
@@ -105,7 +108,7 @@ class AppDatabase extends _$AppDatabase {
   static QueryExecutor _openConnection() {
     return LazyDatabase(() async {
       final dbFolder = await getApplicationDocumentsDirectory();
-      final file = File(p.join(dbFolder.path, 'vinyl_app_db.sqlite'));
+      final file = File(p.join(dbFolder.path, fileName));
       return NativeDatabase.createInBackground(file);
     });
   }

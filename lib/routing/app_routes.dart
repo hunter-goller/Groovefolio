@@ -13,6 +13,8 @@ abstract final class AppRoutes {
   static const settings = '/settings';
   static const nfcHelp = '/settings/nfc-help';
   static const onboarding = '/onboarding';
+  static const tutorial = '/tutorial';
+  static const tutorialGold = '/tutorial/gold';
   static const discogsCollectionImport = '/settings/discogs/import';
 
   /// Builds a concrete /album/{id} path for navigation calls,

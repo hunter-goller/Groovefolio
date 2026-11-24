@@ -6,8 +6,9 @@ An error message should explain what failed and what the user can do next. It mu
 
 | Boundary | Implementation | Recovery |
 |---|---|---|
-| Database opening/migration | `main.dart`, `AppStartup` | Show loading, then a friendly retry screen on failure. Retry creates a fresh provider container; no automatic reset or migration bypass. App links are created before the first attempt. |
+| Database opening/migration | `main.dart`, `AppStartup` | Show loading, then a friendly retry screen on failure, with **Save a copy of my data** ([rescue copy](backup.md#rescue-copy-startup-failure)). Retry creates a fresh provider container and is ignored while a copy is saving; no automatic reset or migration bypass. App links are created before the first attempt. |
 | Collection, record, editor, Stats, Discover, onboarding | `AppErrorState` | Replace the failed view with a message and invalidate the relevant provider on Retry. |
+| Onboarding status (secure storage) | `OnboardingGate` | If first-run status can't be read, open the collection instead of an error. Onboarding never blocks access to records. |
 | Log Play picker and Discogs identity | `AppErrorState.inline` | Keep the surrounding screen usable; retry the failed read. A failed identity lookup does not prove the user disconnected. |
 | Artwork loading/decoding | `ResilientImage` | Show a local placeholder and an accessible unavailable label. A changed image gets a new load attempt. |
 | Add / Log Play | Screen save handler | Record completion immediately after persistence. A later failure says the operation was saved; the same form's next action opens/exits instead of inserting again. |
@@ -19,7 +20,7 @@ An error message should explain what failed and what the user can do next. It mu
 
 ## Debugging
 
-Start with the [developer guide's debugging checklist](../developer-guide.md#debugging-checklist). Identify whether persistence completed before troubleshooting feedback/navigation. Reproduce using a small development collection. Never clear storage or reinstall as the first response to a startup failure: Groovefolio has no automatic collection restore.
+Start with the [developer guide's debugging checklist](../developer-guide.md#debugging-checklist). Identify whether persistence completed before troubleshooting feedback/navigation. Reproduce using a small development collection. Never clear storage or reinstall as the first response to a startup failure. Save a rescue copy first; it can't be restored in the app, but it keeps the data safe for support.
 
 Regression tests cover startup retry/repeated taps, collection provider retry, an Add follow-up failure without a duplicate save, failed play insertion followed by retry, partial import refresh, and broken artwork. Existing NFC tests remain the source of truth for tag behavior.
 
@@ -30,6 +31,6 @@ Regression tests cover startup retry/repeated taps, collection provider retry, a
 3. Test a failed import in an isolated development setup. Previously imported records should appear, and a fresh preview should identify their exact release IDs as duplicates.
 4. Use a missing/corrupt artwork file in a development build. Confirm a stable placeholder instead of an exception screen.
 5. Exercise Add/Edit/Log Play failure cases with injected dependencies or test fixtures. Confirm messages distinguish persistence from follow-up failure and Retry does not create a second saved item.
-6. Exercise startup failure using a test dependency or a preserved copy of a test database. Retry must not delete, reset, or downgrade the database.
+6. Exercise startup failure with `--dart-define=GROOVEFOLIO_SIMULATE_STARTUP_FAILURE=true` (debug/profile only), a test dependency, or a preserved copy of a test database. Retry must not delete, reset, or downgrade the database. Save a copy of my data must produce a zip with the database and covers.
 7. Check error layouts at narrow width and large text. Retry should remain reachable by scrolling.
 8. On a real phone, write/replace/skip a tag and exercise cold/warm NFC taps. Automated widgets cannot verify antenna or OS intent delivery.

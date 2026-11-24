@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/features/onboarding/screens/onboarding_screen.dart';
+import 'package:vinyl_app/features/onboarding/tracks/screens/tutorial_welcome_screen.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_progress.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
 import 'package:vinyl_app/services/onboarding_service.dart';
 import 'package:vinyl_app/services/walkthrough_controller.dart';
-import 'package:vinyl_app/widgets/ui/app_error_state.dart';
+import 'package:vinyl_app/utils/error_reporting.dart';
 
-/// Shows onboarding only for a fresh, incomplete collection.
+/// Shows onboarding only for a fresh, incomplete collection. If its status
+/// can't be read, the collection opens instead: onboarding is never a reason
+/// to lock someone out of their records.
 /// A running walkthrough bypasses this gate so navigation into Collection
 /// does not display the welcome screen again.
 class OnboardingGate extends ConsumerWidget {
@@ -15,26 +20,34 @@ class OnboardingGate extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(newTutorialEnabledProvider)) {
+      // New tutorial: welcome a fresh install once. A shelf that already has
+      // records goes straight in; Getting started is in Settings.
+      return ref
+          .watch(tutorialViewProvider)
+          .when(
+            loading: () => const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            ),
+            error: (error, stackTrace) => child,
+            data: (view) => !view.introSeen && !view.hasRecord
+                ? const TutorialWelcomeScreen()
+                : child,
+          );
+    }
     if (ref.watch(walkthroughProvider).active) return child;
     return ref
         .watch(onboardingRequiredProvider)
         .when(
           loading: () =>
               const Scaffold(body: Center(child: CircularProgressIndicator())),
-          error: (error, stackTrace) => Scaffold(
-            body: SafeArea(
-              child: AppErrorState(
-                key: const Key('onboarding-gate-error-state'),
-                title: 'Couldn’t start Groovefolio',
-                message: 'Couldn’t read your setup progress. Try again.',
-                error: error,
-                stackTrace: stackTrace,
-                operation: 'read onboarding status',
-                onRetry: () => ref.invalidate(onboardingRequiredProvider),
-                retryButtonKey: const Key('onboarding-gate-error-retry'),
-              ),
-            ),
-          ),
+          // If setup progress can't be read (for example after the phone's
+          // keystore changes), the collection itself is fine. Open it rather
+          // than blocking the user behind an error with only Retry.
+          error: (error, stackTrace) {
+            logAppError('read onboarding status', error, stackTrace);
+            return child;
+          },
           data: (required) => required ? const OnboardingScreen() : child,
         );
   }
