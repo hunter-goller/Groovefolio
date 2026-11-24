@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,10 +9,13 @@ import 'package:vinyl_app/features/albums/screens/edit_album_screen.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/repositories/discogs_release_link_repository.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
+import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/record_write_service.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/types/side_played.dart';
 import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
+import 'package:vinyl_app/widgets/shared/nfc_write_dialog.dart';
 
 void main() {
   testWidgets('prefills album artist and assigned genres', (tester) async {
@@ -108,6 +113,84 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Rewrite NFC tag'), findsNothing);
   });
+
+  Future<void> saveWithRewrite(WidgetTester tester) async {
+    await tester.ensureVisible(
+      find.byKey(const Key('edit-record-rewrite-nfc')),
+    );
+    await tester.tap(find.byKey(const Key('edit-record-rewrite-nfc')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('edit-record-save')));
+    await tester.tap(find.byKey(const Key('edit-record-save')));
+  }
+
+  testWidgets('rewrite switch opens the tag dialog after saving', (
+    tester,
+  ) async {
+    final albums = _FakeAlbumRepository();
+    await tester.pumpWidget(
+      _testApp(
+        albumRepository: albums,
+        hasNfc: true,
+        nfcAvailability: NfcAvailabilityState.available,
+        nfcService: NfcService(
+          _WaitingNfcPlatform(),
+          const _FakeNfcRepository(hasNfc: true),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await saveWithRewrite(tester);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(albums.updated, hasLength(1), reason: 'saved before the tag');
+    expect(find.byType(NfcWriteDialog), findsOneWidget);
+  });
+
+  testWidgets('rewrite with NFC off saves and explains', (tester) async {
+    final albums = _FakeAlbumRepository();
+    await tester.pumpWidget(
+      _testApp(
+        albumRepository: albums,
+        hasNfc: true,
+        nfcAvailability: NfcAvailabilityState.disabled,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await saveWithRewrite(tester);
+    await tester.pumpAndSettle();
+
+    expect(albums.updated, hasLength(1));
+    expect(find.byType(NfcWriteDialog), findsNothing);
+    expect(
+      find.text(
+        'Changes saved. Turn on NFC to rewrite the tag from the record.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Detail test'), findsOneWidget);
+  });
+}
+
+/// Reports NFC as available and waits for a tag that never arrives.
+class _WaitingNfcPlatform implements INfcPlatformAdapter {
+  @override
+  Future<NfcAvailabilityState> availability() async =>
+      NfcAvailabilityState.available;
+
+  @override
+  Future<NfcPlatformTag> poll({required Duration timeout}) =>
+      Completer<NfcPlatformTag>().future;
+
+  @override
+  Future<void> writeUri(Uri uri) async {}
+
+  @override
+  Future<void> finish() async {}
 }
 
 String _fieldText(WidgetTester tester, String key) {
@@ -125,6 +208,8 @@ Widget _testApp({
   IArtistRepository? artistRepository,
   IGenreRepository? genreRepository,
   bool hasNfc = false,
+  NfcAvailabilityState? nfcAvailability,
+  NfcService? nfcService,
 }) {
   final router = GoRouter(
     initialLocation: '/album/album-1/edit',
@@ -164,6 +249,9 @@ Widget _testApp({
       databaseTransactionRunnerProvider.overrideWithValue(
         _ImmediateTransactionRunner(),
       ),
+      if (nfcAvailability != null)
+        nfcAvailabilityProvider.overrideWithValue(AsyncData(nfcAvailability)),
+      if (nfcService != null) nfcServiceProvider.overrideWithValue(nfcService),
     ],
     child: MaterialApp.router(
       theme: AppTheme.light,

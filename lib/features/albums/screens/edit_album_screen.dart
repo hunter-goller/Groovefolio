@@ -7,15 +7,17 @@ import 'package:image_picker/image_picker.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
-import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/artwork_storage_service.dart';
+import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
+import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/record_write_service.dart';
 import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/utils/error_reporting.dart';
 import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
 import 'package:vinyl_app/widgets/shared/genre_chip_input.dart';
+import 'package:vinyl_app/widgets/shared/nfc_write_dialog.dart';
 import 'package:vinyl_app/widgets/ui/app_error_state.dart';
 import 'package:vinyl_app/widgets/ui/empty_state.dart';
 import 'package:vinyl_app/widgets/ui/labeled_text_field.dart';
@@ -98,6 +100,34 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
     }
   }
 
+  /// Runs after the record is saved when "Rewrite NFC tag" is on. Skipping
+  /// or failing the tag never undoes the saved changes.
+  Future<void> _rewriteTagIfRequested(String albumId) async {
+    if (!_rewriteNfc) return;
+    final availability = await ref.read(nfcAvailabilityProvider.future);
+    if (!mounted) return;
+    if (availability != NfcAvailabilityState.available) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Changes saved. Turn on NFC to rewrite the tag from the record.',
+          ),
+        ),
+      );
+      return;
+    }
+    final outcome = await showNfcWriteDialog(
+      context,
+      albumId: albumId,
+      replaceExisting: true,
+    );
+    ref.invalidate(albumNfcTagProvider(albumId));
+    if (!mounted || outcome != NfcWriteOutcome.written) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Changes saved and NFC tag rewritten.')),
+    );
+  }
+
   /// Stages artwork before the metadata transaction and restores old bytes
   /// if the metadata write fails. A later UI failure must not undo artwork.
   /// The image path is reused, so its string alone cannot undo a replacement.
@@ -151,6 +181,8 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
           );
 
       metadataSaved = true;
+      if (!mounted) return;
+      await _rewriteTagIfRequested(existing.id);
       if (!mounted) return;
       ref.invalidate(genresProvider);
       ref.invalidate(albumGenresProvider(existing.id));
@@ -211,7 +243,7 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
     final detailAsync = ref.watch(albumDetailProvider(widget.albumId));
     final genresAsync = ref.watch(albumGenresProvider(widget.albumId));
     final allGenresAsync = ref.watch(genresProvider);
-    final nfcAsync = ref.watch(_albumNfcProvider(widget.albumId));
+    final nfcAsync = ref.watch(albumNfcTagProvider(widget.albumId));
     final mutationState = ref.watch(albumMutationsProvider);
     final isSaving = mutationState.isLoading || _isSubmitting;
 
@@ -379,8 +411,8 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
                           contentPadding: EdgeInsets.zero,
                           title: const Text('Rewrite NFC tag'),
                           subtitle: const Text(
-                            'NFC writing will use this option once tag writing '
-                            'is enabled.',
+                            'After saving, hold the linked tag to your phone '
+                            'to rewrite it for this record.',
                           ),
                           value: _rewriteNfc,
                           onChanged: isSaving
@@ -424,13 +456,6 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
     return null;
   }
 }
-
-final _albumNfcProvider = FutureProvider.autoDispose.family<NfcTag?, String>((
-  ref,
-  albumId,
-) {
-  return ref.watch(nfcTagRepositoryProvider).findByAlbum(albumId);
-});
 
 class _SectionCard extends StatelessWidget {
   const _SectionCard({required this.child});

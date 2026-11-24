@@ -33,6 +33,9 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 ### Data tidiness
 - Artist and genre names now match regardless of case for accented letters too, so “BJÖRK” and “Björk” no longer become two artists. Accents still count: “Bjork” and “Björk” stay separate.
 - Artists and genres no record uses any more are removed after you edit or delete a record, and cover files left behind by deleted records are cleaned up.
+### Fixes
+- The **Rewrite NFC tag** switch on Edit record now works: after saving, it asks you to hold the linked tag to the phone and rewrites it. Before, it did nothing.
+- Choosing a Discogs release still fills in the details if its cover can't be saved (for example, a full disk), instead of failing silently.
 
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
