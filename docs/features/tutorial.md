@@ -78,5 +78,13 @@ While a track plays, `SpotlightOverlay` dims the screen except one real control,
 | 1, Discogs | Connect Discogs → Import Discogs collection → Import |
 | 2 | Pick a record → Which side? → Save play |
 | 3 | Stats summary (Got it) → Discover |
+| 4 | Record menu → Link NFC tag (outlined inside the menu) → the write dialog's own instructions; the badge comes with a tip about tapping after a listen |
+| 5 | Swipe the top record left → Edit or Delete → **Practice mode**: Delete explains what would happen and changes nothing |
+| 6 | Settings gear → Back up collection, with the "pick Google Drive" tip before Android's Save screen |
+| Bonus | Same steps as Track 1's Discogs path |
 
-Side B scripts (NFC, swipe practice, backup) follow in part 3b; until then those tracks show their one-line hint.
+- **Practice delete:** while Track 5 is playing, Delete on a swiped row shows a Practice mode card instead of deleting, then completes the track. Outside the track, Delete works normally with its usual confirmation.
+- **Quiet steps** wait for something the app shows itself (the NFC write dialog): no spotlight, just a small bubble with **Start again**.
+- **Show me / Start again** returns to where the track started (for NFC, the record it began on) at step 1.
+- **Inside menus**, the item is outlined without dimming and the bubble sits at the bottom so the menu's other items stay readable.
+- **Backup** is scripted but hidden until the backup feature ships; then the Settings row needs `SpotlightTarget(id: SpotlightId.backupTile)`, the save needs `ref.tutorialEvent(TutorialEvent.backupSaved)`, and `backupTrackAvailableProvider` turns on.

@@ -14,12 +14,16 @@ class TutorialSessionState {
     this.active,
     this.step = 0,
     this.path = ShelfPath.byHand,
+    this.home,
     this.celebrating,
   });
 
   final TutorialTrack? active;
   final int step;
   final ShelfPath path;
+
+  /// Where the track started; "Show me" returns here.
+  final String? home;
   final TutorialTrack? celebrating;
 
   List<TrackStep> get script =>
@@ -43,8 +47,18 @@ class TutorialSession extends Notifier<TutorialSessionState> {
   @override
   TutorialSessionState build() => const TutorialSessionState();
 
-  void play(TutorialTrack track, {ShelfPath path = ShelfPath.byHand}) =>
-      state = TutorialSessionState(active: track, path: path);
+  void play(
+    TutorialTrack track, {
+    ShelfPath path = ShelfPath.byHand,
+    String? home,
+  }) => state = TutorialSessionState(active: track, path: path, home: home);
+
+  /// Back to the first step, for "Show me".
+  void restart() => state = TutorialSessionState(
+    active: state.active,
+    path: state.path,
+    home: state.home,
+  );
 
   /// Ends the track without a badge. It can be replayed from Getting started.
   void quit() => state = const TutorialSessionState();
@@ -53,13 +67,25 @@ class TutorialSession extends Notifier<TutorialSessionState> {
     active: state.active,
     step: state.step,
     path: state.path,
+    home: state.home,
   );
 
   void _goTo(int step) => state = TutorialSessionState(
     active: state.active,
     step: step,
     path: state.path,
+    home: state.home,
   );
+
+  /// An event-driven step happened (for example the row was swiped).
+  void stepEvent(SpotlightId target) {
+    final current = state.currentStep;
+    if (current == null || current.advance != StepAdvance.event) return;
+    if (current.targets.contains(target)) advance();
+  }
+
+  /// True while the swipe track is being played, so Delete is practice.
+  bool get practisingDelete => state.active == TutorialTrack.swipe;
 
   /// Moves to the next step ("Got it", or an event-driven step).
   void advance() {
@@ -118,6 +144,8 @@ enum TutorialEvent {
   statsViewed,
   discoverViewed,
   discogsImported,
+  practiceDelete,
+  backupSaved,
 }
 
 extension TutorialEvents on WidgetRef {
@@ -135,7 +163,17 @@ extension TutorialEvents on WidgetRef {
           await session.shelfChanged();
           await session.trackDone(TutorialTrack.nfc);
         case TutorialEvent.swiped:
+          // While practising, the swipe only moves on to "try Delete";
+          // otherwise, swiping for real earns the badge quietly.
+          if (session.practisingDelete) {
+            session.stepEvent(SpotlightId.firstRecordRow);
+          } else {
+            await session.trackDone(TutorialTrack.swipe);
+          }
+        case TutorialEvent.practiceDelete:
           await session.trackDone(TutorialTrack.swipe);
+        case TutorialEvent.backupSaved:
+          await session.trackDone(TutorialTrack.backup);
         case TutorialEvent.statsViewed:
           session.statsViewed();
         case TutorialEvent.discoverViewed:

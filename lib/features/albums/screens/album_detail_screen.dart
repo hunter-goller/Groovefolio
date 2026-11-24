@@ -87,13 +87,16 @@ class AlbumDetailScreen extends ConsumerWidget {
                     PopupMenuItem(
                       key: const Key('album-nfc-action'),
                       value: _AlbumMenuAction.nfc,
-                      child: ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.nfc_rounded),
-                        title: Text(
-                          linkedNfcTag == null
-                              ? 'Link NFC tag'
-                              : 'Rewrite or replace NFC tag',
+                      child: SpotlightTarget(
+                        id: SpotlightId.linkNfcItem,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.nfc_rounded),
+                          title: Text(
+                            linkedNfcTag == null
+                                ? 'Link NFC tag'
+                                : 'Rewrite or replace NFC tag',
+                          ),
                         ),
                       ),
                     ),

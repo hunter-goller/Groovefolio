@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/features/albums/album_delete_flow.dart';
 import 'package:vinyl_app/features/onboarding/tracks/spotlight/spotlight_target.dart';
 import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
+import 'package:vinyl_app/features/onboarding/tracks/widgets/practice_delete.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
@@ -342,6 +343,12 @@ class _CollectionAlbumTileState extends ConsumerState<_CollectionAlbumTile> {
 
   Future<void> _delete() async {
     _close();
+    // During the swipe track, Delete is practice: explain, change nothing.
+    if (ref.read(tutorialSessionProvider.notifier).practisingDelete) {
+      await showPracticeDelete(context, title: album.title);
+      ref.tutorialEvent(TutorialEvent.practiceDelete);
+      return;
+    }
     await confirmAndDeleteAlbum(context, ref, album.id);
   }
 
@@ -382,16 +389,20 @@ class _CollectionAlbumTileState extends ConsumerState<_CollectionAlbumTile> {
                           _edit();
                         },
                       ),
-                      _SwipeAction(
-                        key: const Key('collection-swipe-delete'),
-                        width: _actionWidth,
-                        icon: Icons.delete_outline_rounded,
-                        label: 'Delete',
-                        color: context.theme.colorScheme.error,
-                        foregroundColor: context.theme.colorScheme.onError,
-                        onPressed: () {
-                          _delete();
-                        },
+                      SpotlightTarget(
+                        id: SpotlightId.swipeDelete,
+                        enabled: widget.guideExample,
+                        child: _SwipeAction(
+                          key: const Key('collection-swipe-delete'),
+                          width: _actionWidth,
+                          icon: Icons.delete_outline_rounded,
+                          label: 'Delete',
+                          color: context.theme.colorScheme.error,
+                          foregroundColor: context.theme.colorScheme.onError,
+                          onPressed: () {
+                            _delete();
+                          },
+                        ),
                       ),
                     ],
                   ),

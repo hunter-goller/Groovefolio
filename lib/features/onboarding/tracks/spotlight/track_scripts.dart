@@ -29,6 +29,7 @@ class TrackStep {
     this.dim = true,
     this.skippable = false,
     this.padding = 8,
+    this.quiet = false,
   });
 
   /// The first of these that is on screen is spotlighted (for example the
@@ -49,37 +50,45 @@ class TrackStep {
   /// Space around the control that's lit and tappable, for controls whose
   /// tappable area is bigger than what's tagged (a tab's label).
   final double padding;
+
+  /// Waiting for something the app shows itself (like the NFC write
+  /// dialog): no spotlight, just a small bubble with a way back.
+  final bool quiet;
 }
 
 /// How Track 1 fills the shelf.
 enum ShelfPath { byHand, discogs }
 
 /// The steps for [track]. Short on purpose: one idea per step.
+const _discogsSteps = [
+  TrackStep(
+    targets: [SpotlightId.discogsConnect],
+    skippable: true,
+    title: 'Connect Discogs',
+    body:
+        'Tap Connect Discogs and approve in your browser. Then come back '
+        'here.',
+  ),
+  TrackStep(
+    targets: [SpotlightId.discogsImport],
+    title: 'Import your collection',
+    body: 'Connected! Tap Import Discogs collection.',
+  ),
+  TrackStep(
+    targets: [SpotlightId.discogsImportSelected],
+    title: 'Pick what to bring in',
+    body: 'Untick anything you don’t own any more, then tap Import.',
+    advance: StepAdvance.completion,
+  ),
+];
+
+/// The steps for [track]. Short on purpose: one idea per step.
 List<TrackStep> trackScript(
   TutorialTrack track, {
   ShelfPath path = ShelfPath.byHand,
 }) => switch (track) {
-  TutorialTrack.addRecord when path == ShelfPath.discogs => const [
-    TrackStep(
-      targets: [SpotlightId.discogsConnect],
-      skippable: true,
-      title: 'Connect Discogs',
-      body:
-          'Tap Connect Discogs and approve in your browser. Then come back '
-          'here.',
-    ),
-    TrackStep(
-      targets: [SpotlightId.discogsImport],
-      title: 'Import your collection',
-      body: 'Connected! Tap Import Discogs collection.',
-    ),
-    TrackStep(
-      targets: [SpotlightId.discogsImportSelected],
-      title: 'Pick what to bring in',
-      body: 'Untick anything you don’t own any more, then tap Import.',
-      advance: StepAdvance.completion,
-    ),
-  ],
+  TutorialTrack.addRecord when path == ShelfPath.discogs => _discogsSteps,
+  TutorialTrack.discogsImport => _discogsSteps,
   TutorialTrack.addRecord => const [
     TrackStep(
       targets: [SpotlightId.addRecordFab, SpotlightId.addRecordEmpty],
@@ -142,9 +151,61 @@ List<TrackStep> trackScript(
       advance: StepAdvance.completion,
     ),
   ],
-  // Side B scripts arrive in part 3b; until then these play unguided.
-  TutorialTrack.nfc ||
-  TutorialTrack.swipe ||
-  TutorialTrack.backup ||
-  TutorialTrack.discogsImport => const [],
+  TutorialTrack.nfc => const [
+    TrackStep(
+      targets: [SpotlightId.recordMenu],
+      title: 'Open the record menu',
+      body: 'Every record has one. Tap the three dots.',
+    ),
+    TrackStep(
+      targets: [SpotlightId.linkNfcItem],
+      title: 'Tap Link NFC tag',
+      body: 'This writes the record onto your tag. Once per record is enough.',
+      dim: false,
+    ),
+    TrackStep(
+      targets: [],
+      title: 'Hold the tag still',
+      body:
+          'Lay it flat on the back of your phone, near the top, until '
+          'writing finishes.',
+      gesture: SpotlightGesture.none,
+      advance: StepAdvance.completion,
+      quiet: true,
+    ),
+  ],
+  TutorialTrack.swipe => const [
+    TrackStep(
+      targets: [SpotlightId.firstRecordRow],
+      title: 'Swipe for quick actions',
+      body: 'Slide the top record to the left.',
+      gesture: SpotlightGesture.swipe,
+      advance: StepAdvance.event,
+    ),
+    TrackStep(
+      targets: [SpotlightId.swipeDelete],
+      title: 'Edit or Delete',
+      body:
+          'Edit fixes details. Delete removes a record. Try Delete: it’s '
+          'practice, so nothing is removed.',
+      advance: StepAdvance.completion,
+    ),
+  ],
+  TutorialTrack.backup => const [
+    TrackStep(
+      targets: [SpotlightId.settingsGear],
+      title: 'Back up your shelf',
+      body:
+          'Your records only live on this phone. A backup keeps them safe. '
+          'Open Settings.',
+    ),
+    TrackStep(
+      targets: [SpotlightId.backupTile],
+      title: 'Tap Back up collection',
+      body:
+          'Next, Android asks where to save. Pick Google Drive, or anywhere '
+          'that isn’t only this phone.',
+      advance: StepAdvance.completion,
+    ),
+  ],
 };
