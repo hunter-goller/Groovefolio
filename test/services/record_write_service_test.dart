@@ -159,6 +159,10 @@ class _FailingGenreAssignments implements IGenreRepository {
       delegate.findByAlbum(albumId);
 
   @override
+  Future<Map<String, List<Genre>>> findAllByAlbum() =>
+      delegate.findAllByAlbum();
+
+  @override
   Future<Genre?> findById(String id) => delegate.findById(id);
 
   @override

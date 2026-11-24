@@ -63,7 +63,8 @@ class StatsDashboardData {
 
 /// Loads the range-specific dashboard, resolving artist IDs once for
 /// rankings rather than mixing repository lookups into the widget tree.
-/// Service reads run independently, not inside one database snapshot. Monthly
+/// Albums, plays and genres are read once per load (not inside one database
+/// transaction) and every figure is computed from that read. Monthly
 /// data always covers the current year; yearly data is loaded for all-time UI.
 /// This FutureProvider does not watch table changes; callers must invalidate
 /// it when a write should refresh a dashboard that remains mounted.
@@ -74,25 +75,19 @@ final statsDashboardProvider = FutureProvider.autoDispose
       final currentYear = DateTime.now().year;
       final filteredYear = range == StatsRange.currentYear ? currentYear : null;
 
-      final summaryFuture = service.getCollectionSummary(year: filteredYear);
-      final monthsFuture = service.getPlaysByMonth(currentYear);
-      final yearsFuture = service.getPlaysByYear();
-      final genresFuture = service.getGenreBreakdown(year: filteredYear);
-      final rankedFuture = service.getMostPlayedAlbums(5, year: filteredYear);
-      final artistStatsFuture = service.getMostPlayedArtists(
-        year: filteredYear,
-      );
-      final firstVinylFuture = service.getFirstVinyl();
+      // One read of albums, plays and genres feeds every figure below.
+      final snapshotFuture = service.loadSnapshot();
       final artistsFuture = artistRepository.findAll();
-
-      final summary = await summaryFuture;
-      final months = await monthsFuture;
-      final years = await yearsFuture;
-      final genres = await genresFuture;
-      final ranked = await rankedFuture;
-      final artistStats = await artistStatsFuture;
-      final firstVinyl = await firstVinylFuture;
+      final snapshot = await snapshotFuture;
       final artists = await artistsFuture;
+
+      final summary = snapshot.collectionSummary(year: filteredYear);
+      final months = snapshot.playsByMonth(currentYear);
+      final years = snapshot.playsByYear();
+      final genres = snapshot.genreBreakdown(year: filteredYear);
+      final ranked = snapshot.mostPlayedAlbums(5, year: filteredYear);
+      final artistStats = snapshot.mostPlayedArtists(year: filteredYear);
+      final firstVinyl = snapshot.firstVinyl();
       final artistsById = {
         for (final artist in artists) artist.id: artist.name,
       };
