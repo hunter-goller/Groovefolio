@@ -15,6 +15,8 @@ import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/onboarding_service.dart';
 
+import 'support/tutorial_test_support.dart';
+
 final _callback = Uri.parse('groovefolio://discogs-auth');
 
 void main() {
@@ -114,6 +116,7 @@ Future<_Fixture> _pumpApp(
       databaseProvider.overrideWithValue(db),
       incomingAppLinkStreamProvider.overrideWithValue(uris.stream),
       onboardingStoreProvider.overrideWithValue(_CompletedOnboarding()),
+      skipTutorialWelcome(),
       nfcAvailabilityProvider.overrideWith(
         (ref) async => NfcAvailabilityState.unsupported,
       ),

@@ -4,12 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/albums/album_delete_flow.dart';
-import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
+import 'package:vinyl_app/features/onboarding/tracks/spotlight/spotlight_target.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
-import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 import 'package:vinyl_app/widgets/shared/album_list_tile.dart';
@@ -147,27 +147,21 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
 
   Future<void> _openLogPlaySheet(BuildContext context) async {
     final tokens = context.tokens;
-    final playForm = ref.read(walkthroughPlayFormProvider.notifier);
-    playForm.setOpen(true);
-    try {
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        backgroundColor: tokens.background,
-        builder: (sheetContext) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
-          ),
-          child: const FractionallySizedBox(
-            heightFactor: 0.92,
-            child: LogPlayScreen(isBottomSheet: true),
-          ),
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: tokens.background,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
         ),
-      );
-    } finally {
-      playForm.setOpen(false);
-    }
+        child: const FractionallySizedBox(
+          heightFactor: 0.92,
+          child: LogPlayScreen(isBottomSheet: true),
+        ),
+      ),
+    );
   }
 
   @override
@@ -193,10 +187,13 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
               _showSearch ? Icons.close_rounded : Icons.search_rounded,
             ),
           ),
-          IconButton(
-            tooltip: 'Settings',
-            onPressed: () => context.push(AppRoutes.settings),
-            icon: const Icon(Icons.settings_outlined),
+          SpotlightTarget(
+            id: SpotlightId.settingsGear,
+            child: IconButton(
+              tooltip: 'Settings',
+              onPressed: () => context.push(AppRoutes.settings),
+              icon: const Icon(Icons.settings_outlined),
+            ),
           ),
           const SizedBox(width: 4),
         ],
@@ -254,8 +251,8 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         ),
       ),
       floatingActionButton: hasAlbums && !_showSearch
-          ? GuideTarget(
-              steps: const [1],
+          ? SpotlightTarget(
+              id: SpotlightId.addRecordFab,
               child: FloatingActionButton.extended(
                 onPressed: () => context.push(
                   GoRouterState.of(context).uri.queryParameters['onboarding'] ==
@@ -343,7 +340,7 @@ class _CollectionAlbumTileState extends ConsumerState<_CollectionAlbumTile> {
   void _open() {
     widget.openSwipeAlbumId.value = album.id;
     setState(() => _offset = _revealedOffset);
-    ref.read(walkthroughProvider.notifier).swipeRevealed();
+    ref.tutorialEvent(TutorialEvent.swiped);
   }
 
   void _close() {
@@ -353,26 +350,12 @@ class _CollectionAlbumTileState extends ConsumerState<_CollectionAlbumTile> {
     setState(() => _offset = 0);
   }
 
-  bool _practiceAction() {
-    final guide = ref.read(walkthroughProvider);
-    if (!guide.active || guide.step != 5) return false;
-    ref.read(walkthroughProvider.notifier).swipeRevealed();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Practice only — your record has not changed.'),
-      ),
-    );
-    return true;
-  }
-
   Future<void> _edit() async {
-    ref.read(walkthroughProvider.notifier).swipeRevealed();
     _close();
     await context.push(AppRoutes.editAlbumPath(album.id));
   }
 
   Future<void> _delete() async {
-    if (_practiceAction()) return;
     _close();
     await confirmAndDeleteAlbum(context, ref, album.id);
   }
@@ -470,16 +453,9 @@ class _CollectionAlbumTileState extends ConsumerState<_CollectionAlbumTile> {
                 },
                 child: ColoredBox(
                   color: context.theme.scaffoldBackgroundColor,
-                  child: GuideTarget(
-                    steps: const [2, 3, 4, 5],
-                    cue: !widget.guideExample
-                        ? GuideCue.none
-                        : ref.watch(walkthroughProvider).step == 5
-                        ? ref.watch(walkthroughProvider).practiced
-                              ? GuideCue.none
-                              : GuideCue.swipe
-                        : GuideCue.tap,
-                    reveal: widget.guideExample,
+                  child: SpotlightTarget(
+                    id: SpotlightId.firstRecordRow,
+                    enabled: widget.guideExample,
                     child: AlbumListTile(
                       title: album.title,
                       artist: album.artistName,
@@ -492,14 +468,7 @@ class _CollectionAlbumTileState extends ConsumerState<_CollectionAlbumTile> {
                         if (actionsAreVisible) {
                           _close();
                         } else {
-                          final guide = ref.read(walkthroughProvider);
-                          if (guide.active && [2, 3, 4].contains(guide.step)) {
-                            ref
-                                .read(walkthroughProvider.notifier)
-                                .recordOpened(album.id);
-                          } else {
-                            context.push(AppRoutes.albumDetailPath(album.id));
-                          }
+                          context.push(AppRoutes.albumDetailPath(album.id));
                         }
                       },
                     ),
@@ -670,23 +639,19 @@ class _CollectionBody extends StatelessWidget {
               onCtaTap: onClearSearch,
             )
           else
-            GuideTarget(
-              steps: const [1],
-              cue: GuideCue.none,
-              child: EmptyState(
-                key: const Key('collection-empty-state'),
-                guideSteps: const [1],
-                icon: Icons.album_outlined,
-                title: 'Your collection is empty',
-                subtitle:
-                    'Add your first record and Groovefolio will start building your listening history.',
-                ctaLabel: 'Add your first record',
-                onCtaTap: () => context.push(
-                  GoRouterState.of(context).uri.queryParameters['onboarding'] ==
-                          'true'
-                      ? '${AppRoutes.addAlbum}?onboarding=true'
-                      : AppRoutes.addAlbum,
-                ),
+            EmptyState(
+              key: const Key('collection-empty-state'),
+              ctaSpotlight: SpotlightId.addRecordEmpty,
+              icon: Icons.album_outlined,
+              title: 'Your collection is empty',
+              subtitle:
+                  'Add your first record and Groovefolio will start building your listening history.',
+              ctaLabel: 'Add your first record',
+              onCtaTap: () => context.push(
+                GoRouterState.of(context).uri.queryParameters['onboarding'] ==
+                        'true'
+                    ? '${AppRoutes.addAlbum}?onboarding=true'
+                    : AppRoutes.addAlbum,
               ),
             ),
         ],

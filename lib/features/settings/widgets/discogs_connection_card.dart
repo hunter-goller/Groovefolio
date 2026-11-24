@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
+import 'package:vinyl_app/features/onboarding/tracks/spotlight/spotlight_target.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
@@ -270,9 +270,8 @@ class _ConnectionBody extends StatelessWidget {
           SizedBox(height: tokens.space8),
           _DiscogsDataLink(account: account!),
           SizedBox(height: tokens.space12),
-          GuideTarget(
-            steps: const [0],
-            outlineGap: true,
+          SpotlightTarget(
+            id: SpotlightId.discogsImport,
             child: FilledButton.icon(
               key: const Key('discogs-import-collection-button'),
               onPressed: onImport,
@@ -293,9 +292,8 @@ class _ConnectionBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        GuideTarget(
-          steps: const [0],
-          outlineGap: true,
+        SpotlightTarget(
+          id: SpotlightId.discogsConnect,
           child: FilledButton.icon(
             key: const Key('connect-discogs-button'),
             onPressed: () => onConnect(),
