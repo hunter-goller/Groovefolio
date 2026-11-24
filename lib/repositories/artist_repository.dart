@@ -3,13 +3,14 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/db/database_provider.dart';
 import 'package:vinyl_app/utils/id_generator.dart';
+import 'package:vinyl_app/utils/name_match.dart';
 
 part 'artist_repository.g.dart';
 
 /// Contract for artist persistence operations.
 abstract interface class IArtistRepository {
-  /// Finds an artist by name using a case-insensitive match, or creates one
-  /// when no matching artist exists.
+  /// Finds an artist by name using a case-insensitive match (see
+  /// [nameMatchKey]), or creates one when no matching artist exists.
   Future<Artist> findOrCreate(String name);
 
   Future<Artist?> findById(String id);
@@ -31,14 +32,19 @@ class ArtistRepository implements IArtistRepository {
     }
 
     return _db.transaction(() async {
-      final existingQuery = _db.select(_db.artists)
-        ..where(
-          (artist) => artist.name.lower().equals(trimmedName.toLowerCase()),
-        );
-      final existing = await existingQuery.getSingleOrNull();
-
-      if (existing != null) {
-        return existing;
+      // Compared in Dart, not SQL: SQLite's lower() is ASCII-only. If older
+      // duplicates exist, the earliest-created one is reused.
+      final key = nameMatchKey(trimmedName);
+      final candidates =
+          await (_db.select(_db.artists)..orderBy([
+                (artist) => OrderingTerm.asc(artist.createdAt),
+                (artist) => OrderingTerm.asc(artist.id),
+              ]))
+              .get();
+      for (final artist in candidates) {
+        if (nameMatchKey(artist.name) == key) {
+          return artist;
+        }
       }
 
       final now = DateTime.now().toUtc();

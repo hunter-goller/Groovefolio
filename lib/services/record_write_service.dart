@@ -5,6 +5,7 @@ import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/db/database_provider.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/repositories/discogs_release_link_repository.dart';
+import 'package:vinyl_app/services/collection_tidy_service.dart';
 
 /// Persistence-agnostic transaction boundary used by workflow services.
 ///
@@ -45,7 +46,9 @@ class RecordWriteService {
     required IGenreRepository genreRepository,
     required ITrackRepository trackRepository,
     required IDiscogsReleaseLinkRepository releaseLinkRepository,
+    CollectionTidyService? tidyService,
   }) : _transactionRunner = transactionRunner,
+       _tidyService = tidyService,
        _albumRepository = albumRepository,
        _artistRepository = artistRepository,
        _genreRepository = genreRepository,
@@ -58,6 +61,7 @@ class RecordWriteService {
   final IGenreRepository _genreRepository;
   final ITrackRepository _trackRepository;
   final IDiscogsReleaseLinkRepository _releaseLinkRepository;
+  final CollectionTidyService? _tidyService;
 
   /// Creates one record and its optional release link, tracks, and genres
   /// atomically. Rejects an exact Discogs release already linked locally.
@@ -131,10 +135,10 @@ class RecordWriteService {
     int? releaseYear,
     String? label,
     String? artworkPath,
-  }) {
+  }) async {
     final normalizedGenres = genreNames.toList(growable: false);
 
-    return _transactionRunner.run(() async {
+    final saved = await _transactionRunner.run(() async {
       final artist = await _artistRepository.findOrCreate(artistName);
       final updatedAlbum = Album(
         id: existing.id,
@@ -161,6 +165,14 @@ class RecordWriteService {
 
       return updatedAlbum;
     });
+
+    try {
+      // A renamed artist or dropped genre may now be unused.
+      await _tidyService?.removeUnusedArtistsAndGenres();
+    } catch (_) {
+      // Leftovers are harmless; the next edit or delete tidies again.
+    }
+    return saved;
   }
 
   String? _trimNullable(String? value) {
@@ -184,5 +196,6 @@ final recordWriteServiceProvider = Provider<RecordWriteService>((ref) {
     genreRepository: ref.watch(genreRepositoryProvider),
     trackRepository: ref.watch(trackRepositoryProvider),
     releaseLinkRepository: ref.watch(discogsReleaseLinkRepositoryProvider),
+    tidyService: ref.watch(collectionTidyServiceProvider),
   );
 });

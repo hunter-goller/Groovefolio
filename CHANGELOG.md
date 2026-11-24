@@ -4,6 +4,10 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ## Unreleased
 
+### Data tidiness
+- Artist and genre names now match regardless of case for accented letters too, so “BJÖRK” and “Björk” no longer become two artists. Accents still count: “Bjork” and “Björk” stay separate.
+- Artists and genres no record uses any more are removed after you edit or delete a record, and cover files left behind by deleted records are cleaned up.
+
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
 - Selected the permanent Android application ID `app.groovefolio` before public release and required explicit upload signing for release builds. The developer's real upload key and AAB remain outstanding.

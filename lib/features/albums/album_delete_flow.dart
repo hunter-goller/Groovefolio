@@ -57,6 +57,8 @@ Future<bool> confirmAndDeleteAlbum(
     ref.invalidate(albumProvider(albumId));
     ref.invalidate(albumDetailProvider(albumId));
     ref.invalidate(albumGenresProvider(albumId));
+    // Deleting may remove a genre no other record used.
+    ref.invalidate(genresProvider);
     ref.invalidate(albumTracksProvider(albumId));
     ref.invalidate(recentlyPlayedProvider);
 
