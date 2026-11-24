@@ -79,7 +79,27 @@ jobs:
             echo "GROOVEFOLIO_UPLOAD_KEY_PASSWORD=$password"
           } >> "$GITHUB_ENV"
 
-      - name: Release build verification (not published)
-        run: flutter build apk --release
-        # The disposable CI key is not the developer's Play upload key.
-        # The APK and key are discarded with the runner; neither is uploaded.
+      - name: Release App Bundle verification (not published)
+        run: flutter build appbundle --release
+        # Google Play only accepts App Bundles (AAB). The disposable CI key
+        # is not the developer's Play upload key; the AAB and key are
+        # discarded with the runner and nothing is uploaded.
+
+      - name: Check the App Bundle is signed with the upload key
+        shell: bash
+        run: |
+          aab=build/app/outputs/bundle/release/app-release.aab
+          test -s "$aab" || { echo "Missing $aab"; exit 1; }
+          # Release builds must use the upload key, never the debug key.
+          js="$(command -v jarsigner || echo "$JAVA_HOME/bin/jarsigner")"
+          "$js" -verify -verbose -certs "$aab" > "$RUNNER_TEMP/verify.txt"
+          grep -q "jar verified" "$RUNNER_TEMP/verify.txt"
+          grep -q "CN=Groovefolio CI" "$RUNNER_TEMP/verify.txt" || {
+            echo "AAB is not signed with the provided upload key."
+            exit 1
+          }
+          if grep -q "CN=Android Debug" "$RUNNER_TEMP/verify.txt"; then
+            echo "AAB is signed with the debug key."
+            exit 1
+          fi
+          echo "Signed AAB: $(du -h "$aab" | cut -f1)"
