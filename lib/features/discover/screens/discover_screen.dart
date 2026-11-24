@@ -106,12 +106,39 @@ class _DiscoverBody extends StatelessWidget {
             color: tokens.textMuted,
           ),
         ),
+        SizedBox(height: tokens.space8),
+        Row(
+          children: [
+            Icon(Icons.autorenew_rounded, size: 16, color: tokens.textMuted),
+            SizedBox(width: tokens.space4),
+            Text(
+              'Fresh picks every day',
+              key: const Key('discover-daily-note'),
+              style: context.theme.textTheme.labelMedium?.copyWith(
+                color: tokens.textMuted,
+              ),
+            ),
+          ],
+        ),
         SizedBox(height: tokens.space16),
         if (profile != null) ...[
           _TasteProfileCard(profile: profile),
           SizedBox(height: tokens.space24),
         ] else ...[
           const _LowDataCard(),
+          SizedBox(height: tokens.space24),
+        ],
+        if (data.pairings.isNotEmpty) ...[
+          _RecommendationSection(
+            key: const Key('discover-pairings'),
+            title: data.pairingSeedTitle == null
+                ? 'Goes with what you’re playing'
+                : 'Because you played ${data.pairingSeedTitle}',
+            subtitle:
+                'Records you usually play on the same days as your recent '
+                'spins.',
+            recommendations: data.pairings,
+          ),
           SizedBox(height: tokens.space24),
         ],
         if (data.rediscover.isNotEmpty) ...[
@@ -129,6 +156,17 @@ class _DiscoverBody extends StatelessWidget {
                 'Shelf picks matched to your recent listening, all-time '
                 'favorites, artists, and eras.',
             recommendations: data.genrePicks,
+          ),
+          SizedBox(height: tokens.space24),
+        ],
+        if (data.deepCuts.isNotEmpty) ...[
+          _RecommendationSection(
+            key: const Key('discover-deep-cuts'),
+            title: 'Deep cuts from artists you love',
+            subtitle:
+                'Records by your most-played artists that haven’t had their '
+                'turn yet.',
+            recommendations: data.deepCuts,
           ),
           SizedBox(height: tokens.space24),
         ],
@@ -326,6 +364,7 @@ String _artistTasteLabel(TasteArtist artist) {
 class _RecommendationSection extends StatelessWidget {
   const _RecommendationSection({
     required this.title,
+    super.key,
     required this.subtitle,
     required this.recommendations,
   });

@@ -4,8 +4,18 @@ import 'package:vinyl_app/providers/repository_providers.dart';
 
 part 'recommendation_service.g.dart';
 
-/// The four mutually exclusive shelves used by local Discover.
-enum RecommendationKind { rediscover, genre, era, underplayed }
+/// The mutually exclusive shelves used by local Discover.
+enum RecommendationKind {
+  /// Usually played on the same days as something you're playing now.
+  pairing,
+  rediscover,
+  genre,
+
+  /// An overlooked record by one of your most-played artists.
+  deepCut,
+  era,
+  underplayed,
+}
 
 /// Human-readable local signals shown by “Why this record?”.
 class RecommendationEvidence {
@@ -101,6 +111,9 @@ class DiscoverRecommendations {
     required this.genrePicks,
     required this.eraPicks,
     this.underplayed = const [],
+    this.pairings = const [],
+    this.pairingSeedTitle,
+    this.deepCuts = const [],
   });
 
   final int collectionSize;
@@ -110,7 +123,18 @@ class DiscoverRecommendations {
   final List<AlbumRecommendation> eraPicks;
   final List<AlbumRecommendation> underplayed;
 
+  /// Records usually played on the same days as your recent plays.
+  final List<AlbumRecommendation> pairings;
+
+  /// The recent record most [pairings] go with, for the shelf title.
+  final String? pairingSeedTitle;
+
+  /// Overlooked records by your most-played artists.
+  final List<AlbumRecommendation> deepCuts;
+
   bool get hasRecommendations =>
+      pairings.isNotEmpty ||
+      deepCuts.isNotEmpty ||
       rediscover.isNotEmpty ||
       genrePicks.isNotEmpty ||
       eraPicks.isNotEmpty ||
