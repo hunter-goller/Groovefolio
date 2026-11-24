@@ -408,6 +408,12 @@ class _FakeGenreRepository implements IGenreRepository {
   }
 
   @override
+  Future<Map<String, List<Genre>>> findAllByAlbum() async => {
+    for (final entry in _genresByAlbum.entries)
+      if (entry.value.isNotEmpty) entry.key: List.unmodifiable(entry.value),
+  };
+
+  @override
   Future<int> delete(String genreId) => throw UnimplementedError();
 
   @override

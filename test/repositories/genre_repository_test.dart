@@ -201,4 +201,30 @@ void main() {
     );
     expect(() => repository.delete('   '), throwsA(isA<ArgumentError>()));
   });
+
+  test(
+    'findAllByAlbum matches findByAlbum for every album in one query',
+    () async {
+      await seedAlbum('album-1');
+      await seedAlbum('album-2');
+      await seedAlbum('album-3');
+      final rock = await repository.findOrCreate('rock');
+      final jazz = await repository.findOrCreate('Jazz');
+      final blues = await repository.findOrCreate('Blues');
+      await repository.setAlbumGenres('album-1', [rock.id, jazz.id, blues.id]);
+      await repository.setAlbumGenres('album-2', [jazz.id]);
+
+      final all = await repository.findAllByAlbum();
+
+      expect(all.keys.toSet(), {'album-1', 'album-2'});
+      for (final albumId in ['album-1', 'album-2']) {
+        expect(all[albumId], await repository.findByAlbum(albumId));
+      }
+      expect(all['album-1']!.map((genre) => genre.name), [
+        'Blues',
+        'Jazz',
+        'rock',
+      ]);
+    },
+  );
 }

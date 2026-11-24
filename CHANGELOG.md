@@ -4,6 +4,10 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ## Unreleased
 
+### Performance
+- Collection search, sort and genre filter work in memory instead of reloading the whole collection on every keystroke, and the genre filter uses one query instead of one per record. It no longer flashes “no results” while genres load. Log Play search reuses the same loaded rows.
+- Stats loads about 4× faster on large collections. It now reads albums, plays and genres once per visit instead of reading the whole play history for each figure and querying genres record by record. Discover also loads genres in one query instead of one per record.
+
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
 - Selected the permanent Android application ID `app.groovefolio` before public release and required explicit upload signing for release builds. The developer's real upload key and AAB remain outstanding.

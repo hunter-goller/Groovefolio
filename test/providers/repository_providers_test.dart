@@ -179,6 +179,10 @@ class _FakeGenreRepository implements IGenreRepository {
   Future<List<Genre>> findByAlbum(String albumId) => throw UnimplementedError();
 
   @override
+  Future<Map<String, List<Genre>>> findAllByAlbum() =>
+      throw UnimplementedError();
+
+  @override
   Future<Genre?> findById(String id) => throw UnimplementedError();
 
   @override

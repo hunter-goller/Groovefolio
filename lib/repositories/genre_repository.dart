@@ -25,6 +25,10 @@ abstract interface class IGenreRepository {
   /// Returns the genres currently assigned to [albumId], ordered by name.
   Future<List<Genre>> findByAlbum(String albumId);
 
+  /// Returns every album's genres in one query, keyed by album ID and ordered
+  /// by name like [findByAlbum]. Albums without genres are absent.
+  Future<Map<String, List<Genre>>> findAllByAlbum();
+
   /// Atomically replaces all genre assignments for [albumId].
   ///
   /// Duplicate IDs in [genreIds] are collapsed before writing. Passing an
@@ -119,6 +123,24 @@ class GenreRepository implements IGenreRepository {
 
     final rows = await query.get();
     return rows.map((row) => row.readTable(_db.genres)).toList();
+  }
+
+  @override
+  Future<Map<String, List<Genre>>> findAllByAlbum() async {
+    final query = _db.select(_db.genres).join([
+      innerJoin(
+        _db.albumGenres,
+        _db.albumGenres.genreId.equalsExp(_db.genres.id),
+      ),
+    ])..orderBy([OrderingTerm.asc(_db.genres.name.lower())]);
+
+    final result = <String, List<Genre>>{};
+    for (final row in await query.get()) {
+      result
+          .putIfAbsent(row.readTable(_db.albumGenres).albumId, () => [])
+          .add(row.readTable(_db.genres));
+    }
+    return result;
   }
 
   @override
