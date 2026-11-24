@@ -10,15 +10,16 @@ The project expects CI to catch formatting/analyzer/test/build problems that may
 
 | When | Workflow | What it does | Time |
 |---|---|---|---|
-| Every pull request | `ci.yml` (check **Flutter CI**) | Format, analyze, tests, Drift schema check, NFC Kotlin tests | ~4 min |
+| Every pull request | `ci.yml` (check **Flutter CI**) | Format, analyze, tests, Drift schema check; NFC Kotlin tests only if the PR changes `android/` or the package files | ~4 min (~8 with Kotlin tests) |
 | Every merge to `main`, or **Run workflow** | `ci.yml` | All of the above, plus the debug APK and the release App Bundle check | ~11 min |
 | A pushed `v*` tag, or **Run workflow** | `release.yml` (**Release check**) | Checks the tag matches `pubspec.yaml`, runs the full `ci.yml`, and writes the steps to build the upload | ~12 min |
 
-PRs skip the two app builds because they take most of CI's time. The NFC Kotlin
-tests still compile the app's Android code on every PR (after
-`flutter build apk --debug --config-only`), and the full builds run right after
-each merge, so a release-only failure shows up on `main` immediately rather than
-on release day. The required check name stays **Flutter CI**.
+PRs skip the two app builds because they take most of CI's time. A PR that
+changes `android/`, `pubspec.yaml` or `pubspec.lock` also runs the NFC Kotlin
+tests, which compile the app's Android code (after
+`flutter build apk --debug --config-only`). Every merge to `main` runs
+everything, so an Android or release-only failure shows up right after merging
+rather than on release day. The required check name stays **Flutter CI**.
 
 ## Releasing a version
 

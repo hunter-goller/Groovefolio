@@ -18,6 +18,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          # A PR checks out GitHub's merge commit; depth 2 keeps its first
+          # parent (the target branch) so the Android-change check can diff.
+          fetch-depth: 2
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -58,12 +62,30 @@ jobs:
             exit 1
           fi
 
+      - name: Check for Android changes
+        id: android
+        shell: bash
+        run: |
+          # Gradle starts cold without the app builds below (about 4 min), so
+          # PRs run the Kotlin tests only when they change Android code or
+          # packages. Merges to main always run them.
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet HEAD^1 HEAD -- android pubspec.yaml pubspec.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No Android or package changes: skipping the Kotlin tests on this PR."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Prepare Android build files
-        # Writes local.properties and the plugin list Gradle needs, without
-        # building the app, so the Kotlin tests below also run on PRs.
+        if: steps.android.outputs.changed == 'true'
+        # Writes local.properties and the plugin list Gradle needs without
+        # building the app.
         run: flutter build apk --debug --config-only
 
       - name: Android NFC intent policy tests
+        if: steps.android.outputs.changed == 'true'
         working-directory: android
         run: ./gradlew :app:testDebugUnitTest --tests '*Nfc*Test'
 

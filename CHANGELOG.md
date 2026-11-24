@@ -5,7 +5,7 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 ## Unreleased
 
 ### CI
-- Pull requests now run checks only (about 4 minutes instead of 11); the debug and release builds run after each merge to `main`.
+- Pull requests now run checks only (about 4 minutes instead of 11); the debug and release builds run after each merge to `main`. The NFC Kotlin tests run on PRs that change Android code or packages, and on every merge.
 - New **Release check** workflow: pushing a `v1.2.3` tag verifies the version matches `pubspec.yaml`, runs every check and build for that commit, and lists the commands to build the signed upload locally. The upload key stays off GitHub.
 
 ### Release builds
