@@ -9,6 +9,9 @@ import 'package:vinyl_app/services/discogs/discogs_catalog_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_config.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 
+export 'package:vinyl_app/services/discogs/discogs_keep_alive.dart'
+    show DiscogsKeepAliveScope, discogsConnectionLostProvider;
+
 final discogsConfigProvider = Provider<DiscogsConfig>((ref) {
   return DiscogsConfig.fromEnvironment;
 });

@@ -41,8 +41,24 @@ successor, then the original only if the successor is definitely rejected. Both 
 network, server or storage errors. A confirmed invalid token clears the saved session/flow and
 asks for reconnection; mutations are not replayed and registration is not silently retried.
 
-If the app does not use the backend for 30 days, the installation can expire and require a fresh
-Discogs connection. The app has no background renewal worker. Lost successful registration
+### Staying connected
+
+The backend ends an installation that goes unused for too long (X-02). Opening the app, or
+bringing it back to the foreground, checks in with `GET /v1/installation` at most once every
+20 hours, and only when a connection already exists (`DiscogsKeepAlive`, mounted by
+`DiscogsKeepAliveScope` in `MyApp`). The check-in uses the normal authenticated path, so it also
+rotates the token when it is close to expiring. It sends no collection data, and offline or
+server failures are ignored until the next open.
+
+- With the sliding expiry in backend PR #17, every authenticated request extends the lifetime,
+  so a connection stays alive as long as the app is opened at least once per lifetime.
+- On a backend without sliding expiry, the check-in only helps when it lands in the final three
+  days before expiry, when the app rotates the token.
+
+If a check-in finds the server has already ended the installation, the saved session is cleared
+as before, and Settings explains that the connection ended while unused. Records are never
+affected. There is still no background worker: a phone where the app is never opened can still
+lose its connection. Lost successful registration
 responses may leave an unused installation until backend cleanup; a later explicit retry can
 register again. No token, OAuth URL, raw response body or credentials are printed in app logs.
 
