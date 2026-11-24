@@ -27,15 +27,13 @@ class DiscogsApiClient {
     return response.status == 204 ? const {} : response.json();
   }
 
-  Future<DiscogsAccount?> account() async {
+  Future<DiscogsAccount?> account({
+    Duration timeout = connectionTimeout,
+  }) async {
     if (!await session.hasSession()) {
       return null;
     }
-    final json = await call(
-      'GET',
-      '/v1/discogs/account',
-      timeout: connectionTimeout,
-    );
+    final json = await call('GET', '/v1/discogs/account', timeout: timeout);
     if (json['connected'] == false) {
       return null;
     }

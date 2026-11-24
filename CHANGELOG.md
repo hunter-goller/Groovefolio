@@ -4,6 +4,9 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ## Unreleased
 
+### Discogs connection
+- “Checking connection…” now gives up after about 10 seconds even when the app has to refresh its server token first. Before, the refresh steps each had their own 30-second limit, so the check could take close to two minutes. Nothing is lost when it gives up; the next check finishes the refresh.
+
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
 - Selected the permanent Android application ID `app.groovefolio` before public release and required explicit upload signing for release builds. The developer's real upload key and AAB remain outstanding.

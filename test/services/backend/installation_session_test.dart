@@ -128,6 +128,51 @@ void main() {
   );
 
   test(
+    'a timeout is one deadline for recovery, rotation and the request',
+    () async {
+      store.seed(days: 1, pending: nextToken);
+      final seen = <String>[];
+      final session = make((method, uri, headers, body, limit) async {
+        seen.add('$method ${uri.path}');
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        if (uri.path == '/v1/installation' &&
+            headers['Authorization'] == 'Bearer $nextToken') {
+          return response(401, {'code': 'authentication_required'});
+        }
+        return response(200, identity());
+      });
+      final clock = Stopwatch()..start();
+      await expectLater(
+        session.request(
+          'GET',
+          '/v1/discogs/account',
+          timeout: const Duration(milliseconds: 700),
+        ),
+        throwsA(isA<DiscogsNetworkFailure>()),
+      );
+      // Four 300 ms steps would take 1.2 s; the shared deadline stops at 0.7 s.
+      expect(clock.elapsed, lessThan(const Duration(milliseconds: 1000)));
+      expect(seen, isNot(contains('GET /v1/discogs/account')));
+      // Nothing is lost: the successor is still saved for the next attempt.
+      expect(jsonDecode(store.values['session']!)['pendingToken'], nextToken);
+    },
+  );
+
+  test('without a timeout each step keeps the transport default', () async {
+    store.seed(days: 1, pending: nextToken);
+    final session = make((method, uri, headers, body, limit) async {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      if (uri.path == '/v1/installation' &&
+          headers['Authorization'] == 'Bearer $nextToken') {
+        return response(401, {'code': 'authentication_required'});
+      }
+      return response(200, identity());
+    });
+    await session.request('GET', '/v1/discogs/account');
+    expect(jsonDecode(store.values['session']!)['pendingToken'], isNull);
+  });
+
+  test(
     'ambiguous recovery failure retains both tokens and never registers',
     () async {
       store.seed(pending: nextToken);
