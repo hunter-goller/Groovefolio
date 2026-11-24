@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -99,8 +100,22 @@ class _ResilientImageState extends State<ResilientImage> {
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => _image(
+        context,
+        decodeSizedImage(
+          widget.image,
+          width: widget.width ?? constraints.maxWidth,
+          height: widget.height ?? constraints.maxHeight,
+          devicePixelRatio: MediaQuery.maybeDevicePixelRatioOf(context) ?? 1,
+        ),
+      ),
+    );
+  }
+
+  Widget _image(BuildContext context, ImageProvider<Object> image) {
     return Image(
-      image: widget.image,
+      image: image,
       fit: widget.fit,
       width: widget.width,
       height: widget.height,
@@ -120,4 +135,31 @@ class _ResilientImageState extends State<ResilientImage> {
       },
     );
   }
+}
+
+/// Decodes [image] at about the size it's shown instead of at full
+/// resolution. Covers can be up to 1600 px wide while tiles are 52-142 logical
+/// pixels, and a full-size decode costs about 10 MB of memory per cover.
+///
+/// The decode width covers the larger side of the box, so [BoxFit.cover]
+/// stays sharp for near-square artwork, and is rounded up to a multiple of
+/// 64 px so tiles of slightly different sizes share one cached decode.
+/// Smaller images are never upscaled. Without a finite size, the image is
+/// decoded as-is.
+@visibleForTesting
+ImageProvider<Object> decodeSizedImage(
+  ImageProvider<Object> image, {
+  required double width,
+  required double height,
+  required double devicePixelRatio,
+}) {
+  final side = [
+    width,
+    height,
+  ].where((value) => value.isFinite && value > 0).fold<double>(0, math.max);
+  if (side == 0) {
+    return image;
+  }
+  final pixels = (side * devicePixelRatio / 64).ceil() * 64;
+  return ResizeImage(image, width: pixels, allowUpscaling: false);
 }
