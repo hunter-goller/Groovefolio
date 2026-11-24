@@ -14,6 +14,10 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 ### Tutorial tracks (part 1)
 - Added the progress model for the upcoming game-style tutorial: tracks, badges, locking, a gold record, and auto-completion from existing records, plays and NFC tags. Stored on the device only. No visible change yet.
 - If first-run status can't be read from secure storage, the collection now opens instead of a full-screen error with only Retry.
+### Backup and restore
+- Added Settings → Back up collection: a versioned `.zip` with every local table and stored covers, saved wherever the user chooses through the system Save dialog.
+- Added **Save a copy of my data** to the startup error screen: copies the raw database and covers to a rescue file without opening the database.
+- Added Settings → Restore from backup for an empty collection, with a summary and confirmation, one-transaction restore and validation of damaged, foreign or newer-version files.
 
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
