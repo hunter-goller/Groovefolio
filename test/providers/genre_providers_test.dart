@@ -91,6 +91,17 @@ class _FakeGenreRepository implements IGenreRepository {
     return albumGenres[albumId] ?? const [];
   }
 
+  int findAllByAlbumCalls = 0;
+
+  @override
+  Future<Map<String, List<Genre>>> findAllByAlbum() async {
+    findAllByAlbumCalls += 1;
+    return {
+      for (final entry in albumGenres.entries)
+        if (entry.value.isNotEmpty) entry.key: entry.value,
+    };
+  }
+
   @override
   Future<Genre?> findById(String id) => throw UnimplementedError();
 

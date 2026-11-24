@@ -269,6 +269,12 @@ class _FakeGenreRepository implements IGenreRepository {
   }
 
   @override
+  Future<Map<String, List<Genre>>> findAllByAlbum() async => {
+    for (final albumId in albumAssignments.keys)
+      albumId: await findByAlbum(albumId),
+  };
+
+  @override
   Future<Genre?> findById(String id) async {
     for (final genre in genres) {
       if (genre.id == id) return genre;

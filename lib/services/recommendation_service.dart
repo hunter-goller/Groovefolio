@@ -321,21 +321,10 @@ class RecommendationService implements IRecommendationService {
     );
   }
 
+  /// One query for every album's genres, instead of one per album.
   Future<Map<String, List<Genre>>> _loadGenres(List<Album> albums) async {
-    final assignments = await Future.wait([
-      for (final album in albums) _loadAlbumGenres(album.id),
-    ]);
-    return {
-      for (final assignment in assignments)
-        assignment.albumId: assignment.genres,
-    };
-  }
-
-  Future<_AlbumGenres> _loadAlbumGenres(String albumId) async {
-    return _AlbumGenres(
-      albumId: albumId,
-      genres: await _genreRepository.findByAlbum(albumId),
-    );
+    final all = await _genreRepository.findAllByAlbum();
+    return {for (final album in albums) album.id: all[album.id] ?? const []};
   }
 
   TasteProfile? _buildTasteProfile(
@@ -900,13 +889,6 @@ IRecommendationService recommendationService(Ref ref) {
 @riverpod
 Future<DiscoverRecommendations> discoverRecommendations(Ref ref) {
   return ref.watch(recommendationServiceProvider).getRecommendations();
-}
-
-class _AlbumGenres {
-  const _AlbumGenres({required this.albumId, required this.genres});
-
-  final String albumId;
-  final List<Genre> genres;
 }
 
 class _GenreCount {

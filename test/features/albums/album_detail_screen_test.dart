@@ -517,6 +517,11 @@ class _FakeGenreRepository implements IGenreRepository {
       albumId == 'album-1' ? List.unmodifiable(genres) : const [];
 
   @override
+  Future<Map<String, List<Genre>>> findAllByAlbum() async => {
+    if (genres.isNotEmpty) 'album-1': List.unmodifiable(genres),
+  };
+
+  @override
   Future<List<Genre>> findAll() async => List.unmodifiable(genres);
 
   @override

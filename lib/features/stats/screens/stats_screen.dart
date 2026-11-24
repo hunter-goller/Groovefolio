@@ -49,7 +49,11 @@ class StatsDashboardData {
     required this.topArtists,
     required this.firstVinyl,
     required this.firstVinylArtistName,
+    this.insights,
   });
+
+  /// Facts for the Insights card; null hides it.
+  final StatsInsights? insights;
 
   final CollectionSummary summary;
   final List<MonthlyPlays> months;
@@ -63,7 +67,8 @@ class StatsDashboardData {
 
 /// Loads the range-specific dashboard, resolving artist IDs once for
 /// rankings rather than mixing repository lookups into the widget tree.
-/// Service reads run independently, not inside one database snapshot. Monthly
+/// Albums, plays and genres are read once per load (not inside one database
+/// transaction) and every figure is computed from that read. Monthly
 /// data always covers the current year; yearly data is loaded for all-time UI.
 /// This FutureProvider does not watch table changes; callers must invalidate
 /// it when a write should refresh a dashboard that remains mounted.
@@ -74,25 +79,20 @@ final statsDashboardProvider = FutureProvider.autoDispose
       final currentYear = DateTime.now().year;
       final filteredYear = range == StatsRange.currentYear ? currentYear : null;
 
-      final summaryFuture = service.getCollectionSummary(year: filteredYear);
-      final monthsFuture = service.getPlaysByMonth(currentYear);
-      final yearsFuture = service.getPlaysByYear();
-      final genresFuture = service.getGenreBreakdown(year: filteredYear);
-      final rankedFuture = service.getMostPlayedAlbums(5, year: filteredYear);
-      final artistStatsFuture = service.getMostPlayedArtists(
-        year: filteredYear,
-      );
-      final firstVinylFuture = service.getFirstVinyl();
+      // One read of albums, plays and genres feeds every figure below.
+      final snapshotFuture = service.loadSnapshot();
       final artistsFuture = artistRepository.findAll();
-
-      final summary = await summaryFuture;
-      final months = await monthsFuture;
-      final years = await yearsFuture;
-      final genres = await genresFuture;
-      final ranked = await rankedFuture;
-      final artistStats = await artistStatsFuture;
-      final firstVinyl = await firstVinylFuture;
+      final snapshot = await snapshotFuture;
       final artists = await artistsFuture;
+
+      final summary = snapshot.collectionSummary(year: filteredYear);
+      final months = snapshot.playsByMonth(currentYear);
+      final years = snapshot.playsByYear();
+      final genres = snapshot.genreBreakdown(year: filteredYear);
+      final ranked = snapshot.mostPlayedAlbums(5, year: filteredYear);
+      final artistStats = snapshot.mostPlayedArtists(year: filteredYear);
+      final firstVinyl = snapshot.firstVinyl();
+      final insights = snapshot.insights(year: filteredYear);
       final artistsById = {
         for (final artist in artists) artist.id: artist.name,
       };
@@ -130,6 +130,7 @@ final statsDashboardProvider = FutureProvider.autoDispose
         firstVinylArtistName: firstVinyl == null
             ? null
             : artistsById[firstVinyl.artistId] ?? 'Unknown artist',
+        insights: insights,
       );
     });
 
@@ -309,6 +310,19 @@ class _StatsBody extends StatelessWidget {
           ),
         ],
         SizedBox(height: tokens.space24),
+        if (data.insights case final insights?)
+          if (_InsightsCard.linesFor(
+            insights,
+            range,
+            currentYear,
+          ).isNotEmpty) ...[
+            _InsightsCard(
+              insights: insights,
+              range: range,
+              currentYear: currentYear,
+            ),
+            SizedBox(height: tokens.space24),
+          ],
         if (data.summary.totalPlays == 0)
           const _NoPlaysCard()
         else ...[
@@ -624,11 +638,198 @@ class _ExpandableGenreBreakdownState extends State<_ExpandableGenreBreakdown> {
   }
 }
 
+typedef _Insight = ({IconData icon, String headline, String detail});
+
+/// Plain-English observations built from [StatsInsights]. Each line comes
+/// from one measured fact, so it can be checked against the numbers.
+class _InsightsCard extends StatelessWidget {
+  const _InsightsCard({
+    required this.insights,
+    required this.range,
+    required this.currentYear,
+  });
+
+  final StatsInsights insights;
+  final StatsRange range;
+  final int currentYear;
+
+  static const _weekdays = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+
+  static String _days(int count) => count == 1 ? '1 day' : '$count days';
+  static String _plays(int count) => count == 1 ? '1 play' : '$count plays';
+
+  static List<_Insight> linesFor(
+    StatsInsights insights,
+    StatsRange range,
+    int currentYear,
+  ) {
+    final lines = <_Insight>[];
+    final streak = insights.currentStreakDays;
+    final best = insights.longestStreakDays;
+    if (streak >= 2) {
+      lines.add((
+        icon: Icons.local_fire_department_rounded,
+        headline: '${_days(streak)} in a row',
+        detail: streak >= best
+            ? 'Your longest listening streak yet. Play something today to '
+                  'keep it going.'
+            : 'Your best is ${_days(best)}. Play something today to keep '
+                  'it going.',
+      ));
+    } else if (best >= 2) {
+      lines.add((
+        icon: Icons.local_fire_department_outlined,
+        headline: 'Best streak: ${_days(best)}',
+        detail: 'Play on two days in a row to start a new streak.',
+      ));
+    }
+
+    final now = insights.periodPlays;
+    final before = insights.previousPeriodPlays;
+    final window = range == StatsRange.currentYear
+        ? 'than this time last year'
+        : 'than the 12 months before';
+    if (before > 0 && now > 0) {
+      final change = ((now - before) / before * 100).round();
+      final detail = range == StatsRange.currentYear
+          ? '${_plays(now)} so far in $currentYear, '
+                '${_plays(before)} by today in ${currentYear - 1}.'
+          : '${_plays(now)} in the last 12 months, '
+                '${_plays(before)} in the 12 before.';
+      if (change.abs() < 5) {
+        lines.add((
+          icon: Icons.trending_flat_rounded,
+          headline: 'Listening about as much as last year',
+          detail: detail,
+        ));
+      } else {
+        lines.add((
+          icon: change > 0
+              ? Icons.trending_up_rounded
+              : Icons.trending_down_rounded,
+          headline:
+              '${change.abs()}% ${change > 0 ? 'more' : 'less'} '
+              'listening $window',
+          detail: detail,
+        ));
+      }
+    }
+
+    final weekday = insights.busiestWeekday;
+    if (weekday != null) {
+      final name = _weekdays[weekday - 1];
+      lines.add((
+        icon: Icons.event_rounded,
+        headline: '$name is your record day',
+        detail:
+            '${_plays(insights.busiestWeekdayPlays)} on ${name}s'
+            '${range == StatsRange.currentYear ? ' in $currentYear' : ''}, '
+            'more than any other day.',
+      ));
+    }
+
+    final a = insights.sideAPlays;
+    final b = insights.sideBPlays;
+    if (a + b >= 6 && (a >= b * 2 || b >= a * 2)) {
+      final (more, less, many, few) = a > b
+          ? ('A', 'B', a, b)
+          : ('B', 'A', b, a);
+      lines.add((
+        icon: Icons.album_outlined,
+        headline: few == 0
+            ? 'Only ever side $more'
+            : 'Side $more gets ${(many / few).round()}× the spins',
+        detail:
+            '${_plays(many)} of side $more and ${_plays(few)} of side $less. '
+            'Flip it over sometime.',
+      ));
+    }
+
+    final never = insights.neverPlayedAlbums;
+    if (never > 0) {
+      lines.add((
+        icon: Icons.new_releases_outlined,
+        headline: never == 1
+            ? '1 record has never been played'
+            : '$never records have never been played',
+        detail:
+            'Discover’s “Give these a spin” shelf is a good place to start.',
+      ));
+    }
+    return lines;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final lines = linesFor(insights, range, currentYear);
+    return _StatsSectionCard(
+      key: const Key('stats-insights'),
+      title: 'Insights',
+      child: Column(
+        children: [
+          for (var index = 0; index < lines.length; index++) ...[
+            if (index > 0) SizedBox(height: tokens.space12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppThemeTokens.accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                  ),
+                  child: Icon(
+                    lines[index].icon,
+                    size: 20,
+                    color: AppThemeTokens.accent,
+                  ),
+                ),
+                SizedBox(width: tokens.space12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        lines[index].headline,
+                        style: context.theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        lines[index].detail,
+                        style: context.theme.textTheme.bodySmall?.copyWith(
+                          color: tokens.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _StatsSectionCard extends StatelessWidget {
   const _StatsSectionCard({
     required this.title,
     required this.child,
     this.trailing,
+    super.key,
   });
 
   final String title;
