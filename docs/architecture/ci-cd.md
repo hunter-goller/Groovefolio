@@ -6,6 +6,42 @@ Groovefolio uses GitHub Actions from:
 
 The project expects CI to catch formatting/analyzer/test/build problems that may not appear in a narrow local test run.
 
+## What runs when
+
+| When | Workflow | What it does | Time |
+|---|---|---|---|
+| Every pull request | `ci.yml` (check **Flutter CI**) | Format, analyze, tests, Drift schema check; NFC Kotlin tests only if the PR changes `android/` or the package files | ~4 min (~8 with Kotlin tests) |
+| Every merge to `main`, or **Run workflow** | `ci.yml` | All of the above, plus the debug APK and the release App Bundle check | ~11 min |
+| A pushed `v*` tag, or **Run workflow** | `release.yml` (**Release check**) | Checks the tag matches `pubspec.yaml`, runs the full `ci.yml`, and writes the steps to build the upload | ~12 min |
+
+PRs skip the two app builds because they take most of CI's time. A PR that
+changes `android/`, `pubspec.yaml` or `pubspec.lock` also runs the NFC Kotlin
+tests, which compile the app's Android code (after
+`flutter build apk --debug --config-only`). Every merge to `main` runs
+everything, so an Android or release-only failure shows up right after merging
+rather than on release day. The required check name stays **Flutter CI**.
+
+## Releasing a version
+
+1. Bump `version:` in `pubspec.yaml` (for example `1.0.1+2`; the number after
+   `+` must go up for every Play upload) and merge it.
+2. Tag that commit and push the tag:
+
+   ```powershell
+   git checkout main
+   git pull
+   git tag v1.0.1
+   git push origin v1.0.1
+   ```
+
+3. Wait for **Release check** on the Actions tab. It fails if the tag doesn't
+   match `pubspec.yaml`. When it passes, its summary lists the commands to build
+   the signed upload on your computer, as in
+   [Android upload signing](../development/android-release-signing.md).
+
+The upload key never goes to GitHub: CI only ever signs with a throwaway key to
+prove the bundle builds and signs. Nothing is published automatically.
+
 ## Local pre-push verification
 
 ```powershell
