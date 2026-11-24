@@ -4,6 +4,10 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ## Unreleased
 
+### Robustness
+- One damaged or unknown “side played” value no longer stops Collection, Stats and Discover from loading; it is read as a full-album play.
+- Unknown links and paths show a “Page not found” screen with a way back to Collection instead of the router’s default error page.
+
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
 - Selected the permanent Android application ID `app.groovefolio` before public release and required explicit upload signing for release builds. The developer's real upload key and AAB remain outstanding.
