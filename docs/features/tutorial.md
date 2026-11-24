@@ -1,12 +1,6 @@
-# Tutorial tracks (in progress)
+# Tutorial tracks
 
-The getting-started walkthrough is being rebuilt as a game-style tutorial themed as a record, in three parts: the **progress model** (part 1), the **screens** (part 2) and the **spotlight guide** (part 3).
-
-Parts 1 and 2 sit behind a switch that is **off by default**, so the existing 8-step walkthrough stays in charge until part 3 turns the new tutorial on and removes the old one. To try it:
-
-```bash
-flutter run --profile --dart-define=GROOVEFOLIO_NEW_TUTORIAL=true
-```
+Getting started is a game-style tutorial themed as a record. Short **tracks** teach one thing each, using the real app and your real records. Finishing a track lights a groove and earns a badge; finishing the required ones earns a gold record. It replaced the old 8-step walkthrough.
 
 ## Tracks
 
@@ -45,7 +39,7 @@ Code: `lib/features/onboarding/tracks/`. Tests: `test/features/onboarding/tracks
 - **Welcome** (`TutorialWelcomeScreen`): shown by `OnboardingGate` on a fresh install (intro not seen and no records). A spinning vinyl, the number of tracks and their badges. **Drop the needle** starts the next track; **Skip** opens the shelf. Either marks the intro as seen.
 - **Track 1 choice:** "How do you want to fill your shelf?" offers **Import from Discogs** (opens Settings to connect and import) or **Add one by hand** (opens Add record). Discogs is never required.
 - **Track 4 intro:** a sheet with the tag photo explains NFC and what you need, with **Skip for now**.
-- **Playing a track:** a compact bar shows the track number, one instruction and **Stop**. Part 3 replaces this bar with the spotlight.
+- **Playing a track:** the spotlight guides each step (below).
 - **Track complete:** confetti, the badge, progress, then **Next: <track>**, **See your gold record** or **Back to my shelf**.
 - **Tracklist** (`/tutorial`, Settings → Getting started): progress vinyl, Side A, Side B and the bonus track with locked, playable and completed states, then every badge.
 - **Gold record** (`/tutorial/gold`): shown once after the last required track; replayable from the tracklist.
@@ -66,3 +60,23 @@ Screens report what happened through `ref.tutorialEvent(...)`, which does nothin
 | Discogs import finished | Import screen | Bonus, and Track 1 if anything was imported |
 
 Only the track being played is celebrated. Doing the same thing outside the tutorial earns the badge quietly.
+
+## Spotlight (part 3)
+
+While a track plays, `SpotlightOverlay` dims the screen except one real control, with a bubble: the track number, step dots, one title, one instruction, **Pause** and **Skip this track**. An animated hand shows the tap or swipe a few times, then rests; with reduced motion it stays still.
+
+- **Strict:** only the spotlighted control, the bubble and system Back respond. Taps elsewhere are absorbed.
+- **Real controls:** each is tagged with `SpotlightTarget(id: ...)`, which reports its position after every paint (so scrolling is followed) and its taps. Only the top screen's controls count.
+- **Steps** (`TrackStep` in `track_scripts.dart`) move on when the control is tapped, when **Got it** is pressed (look-only steps), or when the track's completion event arrives. A `skippable` step is passed if a later step's control is already on screen. `padding` widens the lit area, e.g. to include a tab's label.
+- **Off track:** if the step's control isn't on screen, the bubble moves to the bottom with no dimming and offers **Show me**, which goes back to where the track starts.
+- **Discogs path:** the bubble offers **Add by hand instead**, so Discogs being down or unwanted never blocks Track 1.
+- **Skip** starts the next playable track after this one; **Pause** ends the track. Neither earns a badge.
+
+| Track | Steps |
+|---|---|
+| 1, by hand | Add record → title → artist → Save |
+| 1, Discogs | Connect Discogs → Import Discogs collection → Import |
+| 2 | Pick a record → Which side? → Save play |
+| 3 | Stats summary (Got it) → Discover |
+
+Side B scripts (NFC, swipe practice, backup) follow in part 3b; until then those tracks show their one-line hint.

@@ -12,7 +12,6 @@ import 'package:vinyl_app/services/artwork_storage_service.dart';
 import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/record_write_service.dart';
-import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/utils/error_reporting.dart';
 import 'package:vinyl_app/widgets/shared/artwork_picker.dart';
@@ -191,12 +190,7 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
       ref.invalidate(albumsProvider);
 
       if (!mounted) return;
-      final guide = ref.read(walkthroughProvider);
-      context.go(
-        guide.active && guide.step == 5
-            ? AppRoutes.collection
-            : AppRoutes.albumDetailPath(existing.id),
-      );
+      context.go(AppRoutes.albumDetailPath(existing.id));
     } catch (error, stackTrace) {
       logAppError('save record changes', error, stackTrace);
       if (!metadataSaved && wroteArtwork && writtenArtworkPath != null) {

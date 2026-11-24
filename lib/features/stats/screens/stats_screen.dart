@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
+import 'package:vinyl_app/features/onboarding/tracks/spotlight/spotlight_target.dart';
 import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
@@ -303,11 +304,14 @@ class _StatsBody extends StatelessWidget {
         tokens.space32,
       ),
       children: [
-        _SummaryGrid(
-          summary: data.summary,
-          currentMonthPlays: currentMonthPlays,
-          range: range,
-          currentYear: currentYear,
+        SpotlightTarget(
+          id: SpotlightId.statsSummary,
+          child: _SummaryGrid(
+            summary: data.summary,
+            currentMonthPlays: currentMonthPlays,
+            range: range,
+            currentYear: currentYear,
+          ),
         ),
         if (data.firstVinyl != null) ...[
           SizedBox(height: tokens.space16),

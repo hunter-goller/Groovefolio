@@ -46,6 +46,10 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 ### Performance
 - Collection search, sort and genre filter work in memory instead of reloading the whole collection on every keystroke, and the genre filter uses one query instead of one per record. It no longer flashes “no results” while genres load. Log Play search reuses the same loaded rows.
 - Stats loads about 4× faster on large collections. It now reads albums, plays and genres once per visit instead of reading the whole play history for each figure and querying genres record by record. Discover also loads genres in one query instead of one per record.
+### Tutorial tracks (part 3a)
+- Turned on the game-style tutorial for everyone and removed the old 8-step walkthrough.
+- Added the spotlight guide: dims all but one real control, a coach bubble with Pause and Skip, a short hand demonstration (still with reduced motion), Show me when off track, and Add by hand instead on the Discogs path. Side A tracks are fully scripted.
+
 ### Tutorial tracks (part 2)
 - Added the game-style tutorial screens behind `GROOVEFOLIO_NEW_TUTORIAL` (off by default): Welcome, the Track 1 Discogs-or-by-hand choice, the NFC intro, a track hint bar, Track complete celebrations with badges, the Getting started tracklist and the Gold record.
 

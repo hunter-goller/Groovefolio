@@ -296,6 +296,14 @@ void main() {
       },
     );
 
+    test('skipping suggests a different track, later ones first', () async {
+      await addRecord('album-1');
+      final v = await view(container(backup: true));
+      expect(v.nextAfter(TutorialTrack.logSpin), TutorialTrack.stats);
+      expect(v.nextAfter(TutorialTrack.backup), TutorialTrack.logSpin);
+      expect(v.nextAfter(TutorialTrack.stats), isNot(TutorialTrack.stats));
+    });
+
     test(
       'NFC is hidden on phones without NFC; backup until it ships',
       () async {

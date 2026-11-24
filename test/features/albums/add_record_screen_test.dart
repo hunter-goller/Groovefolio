@@ -17,7 +17,6 @@ import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/record_write_service.dart';
-import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 
 void main() {
@@ -126,25 +125,20 @@ void main() {
     'saved record survives follow-up failure without duplicate retry',
     (tester) async {
       final albums = _FakeAlbumRepository();
+      final nfc = _NfcFixture();
       await tester.pumpWidget(
-        _testApp(albumRepository: albums, walkthrough: _FailingFollowUp()),
+        _testApp(
+          albumRepository: albums,
+          nfcAvailability: NfcAvailabilityState.available,
+          nfcService: _FailingNfcService(nfc.platform, nfc.repository),
+        ),
       );
       await tester.pumpAndSettle();
-      for (final entry in {
-        'add-record-title': 'Blue Train',
-        'add-record-artist': 'John Coltrane',
-      }.entries) {
-        await tester.enterText(
-          find.descendant(
-            of: find.byKey(Key(entry.key)),
-            matching: find.byType(TextFormField),
-          ),
-          entry.value,
-        );
-      }
-      tester.testTextInput.hide();
-      await tester.ensureVisible(find.text('Add to collection'));
-      await tester.tap(find.text('Add to collection'));
+      await _enterRequiredRecord(tester);
+      await tester.ensureVisible(find.byKey(const Key('add-record-write-nfc')));
+      await tester.tap(find.byKey(const Key('add-record-write-nfc')));
+      await tester.pump();
+      await _submitRecord(tester);
       await tester.pumpAndSettle();
       expect(albums.created, hasLength(1));
       expect(
@@ -740,7 +734,6 @@ Widget _testApp({
   NfcAvailabilityState nfcAvailability = NfcAvailabilityState.unsupported,
   NfcService? nfcService,
   String? scannedBarcode,
-  WalkthroughController? walkthrough,
 }) {
   final router = GoRouter(
     initialLocation: AppRoutes.addAlbum,
@@ -775,8 +768,6 @@ Widget _testApp({
 
   return ProviderScope(
     overrides: [
-      if (walkthrough != null)
-        walkthroughProvider.overrideWith(() => walkthrough),
       artistRepositoryProvider.overrideWithValue(
         artistRepository ?? _FakeArtistRepository(),
       ),
@@ -1220,10 +1211,11 @@ class _FakeNfcTagRepository implements INfcTagRepository {
   }
 }
 
-class _FailingFollowUp extends WalkthroughController {
+/// Fails after the record is saved, to exercise the follow-up error path.
+class _FailingNfcService extends NfcService {
+  _FailingNfcService(super.platform, super.repository);
+
   @override
-  WalkthroughState build() => const WalkthroughState(active: true, step: 1);
-  @override
-  Future<void> recordSaved(String id) async =>
-      throw StateError('private follow-up failure');
+  Future<T> withForegroundInteraction<T>(Future<T> Function() action) =>
+      Future.error(StateError('private follow-up failure'));
 }

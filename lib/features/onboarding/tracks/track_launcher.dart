@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vinyl_app/features/onboarding/tracks/spotlight/track_scripts.dart';
 import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
 import 'package:vinyl_app/features/onboarding/tracks/tutorial_track.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
@@ -36,7 +37,19 @@ String trackHint(TutorialTrack track) => switch (track) {
     'Connect Discogs, then tap Import Discogs collection.',
 };
 
-enum _ShelfChoice { discogs, byHand }
+/// Where [track] starts, and where "Show me" takes you back to.
+String trackStartLocation(
+  TutorialTrack track, {
+  ShelfPath path = ShelfPath.byHand,
+}) => switch (track) {
+  TutorialTrack.addRecord =>
+    path == ShelfPath.discogs ? AppRoutes.settings : AppRoutes.collection,
+  TutorialTrack.logSpin => AppRoutes.logPlay,
+  TutorialTrack.stats => AppRoutes.stats,
+  TutorialTrack.nfc || TutorialTrack.swipe => AppRoutes.collection,
+  TutorialTrack.backup => AppRoutes.collection,
+  TutorialTrack.discogsImport => AppRoutes.settings,
+};
 
 /// Starts [track]: asks any up-front question, then sets it as the active
 /// track and opens the right screen. Returns false if the user backed out.
@@ -50,20 +63,18 @@ Future<bool> startTrack(
   Future<void> Function()? beforeStart,
 }) async {
   final router = GoRouter.of(context);
+  var path = ShelfPath.byHand;
   String? location;
-  var push = true;
 
   switch (track) {
     case TutorialTrack.addRecord:
-      final choice = await showModalBottomSheet<_ShelfChoice>(
+      final choice = await showModalBottomSheet<ShelfPath>(
         context: context,
         showDragHandle: true,
         builder: (_) => const _ShelfChoiceSheet(),
       );
       if (choice == null) return false;
-      location = choice == _ShelfChoice.discogs
-          ? AppRoutes.settings
-          : AppRoutes.addAlbum;
+      path = choice;
     case TutorialTrack.nfc:
       final ready = await showModalBottomSheet<bool>(
         context: context,
@@ -73,28 +84,25 @@ Future<bool> startTrack(
       );
       if (ready != true) return false;
       final albums = await ref.read(albumRepositoryProvider).findAll();
-      location = albums.isEmpty
-          ? AppRoutes.collection
-          : AppRoutes.albumDetailPath(albums.first.id);
+      if (albums.isNotEmpty) {
+        location = AppRoutes.albumDetailPath(albums.first.id);
+      }
     case TutorialTrack.logSpin:
-      location = AppRoutes.logPlay;
     case TutorialTrack.stats:
-      location = AppRoutes.stats;
-      push = false;
     case TutorialTrack.swipe:
-      location = AppRoutes.collection;
-      push = false;
     case TutorialTrack.backup:
     case TutorialTrack.discogsImport:
-      location = AppRoutes.settings;
+      break;
   }
 
+  location ??= trackStartLocation(track, path: path);
   await beforeStart?.call();
-  ref.read(tutorialSessionProvider.notifier).play(track);
-  if (push && location != AppRoutes.collection) {
-    unawaited(router.push<void>(location));
-  } else {
+  ref.read(tutorialSessionProvider.notifier).play(track, path: path);
+  // Tabs replace the stack; everything else opens on top so Back works.
+  if (location == AppRoutes.collection || location == AppRoutes.stats) {
     router.go(location);
+  } else {
+    unawaited(router.push<void>(location));
   }
   return true;
 }
@@ -110,7 +118,7 @@ class _ShelfChoiceSheet extends StatelessWidget {
       required IconData icon,
       required String title,
       required String subtitle,
-      required _ShelfChoice value,
+      required ShelfPath value,
     }) => Card(
       child: ListTile(
         key: key,
@@ -139,14 +147,14 @@ class _ShelfChoiceSheet extends StatelessWidget {
               icon: Icons.cloud_download_rounded,
               title: 'Import from Discogs',
               subtitle: 'You already catalogue your records there.',
-              value: _ShelfChoice.discogs,
+              value: ShelfPath.discogs,
             ),
             option(
               key: const Key('shelf-choice-by-hand'),
               icon: Icons.edit_rounded,
               title: 'Add one by hand',
               subtitle: 'Type a title and artist. No account needed.',
-              value: _ShelfChoice.byHand,
+              value: ShelfPath.byHand,
             ),
           ],
         ),

@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:vinyl_app/providers/repository_providers.dart';
 
-/// Persists first-run completion and the resumable walkthrough step.
+/// The old walkthrough's saved state. Only read now, once, to carry over
+/// whether someone has already seen getting started (see
+/// `migrateFromWalkthrough`). The tutorial saves its own progress.
 abstract interface class OnboardingStore {
   Future<bool> hasCompletedOnboarding();
 
@@ -47,62 +48,6 @@ class SecureOnboardingStore implements OnboardingStore {
   }
 }
 
-/// Decides whether to start, resume or skip the real-app walkthrough.
-/// Existing collections are treated as upgraded installs, not fresh users.
-class OnboardingService {
-  const OnboardingService({
-    required this._store,
-    required this._albumRepository,
-  });
-
-  final OnboardingStore _store;
-  final IAlbumRepository _albumRepository;
-
-  /// Returns true for an unfinished first run, honoring saved step progress.
-  /// Marks a populated, previously unmarked install complete instead of
-  /// forcing its owner through newly introduced onboarding.
-  /// The completion flag takes precedence over saved progress; Settings replay
-  /// uses WalkthroughController directly and does not clear that flag.
-  Future<bool> shouldShowOnboarding() async {
-    if (await _store.hasCompletedOnboarding()) return false;
-
-    if (await _store.readProgress() != null) return true;
-
-    // A populated collection means this is an upgraded install. Do not force
-    // an existing Groovefolio user through a newly added first-run flow.
-    if ((await _albumRepository.findAll()).isNotEmpty) {
-      await _store.markOnboardingComplete();
-      return false;
-    }
-
-    return true;
-  }
-
-  Future<int> resumeStep() async => await _store.readProgress() ?? 0;
-
-  Future<bool> hasPendingWalkthrough() async =>
-      !await _store.hasCompletedOnboarding() &&
-      await _store.readProgress() != null;
-
-  Future<void> saveStep(int step) {
-    if (step < 0 || step >= 8) throw RangeError.range(step, 0, 7);
-    return _store.saveProgress(step);
-  }
-
-  Future<void> completeOnboarding() => _store.markOnboardingComplete();
-}
-
 final onboardingStoreProvider = Provider<OnboardingStore>((ref) {
   return const SecureOnboardingStore(FlutterSecureStorage());
-});
-
-final onboardingServiceProvider = Provider<OnboardingService>((ref) {
-  return OnboardingService(
-    store: ref.watch(onboardingStoreProvider),
-    albumRepository: ref.watch(albumRepositoryProvider),
-  );
-});
-
-final onboardingRequiredProvider = FutureProvider<bool>((ref) {
-  return ref.watch(onboardingServiceProvider).shouldShowOnboarding();
 });

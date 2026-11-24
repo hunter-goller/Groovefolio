@@ -8,7 +8,7 @@
 - [Discover](discover.md) and [local recommendations](recommendations.md)
 - [Discogs integration](../integrations/discogs.md) — optional; production credentials remain release work
 
-- [Tutorial tracks](tutorial.md) — the upcoming game-style tutorial: progress model and screens, behind a switch until the spotlight guide lands.
+- [Tutorial tracks](tutorial.md) — game-style getting started: tracks, badges, gold record and the spotlight guide.
 - [Backup and restore](backup.md) — user-chosen backup file; restore into an empty collection.
 - [Errors and recovery](error-recovery.md) — retry behavior, saved-operation boundaries, and phone review.
 

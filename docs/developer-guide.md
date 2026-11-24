@@ -87,7 +87,7 @@ The backend has a different database: PostgreSQL stores installation identity, r
 2. It instantiates `AppLinks` before opening the database, so an incoming OAuth/NFC link is retained during startup.
 3. [`AppDatabase.initialize()`](../lib/db/app_database.dart) forces the lazy database connection to open and finish migrations. A failure disposes that attempt’s container and shows a retry screen. Retry opens a fresh connection without clearing data or bypassing migrations. The native splash is removed after Flutter paints its loading/recovery UI.
 4. The root `UncontrolledProviderScope` shares that same container with `MyApp`; the database provider stays alive for the container's lifetime and closes on disposal.
-5. `routerProvider` selects screens. Its `ShellRoute` wraps them with `WalkthroughFrame`; the normal Collection entry uses `OnboardingGate`.
+5. `routerProvider` selects screens. Its `ShellRoute` wraps them with `TutorialOverlayHost` (spotlight and track-complete celebration); the normal Collection entry uses `OnboardingGate`, which shows the tutorial welcome on a fresh install.
 6. Root listeners classify the shared app-link stream. OAuth callbacks go through the authorization controller; album NFC URIs go through `NfcIntentPlayHandler`. Notification-open navigation is separate from play insertion.
 
 ### Choosing the right layer
@@ -156,7 +156,7 @@ Open the first file, locate the named operation, then follow its provider/servic
 | Discogs connection | [`DiscogsAuthorizationController`](../lib/services/discogs/discogs_providers.dart), [`DiscogsAuthService`](../lib/services/discogs/discogs_auth_service.dart) | [`discogs_authorization_controller_test.dart`](../test/services/discogs/discogs_authorization_controller_test.dart) |
 | Discogs HTTP/barcode/import | [`DiscogsApiClient`](../lib/services/discogs/discogs_api_client.dart), [`DiscogsCollectionImportService`](../lib/services/discogs/discogs_collection_import_service.dart) | [`discogs_api_client_test.dart`](../test/services/discogs/discogs_api_client_test.dart), [`discogs_barcode_search_test.dart`](../test/services/discogs/discogs_barcode_search_test.dart), [`discogs_collection_import_service_test.dart`](../test/services/discogs/discogs_collection_import_service_test.dart) |
 | NFC write / scan / automatic play | [`NfcService`](../lib/services/nfc/nfc_service.dart), [`NfcIntentPlayHandler`](../lib/services/nfc/nfc_intent_play_handler.dart), [`NfcPlayLoggingService`](../lib/services/nfc/nfc_play_logging_service.dart) | [`nfc_service_test.dart`](../test/services/nfc_service_test.dart), [`nfc_intent_play_handler_test.dart`](../test/services/nfc_intent_play_handler_test.dart), [`nfc_play_logging_service_test.dart`](../test/services/nfc_play_logging_service_test.dart) |
-| Onboarding/replay | [`OnboardingService`](../lib/services/onboarding_service.dart), [`WalkthroughController`](../lib/services/walkthrough_controller.dart), [`WalkthroughFrame`](../lib/features/onboarding/widgets/walkthrough_frame.dart) | [`onboarding_service_test.dart`](../test/services/onboarding_service_test.dart), [`onboarding_gate_test.dart`](../test/features/onboarding/onboarding_gate_test.dart) |
+| Tutorial | [`tutorial_progress.dart`](../lib/features/onboarding/tracks/tutorial_progress.dart), [`tutorial_session.dart`](../lib/features/onboarding/tracks/tutorial_session.dart), [`spotlight/`](../lib/features/onboarding/tracks/spotlight/) | [`tracks/`](../test/features/onboarding/tracks/), [`onboarding_gate_test.dart`](../test/features/onboarding/onboarding_gate_test.dart) |
 | Settings/theme/version | [`SettingsPreferences`](../lib/features/settings/widgets/settings_preferences.dart), [`ThemeModeController`](../lib/theme/theme_provider.dart), [`AppBuildInfo`](../lib/services/app_info_service.dart) | [`settings_preferences_test.dart`](../test/features/settings/settings_preferences_test.dart), [`app_info_service_test.dart`](../test/services/app_info_service_test.dart) |
 
 Native NFC code lives under [`android/app/src/main/kotlin/app/groovefolio/`](../android/app/src/main/kotlin/app/groovefolio/): `NfcEntryActivity`, `NfcProcessingActivity`, `NfcIntentGate`, `NfcDeliveryTracker`, and `MainActivity`. Tests also verify the manifest and backup configuration under `test/platform/`.
@@ -304,7 +304,7 @@ The backend Compose files mount secret files from `secrets/` into Spring's `conf
 | Support email | `GROOVEFOLIO_SUPPORT_EMAIL` build define; defaults to `support.groovefolio@gmail.com` in `settings_preferences.dart` | Invalid email disables the email value; policy URL is a separate fixed provider. |
 | NFC help visibility | `GROOVEFOLIO_NFC_HELP_ENABLED` build define (default true) plus device availability | Hiding help is not a switch that disables NFC logging. Store URL remains a separate nullable provider. |
 | Theme choice | Secure storage key `groovefolio.appearance.theme` | Startup defaults to system; a failed save can leave the current session changed but next launch on the old setting. |
-| First-run/walkthrough progress | Secure storage completion `.v1` and progress `.v3` keys in `onboarding_service.dart` | Step layout changes require an explicit compatibility/version decision; replay and selected album are transient. |
+| Tutorial progress | Secure storage `groovefolio.tutorial.progress.v1` (JSON) in `tutorial_progress_store.dart`; the old walkthrough keys are only read once, to migrate "intro seen" | Never rename `TutorialTrack` values; unknown names are ignored. The playing track and step are session-only. |
 | Backend installation and flow | `SecureBackendStore`, origin-scoped session and flow keys | Clearing SQLite does not disconnect Discogs. Legacy direct OAuth keys are cleared on connect/disconnect. Never log these values. |
 | Albums/plays/etc. | SQLite `vinyl_app_db.sqlite` in application documents | Database-only exports omit artwork and preferences. There is no production restore feature yet. |
 | Artwork | `artwork/<albumId>.jpg` in application documents | Path references and file bytes are separate; the service does not transcode supplied image bytes. |
@@ -332,7 +332,7 @@ For a save problem, first identify **which step committed**. SQLite and a filesy
 
 `LogPlayScreen._save` combines the selected **local** date and time. `PlayLoggingService.logPlay` checks the album exists; `PlayRepository.create` stores UTC ISO-8601 text and returns the new `Play`. Last-played and total-play values are derived from play rows; there is no separate “last played” field to update on the album. Each row counts as one listen even if its `SidePlayed` is A or B.
 
-NFC calls the same logging service through `NfcPlayLoggingService`; its automatic path defaults to `SidePlayed.full`. Manual logging does not use the NFC cooldown. Successful callers separately refresh providers, update walkthrough progress and show feedback. A notification or haptic error after insertion does not imply the database write failed.
+NFC calls the same logging service through `NfcPlayLoggingService`; its automatic path defaults to `SidePlayed.full`. Manual logging does not use the NFC cooldown. Successful callers separately refresh providers, report tutorial progress and show feedback. A notification or haptic error after insertion does not imply the database write failed.
 
 ### Provider refreshes
 
@@ -401,22 +401,13 @@ Discover reads only owned records and local history, with an injectable clock an
 
 Stats parses stored play timestamps strictly; malformed data can throw. Discover tolerates malformed dates for counts but cannot use them as recency evidence. When the two screens differ, inspect the raw timestamp and selected range before changing ranking formulas.
 
-### Onboarding and replay
+### Tutorial (getting started)
 
-The walkthrough exercises real forms and writes real records/plays. Only the deliberate Delete practice step avoids deletion; replay is not a sandbox.
+Getting started is a game-style tutorial: short **tracks** played in any order, each earning a badge, with a gold record for the required ones. See [Tutorial tracks](features/tutorial.md) for the tracks, rules, storage and the spotlight.
 
-| Step | User action / destination |
-|---|---|
-| 0 | Optional Discogs connection/import from Settings, or start offline |
-| 1 | Add a record or choose an existing record |
-| 2 | Open a record |
-| 3 | Log a real play |
-| 4 | Optionally link an NFC tag |
-| 5 | Practice swipe actions; Edit is real, Delete practice is intercepted |
-| 6 | View Stats |
-| 7 | View Discover and finish |
+It uses the real app and writes real records and plays; it is not a sandbox. A spotlight dims everything but one real control and explains it; only that control (and the bubble's Pause and Skip) can be tapped. Tracks complete from what screens report via `ref.tutorialEvent(...)`.
 
-`OnboardingService` checks completion first. For an unmarked install, saved progress resumes; an existing populated collection without progress is marked complete so an upgrade does not force first-run onboarding. Only the step is persisted, not `albumId` or practice state. On resume at an album-dependent step, the user may need to select the record again. `WalkthroughController._persist` keeps the old visible step while saving and preserves a pending transition for retry on storage failure. Settings replay remains transient and does not reset completion.
+To guide a new control, tag it with `SpotlightTarget(id: SpotlightId.x, child: ...)` and add a `TrackStep` to `trackScript` in `lib/features/onboarding/tracks/spotlight/track_scripts.dart`. Tagging never changes layout, gestures or semantics. Only controls on the top screen are reported.
 
 ### Website and backend
 
@@ -577,7 +568,7 @@ Useful tools: your Dart debugger's exception breakpoint and variable watch, `flu
 | OAuth returns but cannot finish | `authorizationStatus`, saved transaction, account endpoint | Use Open Groovefolio or return to Settings; Check connection is a fallback. Verify server status and persistence without logging token values. |
 | Import stops / retry shows duplicates | Import service and screen catch path | Previously committed records remain; refresh preview and examine exact release links. Test metadata failure separately from artwork warning. |
 | Theme works until restart | `ThemeModeController.setMode` | Boolean return tells persistence success; optimistic session state is retained on failed save. Test reordered reads/writes with the store fake. |
-| Walkthrough resumes on Collection | `WalkthroughController.start`, `WalkthroughState.route` | Only step persists; selected album ID does not. Use existing-record selection to reestablish it. |
+| Spotlight points at nothing, or the bubble shows Show me | `SpotlightRegistry`, `TrackStep.targets` | Only the top screen's tagged controls are reported. Check the control is tagged with the step's `SpotlightId` and is on screen. |
 | Release signing build fails | `android/app/build.gradle.kts` | Four local signing variables, key path, alias and password; CI key is deliberately not the real upload key. |
 | Website asset/navigation fails | `tools/check-site.mjs`, `script.js`, `support/support.js` | Correct repo, asset names/case, anchors, browser smoke artifacts; test JS-off and mobile layouts. |
 | Backend readiness is 503 | DB health, Flyway startup, `application.yaml`, Compose secrets | Loopback host/port, database password consistent with initialized volume, SQL migration, DB connectivity. |
@@ -673,7 +664,7 @@ rg -n 'SchemaVersions|migrateToV6' lib/db test/db
 
 1. Put feature UI under `lib/features/<feature>/screens/`; reusable controls belong in `lib/widgets/` or the feature's own widgets.
 2. Add the path/helper to `AppRoutes`, then the route in `router.dart`. Avoid hardcoded strings in unrelated widgets. Review literal routes such as `/album/new` before dynamic `/album/:id` routes when adding overlapping paths.
-3. Choose `go` versus `push` based on the expected back destination and test it. Keep the walkthrough shell wrapping where required; decide what happens when the guide is active.
+3. Choose `go` versus `push` based on the expected back destination and test it. Keep the `TutorialOverlayHost` shell wrapping; if a tutorial step targets the screen, check the spotlight still finds its control.
 4. Read data through a provider, and model loading, empty, failure and missing/deleted-record states. An absent album is not the same as a loading failure.
 5. For writes, call the appropriate service, then refresh providers and navigate only after success. Capture the result before handling optional feedback; check `mounted` after asynchronous work.
 6. Add routing/widget tests and try the Android back button, keyboard, narrow width, text scaling and theme variants. If an external link opens it, separately test cold/warm delivery and validate untrusted parameters.

@@ -1,24 +1,35 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vinyl_app/features/onboarding/tracks/spotlight/spotlight_target.dart';
+import 'package:vinyl_app/features/onboarding/tracks/spotlight/track_scripts.dart';
 import 'package:vinyl_app/features/onboarding/tracks/tutorial_progress.dart';
 import 'package:vinyl_app/features/onboarding/tracks/tutorial_track.dart';
 import 'package:vinyl_app/utils/error_reporting.dart';
 
-/// Turns on the game-style tutorial. Off by default until the spotlight
-/// guide (part 3) lands; until then the old walkthrough stays in charge.
-/// Try it with `--dart-define=GROOVEFOLIO_NEW_TUTORIAL=true`.
-final newTutorialEnabledProvider = Provider<bool>(
-  (ref) => const bool.fromEnvironment('GROOVEFOLIO_NEW_TUTORIAL'),
-);
-
-/// The track being played right now, and a finished one waiting to be
-/// celebrated. Not persisted: closing the app simply ends the session.
+/// The track being played, its current step, and a finished track waiting
+/// to be celebrated. Not persisted: closing the app simply ends the session.
 class TutorialSessionState {
-  const TutorialSessionState({this.active, this.celebrating});
+  const TutorialSessionState({
+    this.active,
+    this.step = 0,
+    this.path = ShelfPath.byHand,
+    this.celebrating,
+  });
 
   final TutorialTrack? active;
+  final int step;
+  final ShelfPath path;
   final TutorialTrack? celebrating;
+
+  List<TrackStep> get script =>
+      active == null ? const [] : trackScript(active!, path: path);
+
+  /// Null when the track has no script or every step has been passed.
+  TrackStep? get currentStep {
+    final steps = script;
+    return step < steps.length ? steps[step] : null;
+  }
 }
 
 final tutorialSessionProvider =
@@ -32,12 +43,49 @@ class TutorialSession extends Notifier<TutorialSessionState> {
   @override
   TutorialSessionState build() => const TutorialSessionState();
 
-  void play(TutorialTrack track) => state = TutorialSessionState(active: track);
+  void play(TutorialTrack track, {ShelfPath path = ShelfPath.byHand}) =>
+      state = TutorialSessionState(active: track, path: path);
 
+  /// Ends the track without a badge. It can be replayed from Getting started.
   void quit() => state = const TutorialSessionState();
 
-  void dismissCelebration() =>
-      state = TutorialSessionState(active: state.active);
+  void dismissCelebration() => state = TutorialSessionState(
+    active: state.active,
+    step: state.step,
+    path: state.path,
+  );
+
+  void _goTo(int step) => state = TutorialSessionState(
+    active: state.active,
+    step: step,
+    path: state.path,
+  );
+
+  /// Moves to the next step ("Got it", or an event-driven step).
+  void advance() {
+    if (state.active == null) return;
+    if (state.step < state.script.length) _goTo(state.step + 1);
+  }
+
+  /// Follows the user if they got ahead: e.g. a later step's control is on
+  /// screen while the current one isn't. Never moves backwards.
+  void jumpTo(int step) {
+    if (state.active == null || step <= state.step) return;
+    if (step < state.script.length) _goTo(step);
+  }
+
+  /// A tagged control was tapped. Moves on if it's the current step's.
+  void targetTapped(SpotlightId id) {
+    final current = state.currentStep;
+    if (current == null || current.advance != StepAdvance.tap) return;
+    if (current.targets.contains(id)) advance();
+  }
+
+  /// Discogs isn't reachable or wanted: fill the shelf by hand instead.
+  void switchToByHand() {
+    if (state.active != TutorialTrack.addRecord) return;
+    state = const TutorialSessionState(active: TutorialTrack.addRecord);
+  }
 
   /// Records a finished track. Only the track being played is celebrated;
   /// doing something outside the tutorial earns the badge quietly.
@@ -60,9 +108,8 @@ class TutorialSession extends Notifier<TutorialSessionState> {
   }
 }
 
-/// What the app reports to the tutorial. Every call is fire-and-forget and
-/// does nothing while the new tutorial is switched off, so existing screens
-/// behave exactly as before.
+/// What the app reports to the tutorial. Every call is fire-and-forget, and
+/// failures are logged, never shown: the tutorial must not break a screen.
 enum TutorialEvent {
   recordAdded,
   playLogged,
@@ -75,7 +122,6 @@ enum TutorialEvent {
 
 extension TutorialEvents on WidgetRef {
   void tutorialEvent(TutorialEvent event, {int imported = 0}) {
-    if (!read(newTutorialEnabledProvider)) return;
     final session = read(tutorialSessionProvider.notifier);
     Future<void> run() async {
       switch (event) {
