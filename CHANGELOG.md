@@ -4,6 +4,9 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ## Unreleased
 
+### Server requests
+- Request bodies sent to the Groovefolio server are now UTF-8 with `Content-Type: application/json; charset=utf-8`. Before, they were sent as Latin-1, which only worked because every current body is plain ASCII.
+
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
 - Selected the permanent Android application ID `app.groovefolio` before public release and required explicit upload signing for release builds. The developer's real upload key and AAB remain outstanding.
