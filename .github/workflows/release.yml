@@ -1,0 +1,84 @@
+name: Release check
+
+# Push a version tag (git tag v1.0.0 && git push origin v1.0.0) to run every
+# CI check plus the debug and release builds for exactly that commit. The
+# real Play upload key never comes here: CI signs with a throwaway key only to
+# prove the bundle builds and signs, and the summary gives the commands to
+# build the upload on your own computer. Nothing is published.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Version matches the tag
+    runs-on: ubuntu-latest
+    outputs:
+      name: ${{ steps.read.outputs.name }}
+      code: ${{ steps.read.outputs.code }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Read and check the app version
+        id: read
+        shell: bash
+        run: |
+          line="$(grep -E '^version:' pubspec.yaml | head -1)"
+          version="${line#version:}"
+          version="$(echo "$version" | tr -d '[:space:]')"
+          name="${version%%+*}"
+          code="${version#*+}"
+          if ! [[ "$name" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$code" =~ ^[0-9]+$ ]]; then
+            echo "pubspec.yaml version must look like 1.2.3+45, found '$version'."
+            exit 1
+          fi
+          if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" != "v$name" ]]; then
+            echo "Tag $GITHUB_REF_NAME doesn't match pubspec.yaml version $name."
+            echo "Bump 'version:' in pubspec.yaml to ${GITHUB_REF_NAME#v}+<next number>, merge, then tag again."
+            exit 1
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
+  ci:
+    name: Checks and builds
+    needs: version
+    uses: ./.github/workflows/ci.yml
+
+  next-steps:
+    name: Next steps
+    needs: [version, ci]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write the release summary
+        shell: bash
+        env:
+          VERSION_NAME: ${{ needs.version.outputs.name }}
+          VERSION_CODE: ${{ needs.version.outputs.code }}
+        run: |
+          {
+            echo "## Groovefolio $VERSION_NAME (version code $VERSION_CODE) is ready to sign"
+            echo
+            echo "All checks passed and the release App Bundle built and signed with a"
+            echo "throwaway CI key. **Don't upload anything from CI.** Build the upload on"
+            echo "your computer, with your upload key:"
+            echo
+            echo '```powershell'
+            echo "git fetch --tags"
+            echo "git checkout $GITHUB_REF_NAME"
+            echo 'flutter pub get --enforce-lockfile'
+            echo 'dart run build_runner build --delete-conflicting-outputs'
+            echo '# Set the four GROOVEFOLIO_UPLOAD_* variables, as in'
+            echo '# docs/development/android-release-signing.md, then:'
+            echo 'flutter build appbundle --release'
+            echo '```'
+            echo
+            echo "Upload build/app/outputs/bundle/release/app-release.aab in Play Console."
+            echo "Google Play needs a higher version code every upload: bump the number"
+            echo "after '+' in pubspec.yaml before the next release."
+          } >> "$GITHUB_STEP_SUMMARY"

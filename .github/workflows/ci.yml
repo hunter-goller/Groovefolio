@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, integration/nfc-hardware-validation]
   workflow_dispatch:
+  # Lets the release workflow run this exact pipeline, with the full builds,
+  # for a version tag.
+  workflow_call:
 
 jobs:
   flutter-ci:
@@ -55,14 +58,24 @@ jobs:
             exit 1
           fi
 
-      - name: Debug build verification
-        run: flutter build apk --debug
+      - name: Prepare Android build files
+        # Writes local.properties and the plugin list Gradle needs, without
+        # building the app, so the Kotlin tests below also run on PRs.
+        run: flutter build apk --debug --config-only
 
       - name: Android NFC intent policy tests
         working-directory: android
         run: ./gradlew :app:testDebugUnitTest --tests '*Nfc*Test'
 
+      # The app builds below take about 8 of CI's 11 minutes. PRs skip them;
+      # every merge to main (and a manual run) still builds both, so a
+      # release-only break shows up right after merging, not on release day.
+      - name: Debug build verification
+        if: github.event_name != 'pull_request'
+        run: flutter build apk --debug
+
       - name: Create disposable CI upload key
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           password="$(openssl rand -hex 32)"
@@ -80,12 +93,14 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Release App Bundle verification (not published)
+        if: github.event_name != 'pull_request'
         run: flutter build appbundle --release
         # Google Play only accepts App Bundles (AAB). The disposable CI key
         # is not the developer's Play upload key; the AAB and key are
         # discarded with the runner and nothing is uploaded.
 
       - name: Check the App Bundle is signed with the upload key
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           aab=build/app/outputs/bundle/release/app-release.aab
