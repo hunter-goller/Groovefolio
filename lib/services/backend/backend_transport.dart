@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 
 class BackendResponse {
@@ -71,7 +73,7 @@ class BackendTransport {
       'Accept': 'application/json',
       'User-Agent': 'Groovefolio/1.0',
       if (token != null) 'Authorization': 'Bearer $token',
-      if (body != null) 'Content-Type': 'application/json',
+      if (body != null) 'Content-Type': 'application/json; charset=utf-8',
     };
     final effectiveTimeout = requestTimeout ?? timeout;
     try {
@@ -131,7 +133,11 @@ class BackendTransport {
       request.followRedirects = false;
       headers.forEach(request.headers.set);
       if (body != null) {
-        request.write(body);
+        // HttpClientRequest.write would use Latin-1 here, which can't encode
+        // most non-ASCII text. Send explicit UTF-8 bytes instead.
+        final bytes = encodeBody(body);
+        request.contentLength = bytes.length;
+        request.add(bytes);
       }
       final response = await request.close();
       final bytes = BytesBuilder(copy: false);
@@ -160,6 +166,10 @@ class BackendTransport {
   }
 
   void close() => _client.close(force: true);
+
+  /// Request bodies are always UTF-8, matching the Content-Type header.
+  @visibleForTesting
+  static Uint8List encodeBody(String body) => utf8.encode(body);
 }
 
 DiscogsFailure backendFailure(BackendError error) {
