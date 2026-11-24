@@ -6,9 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/db/database_provider.dart';
+import 'package:vinyl_app/features/plays/play_data_refresh.dart';
 import 'package:vinyl_app/features/startup/app_startup.dart';
-import 'package:vinyl_app/features/stats/screens/stats_screen.dart';
-import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/routing/router.dart';
@@ -19,7 +18,6 @@ import 'package:vinyl_app/services/nfc/nfc_play_undo.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/notifications/nfc_play_notification_service.dart';
 import 'package:vinyl_app/services/onboarding_service.dart';
-import 'package:vinyl_app/services/recommendation_service.dart';
 import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/theme/theme_provider.dart';
@@ -89,7 +87,7 @@ class MyApp extends ConsumerWidget {
     }
 
     final repository = ref.read(playRepositoryProvider);
-    _refreshPlayData(ref, result.album.id);
+    refreshPlayData(ref, result.album.id);
 
     if (delivery.isExternal) {
       final notificationShown = await ref
@@ -115,7 +113,7 @@ class MyApp extends ConsumerWidget {
           try {
             final removed = await undo.undo();
             if (!ref.context.mounted) return;
-            _refreshPlayData(ref, result.album.id);
+            refreshPlayData(ref, result.album.id);
             _showNfcMessage(
               removed ? 'Play removed.' : 'Undo is no longer available.',
             );
@@ -127,16 +125,6 @@ class MyApp extends ConsumerWidget {
         },
       ),
     );
-  }
-
-  void _refreshPlayData(WidgetRef ref, String albumId) {
-    ref.invalidate(albumsProvider);
-    ref.invalidate(recentlyPlayedProvider);
-    ref.invalidate(playCountProvider(albumId));
-    ref.invalidate(albumDetailProvider(albumId));
-    ref.invalidate(albumSearchProvider);
-    ref.invalidate(statsDashboardProvider);
-    ref.invalidate(discoverRecommendationsProvider);
   }
 
   Future<void> _openNotificationAlbum(WidgetRef ref, String albumId) async {
