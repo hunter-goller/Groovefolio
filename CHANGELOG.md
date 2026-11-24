@@ -4,6 +4,10 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ## Unreleased
 
+### Fixes
+- The **Rewrite NFC tag** switch on Edit record now works: after saving, it asks you to hold the linked tag to the phone and rewrites it. Before, it did nothing.
+- Choosing a Discogs release still fills in the details if its cover can't be saved (for example, a full disk), instead of failing silently.
+
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
 - Selected the permanent Android application ID `app.groovefolio` before public release and required explicit upload signing for release builds. The developer's real upload key and AAB remain outstanding.

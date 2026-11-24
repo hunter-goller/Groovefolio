@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -67,6 +68,58 @@ void main() {
     await tester.tap(find.byKey(const Key('discogs-result-5')));
     await tester.pumpAndSettle();
     expect(find.text('Search Discogs'), findsNothing);
+  });
+
+  testWidgets('a cover that fails to save still applies the release', (
+    tester,
+  ) async {
+    final catalog = _FakeDiscogsCatalogService(
+      results: const [
+        DiscogsReleaseSearchResult(
+          releaseId: 7,
+          title: 'Blue Train',
+          artist: 'John Coltrane',
+        ),
+      ],
+      details: const DiscogsReleaseDetails(
+        releaseId: 7,
+        title: 'Blue Train',
+        artist: 'John Coltrane',
+        year: 1957,
+        artworkUrl: 'https://i.discogs.com/cover.jpg',
+      ),
+      artworkFailure: const FileSystemException('No space left on device'),
+    );
+    await tester.pumpWidget(_testApp(connected: true, catalogService: catalog));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Search Discogs to autofill'));
+    await tester.tap(find.text('Search Discogs to autofill'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('discogs-search-artist')),
+      'coltrane',
+    );
+    await tester.tap(find.byKey(const Key('discogs-search-submit')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('discogs-result-7')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.text('Metadata applied, but artwork could not be saved.'),
+      findsOneWidget,
+    );
+    String field(String key) => tester
+        .widget<TextFormField>(
+          find.descendant(
+            of: find.byKey(Key(key)),
+            matching: find.byType(TextFormField),
+          ),
+        )
+        .controller!
+        .text;
+    expect(field('add-record-title'), 'Blue Train');
+    expect(field('add-record-year'), '1957');
   });
 
   testWidgets(
@@ -933,8 +986,11 @@ class _FakeDiscogsCatalogService implements DiscogsCatalogService {
     this.barcodeResults = const [],
     this.details,
     this.failure,
+    this.artworkFailure,
   });
 
+  /// Thrown only by [downloadArtwork], e.g. a non-Discogs file error.
+  Object? artworkFailure;
   List<DiscogsReleaseSearchResult> results;
   List<DiscogsReleaseSearchResult> barcodeResults;
   DiscogsReleaseDetails? details;
@@ -995,6 +1051,7 @@ class _FakeDiscogsCatalogService implements DiscogsCatalogService {
 
   @override
   Future<Uint8List> downloadArtwork(String url) async {
+    if (artworkFailure case final error?) throw error;
     final current = failure;
     if (current != null) {
       throw current;
