@@ -9,6 +9,7 @@
 - [Discogs integration](../integrations/discogs.md) — optional; production credentials remain release work
 
 - [Tutorial tracks](tutorial.md) — progress model for the upcoming game-style tutorial; screens in follow-up PRs.
+- [Backup and restore](backup.md) — user-chosen backup file; restore into an empty collection.
 - [Errors and recovery](error-recovery.md) — retry behavior, saved-operation boundaries, and phone review.
 
 ## Planned
