@@ -9,7 +9,7 @@ This page describes the app code on `main`, not unmerged backend branches or a p
 - On-device Discover recommendations with explanations derived from logged play history and records already owned.
 - Optional Discogs OAuth connection, release search/autofill, barcode scanning, and reviewed collection import. The current app calls Discogs directly.
 - Android NFC tag write/link/replace and automatic full-album play logging from a linked tag, with duplicate protection and foreground Undo or background notification/fallback.
-- First-run interactive walkthrough and replay from Settings; privacy and support links.
+- Game-style getting-started tutorial (tracks, badges, gold record, spotlight guide) and its tracklist in Settings; privacy and support links.
 - Riverpod, Drift/SQLite, go_router, and CI. Schema `v6` includes artists, albums, plays, NFC tags, genres, Discogs release links, tracks, cascade cleanup, and a play-history index. See [database](architecture/database.md).
 
 - Friendly page/inline errors, provider retry, broken-artwork fallbacks, and database startup recovery without automatic data reset. See [error recovery](features/error-recovery.md).
@@ -22,4 +22,4 @@ This page describes the app code on `main`, not unmerged backend branches or a p
 - Resolve production Discogs credential handling before public distribution. Backend work is in a separate repository and is not merged or deployed.
 - Finish remaining release QA and verify the privacy policy against the actual shipped build.
 
-Local collection, plays, Stats, and Discover do not require Discogs or a Groovefolio account. Android automatic backup is disabled; reinstall or phone replacement does not currently restore local collection data.
+Local collection, plays, Stats, and Discover do not require Discogs or a Groovefolio account. Android automatic backup is disabled. Instead, Settings offers a user-controlled [backup file and restore](features/backup.md) for reinstalls and new phones.

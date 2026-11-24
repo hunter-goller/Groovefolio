@@ -22,6 +22,9 @@ class AppErrorState extends StatefulWidget {
     this.onSecondaryAction,
     this.retryButtonKey,
     this.secondaryButtonKey,
+    this.secondaryActionIcon,
+    this.secondaryActionLoading = false,
+    this.footer,
     super.key,
   }) : assert(
          (secondaryActionLabel == null) == (onSecondaryAction == null),
@@ -43,6 +46,9 @@ class AppErrorState extends StatefulWidget {
     this.secondaryButtonKey,
     super.key,
   }) : layout = AppErrorStateLayout.inline,
+       secondaryActionIcon = null,
+       secondaryActionLoading = false,
+       footer = null,
        assert(
          (secondaryActionLabel == null) == (onSecondaryAction == null),
          'secondaryActionLabel and onSecondaryAction must both be provided or both be null.',
@@ -61,6 +67,13 @@ class AppErrorState extends StatefulWidget {
   final VoidCallback? onSecondaryAction;
   final Key? retryButtonKey;
   final Key? secondaryButtonKey;
+
+  /// Page layout only: icon and busy state for the secondary action.
+  final IconData? secondaryActionIcon;
+  final bool secondaryActionLoading;
+
+  /// Page layout only: shown under the actions.
+  final Widget? footer;
 
   @override
   State<AppErrorState> createState() => _AppErrorStateState();
@@ -98,6 +111,12 @@ class _AppErrorStateState extends State<AppErrorState> {
             ctaLabel: widget.onRetry == null ? null : widget.retryLabel,
             onCtaTap: widget.onRetry,
             ctaKey: widget.retryButtonKey,
+            secondaryCtaLabel: widget.secondaryActionLabel,
+            onSecondaryCtaTap: widget.onSecondaryAction,
+            secondaryCtaKey: widget.secondaryButtonKey,
+            secondaryCtaIcon: widget.secondaryActionIcon,
+            secondaryCtaLoading: widget.secondaryActionLoading,
+            footer: widget.footer,
           ),
         ),
       ),

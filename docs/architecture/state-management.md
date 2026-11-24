@@ -14,7 +14,7 @@ Riverpod gives screens a named way to obtain dependencies and state. A provider 
 | Discover | `discoverRecommendationsProvider` in `lib/services/recommendation_service.dart` | Builds local recommendations from stored records and plays. |
 | Discogs | `lib/services/discogs/discogs_providers.dart` | Owns config, credentials, clients, authorization state, and account lookup. Account lookup can make a live HTTP request. |
 | Incoming NFC links | `incomingUriEventsProvider` in `lib/services/discogs/discogs_providers.dart` | Events are deliveries, not merely distinct URI values: the same URI can arrive again. |
-| Walkthrough | `WalkthroughController` and `OnboardingService` | Only progress/completion is persisted; the selected walkthrough album and practice state are session-local. |
+| Tutorial | `TutorialProgressController`, `TutorialSession`, `SpotlightRegistry` | Progress and badges persist on the device; the playing track, step and spotlight positions are session-local. |
 | Appearance | `lib/theme/theme_provider.dart` | Updates UI optimistically and serializes secure-storage writes; persistence failure can leave the current session showing the new choice. |
 
 ## A provider subscription is not a database subscription

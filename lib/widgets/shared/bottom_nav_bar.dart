@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
-import 'package:vinyl_app/services/walkthrough_controller.dart';
+import 'package:vinyl_app/features/onboarding/tracks/spotlight/spotlight_target.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 
 /// Primary app navigation shared by Collection, Stats, and Discover.
@@ -46,36 +46,26 @@ class BottomNavBar extends ConsumerWidget {
       child: NavigationBar(
         selectedIndex: currentIndex,
         onDestinationSelected: (index) {
-          final guide = ref.read(walkthroughProvider);
-          if (guide.active &&
-              guide.step == 6 &&
-              currentIndex == 1 &&
-              index == 2) {
-            ref.read(walkthroughProvider.notifier).move(7);
-          } else {
-            onTap(index);
-          }
+          if (index == 2) ref.tutorialEvent(TutorialEvent.discoverViewed);
+          onTap(index);
         },
-        destinations: [
-          const NavigationDestination(
+        destinations: const [
+          NavigationDestination(
             icon: Icon(Icons.album_outlined),
             selectedIcon: Icon(Icons.album_rounded),
             label: 'Collection',
           ),
           NavigationDestination(
-            icon: GuideTarget(
-              steps: currentIndex == 0 ? const [6] : const [],
-              child: const Icon(Icons.bar_chart_outlined),
-            ),
-            selectedIcon: const Icon(Icons.bar_chart_rounded),
+            icon: Icon(Icons.bar_chart_outlined),
+            selectedIcon: Icon(Icons.bar_chart_rounded),
             label: 'Stats',
           ),
           NavigationDestination(
-            icon: GuideTarget(
-              steps: currentIndex == 1 ? const [6] : const [],
-              child: const Icon(Icons.explore_outlined),
+            icon: SpotlightTarget(
+              id: SpotlightId.navDiscover,
+              child: Icon(Icons.explore_outlined),
             ),
-            selectedIcon: const Icon(Icons.explore_rounded),
+            selectedIcon: Icon(Icons.explore_rounded),
             label: 'Discover',
           ),
         ],

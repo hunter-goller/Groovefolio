@@ -3,13 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vinyl_app/features/onboarding/tracks/spotlight/spotlight_target.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/discogs/discogs_collection_import_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_models.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
-import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/utils/error_reporting.dart';
 
@@ -113,6 +114,10 @@ class _DiscogsCollectionImportScreenState
           );
 
       if (!mounted) return;
+      ref.tutorialEvent(
+        TutorialEvent.discogsImported,
+        imported: result.imported,
+      );
       setState(() {
         _result = result;
         _importing = false;
@@ -158,14 +163,6 @@ class _DiscogsCollectionImportScreenState
           (false, false, final result?, _, _) => _ImportResultState(
             result: result,
             onViewCollection: () async {
-              if (ref.read(walkthroughProvider).active) {
-                await ref
-                    .read(walkthroughProvider.notifier)
-                    .move(result.imported > 0 ? 2 : 1);
-                if (!context.mounted) return;
-                context.go(AppRoutes.collection);
-                return;
-              }
               if (GoRouterState.of(context).uri.queryParameters['onboarding'] ==
                       'true' &&
                   context.canPop()) {
@@ -364,14 +361,17 @@ class _PreviewState extends StatelessWidget {
             top: false,
             child: Padding(
               padding: EdgeInsets.all(tokens.space16),
-              child: FilledButton.icon(
-                key: const Key('discogs-import-selected-button'),
-                onPressed: selectedCount == 0 ? null : onImport,
-                icon: const Icon(Icons.download_rounded),
-                label: Text(
-                  selectedCount == 1
-                      ? 'Import 1 record'
-                      : 'Import $selectedCount records',
+              child: SpotlightTarget(
+                id: SpotlightId.discogsImportSelected,
+                child: FilledButton.icon(
+                  key: const Key('discogs-import-selected-button'),
+                  onPressed: selectedCount == 0 ? null : onImport,
+                  icon: const Icon(Icons.download_rounded),
+                  label: Text(
+                    selectedCount == 1
+                        ? 'Import 1 record'
+                        : 'Import $selectedCount records',
+                  ),
                 ),
               ),
             ),

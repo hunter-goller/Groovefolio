@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
+import 'package:vinyl_app/features/onboarding/tracks/spotlight/spotlight_target.dart';
 import 'package:vinyl_app/theme/theme_helpers.dart';
 import 'package:vinyl_app/widgets/ui/primary_button.dart';
 
-/// Reusable empty/error state with an optional primary action.
+/// Reusable empty/error state with optional primary and secondary actions.
+///
+/// [footer] sits under the actions, for status text such as a save result.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     required this.icon,
@@ -12,7 +14,13 @@ class EmptyState extends StatelessWidget {
     this.ctaLabel,
     this.onCtaTap,
     this.ctaKey,
-    this.guideSteps = const [],
+    this.secondaryCtaLabel,
+    this.onSecondaryCtaTap,
+    this.secondaryCtaKey,
+    this.secondaryCtaIcon,
+    this.secondaryCtaLoading = false,
+    this.footer,
+    this.ctaSpotlight,
     super.key,
   }) : assert(
          (ctaLabel == null) == (onCtaTap == null),
@@ -25,7 +33,15 @@ class EmptyState extends StatelessWidget {
   final String? ctaLabel;
   final VoidCallback? onCtaTap;
   final Key? ctaKey;
-  final List<int> guideSteps;
+  final String? secondaryCtaLabel;
+  final VoidCallback? onSecondaryCtaTap;
+  final Key? secondaryCtaKey;
+  final IconData? secondaryCtaIcon;
+  final bool secondaryCtaLoading;
+  final Widget? footer;
+
+  /// Lets the tutorial spotlight the button.
+  final SpotlightId? ctaSpotlight;
 
   @override
   Widget build(BuildContext context) {
@@ -69,12 +85,11 @@ class EmptyState extends StatelessWidget {
           ),
           if (ctaLabel != null) ...[
             SizedBox(height: tokens.space24),
-            if (guideSteps.isEmpty)
+            if (ctaSpotlight == null)
               PrimaryButton(key: ctaKey, label: ctaLabel!, onPressed: onCtaTap)
             else
-              GuideTarget(
-                steps: guideSteps,
-                outlineGap: true,
+              SpotlightTarget(
+                id: ctaSpotlight!,
                 child: PrimaryButton(
                   key: ctaKey,
                   label: ctaLabel!,
@@ -82,6 +97,28 @@ class EmptyState extends StatelessWidget {
                 ),
               ),
           ],
+          if (secondaryCtaLabel != null) ...[
+            SizedBox(height: tokens.space12),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton.icon(
+                key: secondaryCtaKey,
+                onPressed: secondaryCtaLoading ? null : onSecondaryCtaTap,
+                icon: secondaryCtaLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(secondaryCtaIcon ?? Icons.save_alt_outlined),
+                label: Text(
+                  secondaryCtaLoading ? 'Saving…' : secondaryCtaLabel!,
+                ),
+              ),
+            ),
+          ],
+          if (footer != null) ...[SizedBox(height: tokens.space16), footer!],
         ],
       ),
     );

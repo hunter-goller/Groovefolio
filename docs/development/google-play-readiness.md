@@ -30,13 +30,12 @@ Every supported app-private backup domain is excluded, including files,
 databases, shared preferences, external app files, and device-protected storage.
 
 This prevents Android from implicitly copying the local collection, play history,
-artwork, NFC mappings, or encrypted credential files. It also means reinstalling
-or moving to a new phone does not restore the Groovefolio collection.
+artwork, NFC mappings, or encrypted credential files.
 
-A future user-controlled collection export/restore feature should use a
-versioned, validated, SQLite-consistent format and include its referenced artwork.
-It must remain independent of Android automatic backup and must never export
-Discogs credentials or a backend installation token.
+Users move their collection with the user-controlled [backup and restore](../features/backup.md)
+feature instead. Its format is versioned and validated, read from one consistent
+transaction, includes referenced artwork, is independent of Android automatic
+backup, and never contains Discogs credentials or a backend installation token.
 
 ## Discogs-specific release work
 The merged app calls `https://api.groovefolio.app`; the Java/Spring Boot backend

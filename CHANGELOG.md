@@ -4,6 +4,25 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ## Unreleased
 
+### Tutorial tracks (part 3b)
+- Scripted the Side B tracks: NFC (record menu, Link NFC tag, then the write dialog) and swipe (swipe, Edit or Delete, then a Practice mode Delete that changes nothing). The backup track is scripted and appears once the backup feature ships.
+- Show me now returns to where the track started, at step 1; menu steps outline the item and keep the bubble clear of the menu.
+
+### Tutorial tracks (part 3a)
+- Turned on the game-style tutorial for everyone and removed the old 8-step walkthrough.
+- Added the spotlight guide: dims all but one real control, a coach bubble with Pause and Skip, a short hand demonstration (still with reduced motion), Show me when off track, and Add by hand instead on the Discogs path. Side A tracks are fully scripted.
+
+### Tutorial tracks (part 2)
+- Added the game-style tutorial screens behind `GROOVEFOLIO_NEW_TUTORIAL` (off by default): Welcome, the Track 1 Discogs-or-by-hand choice, the NFC intro, a track hint bar, Track complete celebrations with badges, the Getting started tracklist and the Gold record.
+
+### Tutorial tracks (part 1)
+- Added the progress model for the upcoming game-style tutorial: tracks, badges, locking, a gold record, and auto-completion from existing records, plays and NFC tags. Stored on the device only. No visible change yet.
+- If first-run status can't be read from secure storage, the collection now opens instead of a full-screen error with only Retry.
+### Backup and restore
+- Added Settings → Back up collection: a versioned `.zip` with every local table and stored covers, saved wherever the user chooses through the system Save dialog.
+- Added **Save a copy of my data** to the startup error screen: copies the raw database and covers to a rescue file without opening the database.
+- Added Settings → Restore from backup for an empty collection, with a summary and confirmation, one-transaction restore and validation of damaged, foreign or newer-version files.
+
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
 - Selected the permanent Android application ID `app.groovefolio` before public release and required explicit upload signing for release builds. The developer's real upload key and AAB remain outstanding.

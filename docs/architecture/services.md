@@ -18,7 +18,7 @@ A service coordinates the steps of a user operation. A repository reads or write
 | `DiscogsAuthService` | Direct OAuth and connected-account lookup | Credentials live in secure storage. Account lookup may fail due to network/provider errors without meaning the token was erased. |
 | `DiscogsCatalogService` | Search and typed release metadata | Keeps external response interpretation out of screens. |
 | `DiscogsCollectionImportService` | Preview, duplicate review, and per-record import | Earlier records can remain committed after a later error; artwork failures can be warnings. |
-| `OnboardingService` / `WalkthroughController` | Persist progress and coordinate walkthrough steps | Replay uses real screens and operations except the intercepted practice delete; selected album state is not persisted. |
+| `TutorialProgressController` / `TutorialSession` | Persist tutorial progress and badges; run the current track's spotlight steps | Uses real screens and operations. Only progress is persisted; the playing track and step are session-only. |
 
 ## Artwork is not part of a SQLite transaction
 

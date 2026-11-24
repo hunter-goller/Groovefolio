@@ -12,7 +12,7 @@ The app has not had a public Play Store release. The Android application ID is `
 - Log plays manually; link NFC tags to records and log full-album plays from Android tag taps. NFC hardware behavior still needs final device validation.
 - View current-year and all-time statistics and local, explainable suggestions for records already owned.
 - Connect Discogs through OAuth, search exact releases or barcodes, and review collection imports before writing local records.
-- Replay the interactive first-run walkthrough from Settings.
+- Learn the app with a game-style tutorial: play short tracks, earn badges, and replay any track from Settings.
 
 See [implementation status](docs/implementation-status.md) for the current baseline and [roadmap](ROADMAP.md) for remaining release work.
 
