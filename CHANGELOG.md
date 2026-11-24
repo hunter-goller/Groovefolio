@@ -4,6 +4,11 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ## Unreleased
 
+### Discover
+- New **“Because you played…”** shelf: records you usually play on the same days as something you've played in the last two weeks, e.g. “Played with Kind of Blue on 14 days”.
+- New **“Deep cuts from artists you love”** shelf: unplayed or once-played records by artists you play a lot.
+- Shelves now rotate daily: each keeps its strongest picks and swaps the rest, so Discover feels fresh from day to day.
+
 ### Performance
 - Stats loads about 4× faster on large collections. It now reads albums, plays and genres once per visit instead of reading the whole play history for each figure and querying genres record by record. Discover also loads genres in one query instead of one per record.
 
