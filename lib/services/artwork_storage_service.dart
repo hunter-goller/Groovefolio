@@ -111,6 +111,46 @@ class ArtworkStorageService {
   }
 }
 
+extension ArtworkSweep on ArtworkStorageService {
+  /// Deletes stray `artwork/<id>.jpg` files: ones whose record no longer
+  /// exists in [albumIds] and that no record points to in [referencedPaths].
+  ///
+  /// Files newer than [minAge] are kept, so a cover saved just before its
+  /// record row is written (Add and Discogs import do this) is never removed.
+  /// Other files in the folder are ignored. Returns how many were deleted.
+  Future<int> deleteStrayArtwork({
+    required Set<String> albumIds,
+    required Set<String> referencedPaths,
+    Duration minAge = const Duration(hours: 1),
+  }) async {
+    final directory = Directory(
+      p.join((await _documentsDirectoryResolver()).path, 'artwork'),
+    );
+    if (!await directory.exists()) return 0;
+
+    final cutoff = DateTime.now().subtract(minAge);
+    final referenced = {for (final path in referencedPaths) p.normalize(path)};
+    var removed = 0;
+    await for (final entity in directory.list(followLinks: false)) {
+      if (entity is! File) continue;
+      final name = p.basename(entity.path);
+      if (p.extension(name) != '.jpg') continue;
+      if (albumIds.contains(p.basenameWithoutExtension(name)) ||
+          referenced.contains(p.normalize(entity.path))) {
+        continue;
+      }
+      try {
+        if ((await entity.lastModified()).isAfter(cutoff)) continue;
+        await deleteArtwork(entity.path);
+        removed++;
+      } on FileSystemException {
+        // Best effort: a file that can't be read or removed stays for next time.
+      }
+    }
+    return removed;
+  }
+}
+
 final artworkStorageServiceProvider = Provider<ArtworkStorageService>((ref) {
   return ArtworkStorageService();
 });

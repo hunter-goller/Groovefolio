@@ -30,6 +30,9 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 - Replacing a record's cover now shows the new picture right away on every screen. Before, the old cover could stay on screen until the app restarted, because the new file reuses the same path.
 ### Performance
 - Cover art is decoded at the size it's shown (about 200 px for a list tile) instead of at full size (up to 1600 px). This uses much less memory and scrolls more smoothly through large collections.
+### Data tidiness
+- Artist and genre names now match regardless of case for accented letters too, so “BJÖRK” and “Björk” no longer become two artists. Accents still count: “Bjork” and “Björk” stay separate.
+- Artists and genres no record uses any more are removed after you edit or delete a record, and cover files left behind by deleted records are cleaned up.
 
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
