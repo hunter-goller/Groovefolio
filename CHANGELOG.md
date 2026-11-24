@@ -7,6 +7,12 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 ### Robustness
 - One damaged or unknown “side played” value no longer stops Collection, Stats and Discover from loading; it is read as a full-album play.
 - Unknown links and paths show a “Page not found” screen with a way back to Collection instead of the router’s default error page.
+### CI
+- Pull requests now run checks only (about 4 minutes instead of 11); the debug and release builds run after each merge to `main`. The NFC Kotlin tests run on PRs that change Android code or packages, and on every merge.
+- New **Release check** workflow: pushing a `v1.2.3` tag verifies the version matches `pubspec.yaml`, runs every check and build for that commit, and lists the commands to build the signed upload locally. The upload key stays off GitHub.
+
+### Release builds
+- CI builds the release App Bundle (the format Google Play requires) instead of a release APK, and fails if it isn't signed with the provided upload key.
 
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.

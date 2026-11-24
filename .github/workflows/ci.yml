@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, integration/nfc-hardware-validation]
   workflow_dispatch:
+  # Lets the release workflow run this exact pipeline, with the full builds,
+  # for a version tag.
+  workflow_call:
 
 jobs:
   flutter-ci:
@@ -15,6 +18,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          # A PR checks out GitHub's merge commit; depth 2 keeps its first
+          # parent (the target branch) so the Android-change check can diff.
+          fetch-depth: 2
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -55,14 +62,42 @@ jobs:
             exit 1
           fi
 
-      - name: Debug build verification
-        run: flutter build apk --debug
+      - name: Check for Android changes
+        id: android
+        shell: bash
+        run: |
+          # Gradle starts cold without the app builds below (about 4 min), so
+          # PRs run the Kotlin tests only when they change Android code or
+          # packages. Merges to main always run them.
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet HEAD^1 HEAD -- android pubspec.yaml pubspec.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No Android or package changes: skipping the Kotlin tests on this PR."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Prepare Android build files
+        if: steps.android.outputs.changed == 'true'
+        # Writes local.properties and the plugin list Gradle needs without
+        # building the app.
+        run: flutter build apk --debug --config-only
 
       - name: Android NFC intent policy tests
+        if: steps.android.outputs.changed == 'true'
         working-directory: android
         run: ./gradlew :app:testDebugUnitTest --tests '*Nfc*Test'
 
+      # The app builds below take about 8 of CI's 11 minutes. PRs skip them;
+      # every merge to main (and a manual run) still builds both, so a
+      # release-only break shows up right after merging, not on release day.
+      - name: Debug build verification
+        if: github.event_name != 'pull_request'
+        run: flutter build apk --debug
+
       - name: Create disposable CI upload key
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           password="$(openssl rand -hex 32)"
@@ -79,7 +114,29 @@ jobs:
             echo "GROOVEFOLIO_UPLOAD_KEY_PASSWORD=$password"
           } >> "$GITHUB_ENV"
 
-      - name: Release build verification (not published)
-        run: flutter build apk --release
-        # The disposable CI key is not the developer's Play upload key.
-        # The APK and key are discarded with the runner; neither is uploaded.
+      - name: Release App Bundle verification (not published)
+        if: github.event_name != 'pull_request'
+        run: flutter build appbundle --release
+        # Google Play only accepts App Bundles (AAB). The disposable CI key
+        # is not the developer's Play upload key; the AAB and key are
+        # discarded with the runner and nothing is uploaded.
+
+      - name: Check the App Bundle is signed with the upload key
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          aab=build/app/outputs/bundle/release/app-release.aab
+          test -s "$aab" || { echo "Missing $aab"; exit 1; }
+          # Release builds must use the upload key, never the debug key.
+          js="$(command -v jarsigner || echo "$JAVA_HOME/bin/jarsigner")"
+          "$js" -verify -verbose -certs "$aab" > "$RUNNER_TEMP/verify.txt"
+          grep -q "jar verified" "$RUNNER_TEMP/verify.txt"
+          grep -q "CN=Groovefolio CI" "$RUNNER_TEMP/verify.txt" || {
+            echo "AAB is not signed with the provided upload key."
+            exit 1
+          }
+          if grep -q "CN=Android Debug" "$RUNNER_TEMP/verify.txt"; then
+            echo "AAB is signed with the debug key."
+            exit 1
+          fi
+          echo "Signed AAB: $(du -h "$aab" | cut -f1)"

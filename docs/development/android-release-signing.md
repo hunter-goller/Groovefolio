@@ -32,6 +32,10 @@ $env:GROOVEFOLIO_UPLOAD_KEY_PASSWORD = [System.Net.NetworkCredential]::new('', (
 flutter build appbundle --release
 ```
 
+To release a tagged version, check out the tag first (`git checkout v1.0.1`).
+The **Release check** workflow for that tag has already run every check and a
+throwaway-key build of the same commit; see [CI/CD](../architecture/ci-cd.md#releasing-a-version).
+
 If you reused the keystore password for the key, enter it twice. Build from the
 repository root. The signed bundle is under `build/app/outputs/bundle/release/`.
 Gradle stops with a clear error if a signing variable or keystore is missing.
