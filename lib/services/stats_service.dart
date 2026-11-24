@@ -259,6 +259,42 @@ class StatsService {
   }
 }
 
+/// Facts behind the Stats "Insights" card. Each is a plain number; the screen
+/// turns them into sentences, and a null or zero value hides that insight.
+class StatsInsights {
+  const StatsInsights({
+    required this.currentStreakDays,
+    required this.longestStreakDays,
+    required this.periodPlays,
+    required this.previousPeriodPlays,
+    required this.busiestWeekday,
+    required this.busiestWeekdayPlays,
+    required this.neverPlayedAlbums,
+    required this.sideAPlays,
+    required this.sideBPlays,
+  });
+
+  /// Consecutive local days with a play, ending today or yesterday.
+  final int currentStreakDays;
+  final int longestStreakDays;
+
+  /// Plays in the comparison window: this year to date for a year range, or
+  /// the last 365 days for all time.
+  final int periodPlays;
+
+  /// Plays in the same window one year earlier.
+  final int previousPeriodPlays;
+
+  /// [DateTime.monday] to [DateTime.sunday], or null with too few plays.
+  final int? busiestWeekday;
+  final int busiestWeekdayPlays;
+
+  /// Records in the collection with no plays ever.
+  final int neverPlayedAlbums;
+  final int sideAPlays;
+  final int sideBPlays;
+}
+
 /// Collection data read once, with every dashboard figure computed from it.
 ///
 /// Play timestamps are parsed once, on first use, and shared by every figure.
@@ -507,6 +543,117 @@ class StatsSnapshot {
 
     return List.unmodifiable(stats);
   }
+
+  /// Streak, year-over-year, busiest day, never-played and side facts.
+  ///
+  /// Streaks and never-played always use all history; the busiest day and
+  /// side balance follow the [year] filter. A busiest day needs at least
+  /// [minPlaysForHabits] plays in range so one session can't define a habit.
+  StatsInsights insights({int? year, int minPlaysForHabits = 5}) {
+    final localNow = now.toLocal();
+    final today = DateTime(localNow.year, localNow.month, localNow.day);
+
+    final days = <DateTime>{
+      for (final dated in _dated)
+        DateTime(dated.local.year, dated.local.month, dated.local.day),
+    };
+    var longest = 0;
+    for (final day in days) {
+      if (days.contains(_previousDay(day))) continue;
+      var length = 1;
+      var next = _nextDay(day);
+      while (days.contains(next)) {
+        length++;
+        next = _nextDay(next);
+      }
+      if (length > longest) longest = length;
+    }
+    var current = 0;
+    var cursor = days.contains(today) ? today : _previousDay(today);
+    while (days.contains(cursor)) {
+      current++;
+      cursor = _previousDay(cursor);
+    }
+
+    final DateTime periodStart;
+    final DateTime previousStart;
+    final DateTime previousEnd;
+    if (year == null) {
+      periodStart = today.subtract(const Duration(days: 364));
+      previousStart = DateTime(
+        periodStart.year - 1,
+        periodStart.month,
+        periodStart.day,
+      );
+      previousEnd = DateTime(today.year - 1, today.month, today.day);
+    } else {
+      periodStart = DateTime(year);
+      previousStart = DateTime(year - 1);
+      previousEnd = DateTime(year - 1, localNow.month, localNow.day);
+    }
+    var periodPlays = 0;
+    var previousPlays = 0;
+    for (final dated in _dated) {
+      final day = DateTime(
+        dated.local.year,
+        dated.local.month,
+        dated.local.day,
+      );
+      if (!day.isBefore(periodStart) && !day.isAfter(today)) periodPlays++;
+      if (!day.isBefore(previousStart) && !day.isAfter(previousEnd)) {
+        previousPlays++;
+      }
+    }
+
+    final included = _inYear(year);
+    final byWeekday = List<int>.filled(8, 0);
+    var sideA = 0;
+    var sideB = 0;
+    for (final dated in included) {
+      byWeekday[dated.local.weekday]++;
+      switch (dated.play.sidePlayed) {
+        case SidePlayed.sideA:
+          sideA++;
+        case SidePlayed.sideB:
+          sideB++;
+        case SidePlayed.full:
+          break;
+      }
+    }
+    int? busiest;
+    if (included.length >= minPlaysForHabits) {
+      for (
+        var weekday = DateTime.monday;
+        weekday <= DateTime.sunday;
+        weekday++
+      ) {
+        if (busiest == null || byWeekday[weekday] > byWeekday[busiest]) {
+          busiest = weekday;
+        }
+      }
+    }
+
+    final playedIds = {for (final dated in _dated) dated.play.albumId};
+    return StatsInsights(
+      currentStreakDays: current,
+      longestStreakDays: longest,
+      periodPlays: periodPlays,
+      previousPeriodPlays: previousPlays,
+      busiestWeekday: busiest,
+      busiestWeekdayPlays: busiest == null ? 0 : byWeekday[busiest],
+      neverPlayedAlbums: albums
+          .where((album) => !playedIds.contains(album.id))
+          .length,
+      sideAPlays: sideA,
+      sideBPlays: sideB,
+    );
+  }
+
+  // Calendar arithmetic, so a daylight-saving change can't skip or repeat a day.
+  static DateTime _previousDay(DateTime day) =>
+      DateTime(day.year, day.month, day.day - 1);
+  static DateTime _nextDay(DateTime day) =>
+      DateTime(day.year, day.month, day.day + 1);
 
   /// The first vinyl added to the app collection.
   ///

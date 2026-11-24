@@ -28,6 +28,9 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 - Opening the app now quietly checks in with the Groovefolio server, at most once a day and only if Discogs is connected, so the connection doesn't silently end after a stretch of not using Discogs. If it has already ended, Settings now says why instead of just showing “Connect Discogs” again.
 ### Artwork
 - Replacing a record's cover now shows the new picture right away on every screen. Before, the old cover could stay on screen until the app restarted, because the new file reuses the same path.
+### Stats
+- New **Insights** card on Stats with plain-English facts from your play history: your listening streak and best streak, listening compared with this time last year, your busiest day of the week, side A vs side B, and how many records have never been played. Each line only appears when it says something real.
+
 ### Performance
 - Cover art is decoded at the size it's shown (about 200 px for a list tile) instead of at full size (up to 1600 px). This uses much less memory and scrolls more smoothly through large collections.
 ### Data tidiness
