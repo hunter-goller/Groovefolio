@@ -4,6 +4,9 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ## Unreleased
 
+### Stats
+- New **Insights** card on Stats with plain-English facts from your play history: your listening streak and best streak, listening compared with this time last year, your busiest day of the week, side A vs side B, and how many records have never been played. Each line only appears when it says something real.
+
 ### Performance
 - Stats loads about 4× faster on large collections. It now reads albums, plays and genres once per visit instead of reading the whole play history for each figure and querying genres record by record. Discover also loads genres in one query instead of one per record.
 
