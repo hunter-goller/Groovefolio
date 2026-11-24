@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vinyl_app/db/app_database.dart';
+import 'package:vinyl_app/db/schema/plays.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
 Future<void> _seedArtistAndAlbum(
@@ -98,5 +99,47 @@ void main() {
     expect(results.every((play) => play.albumId == 'album-1'), isTrue);
 
     await db.close();
+  });
+
+  test(
+    'an unknown side value reads as a full play instead of failing',
+    () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      await _seedArtistAndAlbum(db, artistId: 'artist-1', albumId: 'album-1');
+      final now = DateTime.now().toIso8601String();
+      for (final (id, side) in [
+        ('play-good', 'sideB'),
+        ('play-bad', 'side_c'),
+        ('play-case', ' SIDEA '),
+        ('play-empty', ''),
+      ]) {
+        await db.customStatement(
+          'INSERT INTO plays (id, album_id, played_at, side_played, created_at) '
+          'VALUES (?, ?, ?, ?, ?)',
+          [id, 'album-1', now, side, now],
+        );
+      }
+
+      final plays = {
+        for (final play in await db.select(db.plays).get())
+          play.id: play.sidePlayed,
+      };
+
+      expect(plays, {
+        'play-good': SidePlayed.sideB,
+        'play-bad': SidePlayed.full,
+        'play-case': SidePlayed.sideA,
+        'play-empty': SidePlayed.full,
+      });
+
+      await db.close();
+    },
+  );
+
+  test('side converter round-trips every value', () {
+    const converter = SidePlayedConverter();
+    for (final side in SidePlayed.values) {
+      expect(converter.fromSql(converter.toSql(side)), side);
+    }
   });
 }

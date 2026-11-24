@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vinyl_app/features/albums/screens/add_record_screen.dart';
@@ -15,6 +16,7 @@ import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
 import 'package:vinyl_app/features/settings/screens/settings_screen.dart';
 import 'package:vinyl_app/features/stats/screens/stats_screen.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/widgets/ui/empty_state.dart';
 
 part 'router.g.dart';
 
@@ -27,6 +29,7 @@ part 'router.g.dart';
 GoRouter router(Ref ref) {
   return GoRouter(
     initialLocation: AppRoutes.collection,
+    errorBuilder: (context, state) => const RouteNotFoundScreen(),
     routes: [
       ShellRoute(
         builder: (context, state, child) =>
@@ -93,4 +96,33 @@ GoRouter router(Ref ref) {
       ),
     ],
   );
+}
+
+/// Shown for a link or path the app doesn't know, instead of go_router's
+/// default error page.
+class RouteNotFoundScreen extends StatelessWidget {
+  const RouteNotFoundScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            child: EmptyState(
+              icon: Icons.explore_off_outlined,
+              title: 'Page not found',
+              subtitle:
+                  'This link doesn’t go anywhere in Groovefolio. Your '
+                  'collection is safe.',
+              ctaLabel: 'Go to Collection',
+              ctaKey: const Key('route-not-found-home'),
+              onCtaTap: () => context.go(AppRoutes.collection),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

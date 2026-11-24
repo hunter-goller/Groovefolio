@@ -11,8 +11,20 @@ import 'package:vinyl_app/types/side_played.dart';
 class SidePlayedConverter extends TypeConverter<SidePlayed, String> {
   const SidePlayedConverter();
 
+  /// Unknown or damaged values (a hand-edited database, or a value written by
+  /// a newer app version) are read as [SidePlayed.full] instead of throwing.
+  /// A throw here would fail every query that reads plays, so one bad row
+  /// would break Collection, Stats and Discover at once.
   @override
-  SidePlayed fromSql(String fromDb) => SidePlayed.values.byName(fromDb);
+  SidePlayed fromSql(String fromDb) {
+    final value = fromDb.trim().toLowerCase();
+    for (final side in SidePlayed.values) {
+      if (side.name.toLowerCase() == value) {
+        return side;
+      }
+    }
+    return SidePlayed.full;
+  }
 
   @override
   String toSql(SidePlayed value) => value.name;
