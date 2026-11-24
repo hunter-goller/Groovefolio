@@ -22,4 +22,4 @@ This page describes the app code on `main`, not unmerged backend branches or a p
 - Resolve production Discogs credential handling before public distribution. Backend work is in a separate repository and is not merged or deployed.
 - Finish remaining release QA and verify the privacy policy against the actual shipped build.
 
-Local collection, plays, Stats, and Discover do not require Discogs or a Groovefolio account. Android automatic backup is disabled; reinstall or phone replacement does not currently restore local collection data.
+Local collection, plays, Stats, and Discover do not require Discogs or a Groovefolio account. Android automatic backup is disabled. Instead, Settings offers a user-controlled [backup file and restore](features/backup.md) for reinstalls and new phones.
