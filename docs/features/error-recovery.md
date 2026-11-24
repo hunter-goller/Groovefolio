@@ -8,6 +8,7 @@ An error message should explain what failed and what the user can do next. It mu
 |---|---|---|
 | Database opening/migration | `main.dart`, `AppStartup` | Show loading, then a friendly retry screen on failure, with **Save a copy of my data** ([rescue copy](backup.md#rescue-copy-startup-failure)). Retry creates a fresh provider container and is ignored while a copy is saving; no automatic reset or migration bypass. App links are created before the first attempt. |
 | Collection, record, editor, Stats, Discover, onboarding | `AppErrorState` | Replace the failed view with a message and invalidate the relevant provider on Retry. |
+| Onboarding status (secure storage) | `OnboardingGate` | If first-run status can't be read, open the collection instead of an error. Onboarding never blocks access to records. |
 | Log Play picker and Discogs identity | `AppErrorState.inline` | Keep the surrounding screen usable; retry the failed read. A failed identity lookup does not prove the user disconnected. |
 | Artwork loading/decoding | `ResilientImage` | Show a local placeholder and an accessible unavailable label. A changed image gets a new load attempt. |
 | Add / Log Play | Screen save handler | Record completion immediately after persistence. A later failure says the operation was saved; the same form's next action opens/exits instead of inserting again. |

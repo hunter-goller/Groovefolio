@@ -46,6 +46,9 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 ### Performance
 - Collection search, sort and genre filter work in memory instead of reloading the whole collection on every keystroke, and the genre filter uses one query instead of one per record. It no longer flashes “no results” while genres load. Log Play search reuses the same loaded rows.
 - Stats loads about 4× faster on large collections. It now reads albums, plays and genres once per visit instead of reading the whole play history for each figure and querying genres record by record. Discover also loads genres in one query instead of one per record.
+### Tutorial tracks (part 1)
+- Added the progress model for the upcoming game-style tutorial: tracks, badges, locking, a gold record, and auto-completion from existing records, plays and NFC tags. Stored on the device only. No visible change yet.
+- If first-run status can't be read from secure storage, the collection now opens instead of a full-screen error with only Retry.
 ### Backup and restore
 - Added Settings → Back up collection: a versioned `.zip` with every local table and stored covers, saved wherever the user chooses through the system Save dialog.
 - Added **Save a copy of my data** to the startup error screen: copies the raw database and covers to a rescue file without opening the database.

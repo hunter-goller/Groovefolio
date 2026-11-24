@@ -48,4 +48,25 @@ void main() {
     expect(find.text('Collection test'), findsOneWidget);
     expect(find.text('Your record shelf, remembered'), findsNothing);
   });
+
+  testWidgets('unreadable setup progress opens the collection', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onboardingRequiredProvider.overrideWithValue(
+            AsyncError(StateError('keystore invalidated'), StackTrace.empty),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: const OnboardingGate(child: Text('Collection test')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Collection test'), findsOneWidget);
+    expect(find.textContaining('keystore'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }
