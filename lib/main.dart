@@ -306,6 +306,8 @@ class MyApp extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
       routerConfig: router,
+      builder: (context, child) =>
+          DiscogsKeepAliveScope(child: child ?? const SizedBox.shrink()),
     );
   }
 }

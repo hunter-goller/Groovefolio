@@ -137,6 +137,23 @@ class DiscogsConnectionCard extends StatelessWidget {
                   onClearFailure: onClearFailure,
                 ),
               ),
+            if (accountAsync case AsyncData(value: null))
+              Consumer(
+                builder: (context, ref, _) =>
+                    ref.watch(discogsConnectionLostProvider)
+                    ? Padding(
+                        key: const Key('discogs-connection-lost'),
+                        padding: EdgeInsets.only(top: tokens.space12),
+                        child: const _MessagePanel(
+                          icon: Icons.link_off_rounded,
+                          message:
+                              'Your Discogs connection ended because it went '
+                              'unused for a long time. Your records are safe. '
+                              'Connect again to keep importing and searching.',
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
             SizedBox(height: tokens.space16),
             Divider(color: context.theme.dividerColor),
             SizedBox(height: tokens.space12),
