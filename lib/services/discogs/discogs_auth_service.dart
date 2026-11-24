@@ -106,11 +106,15 @@ class DiscogsAuthService {
 
   /// Browser return/deep links never carry credentials into the app. Query the
   /// stored, installation-owned server transaction, including after a restart.
+  ///
+  /// The whole check, status plus account, shares one
+  /// [DiscogsApiClient.connectionTimeout] deadline.
   Future<String> authorizationStatus() => _serial(() async {
     final flow = await _flow();
     if (flow == null) {
       return 'none';
     }
+    final clock = Stopwatch()..start();
     Map<String, dynamic> progress;
     try {
       progress = await _api.call(
@@ -129,7 +133,13 @@ class DiscogsAuthService {
       return 'pending';
     }
     if (status == 'connected') {
-      if (await currentAccount() == null) {
+      final left = DiscogsApiClient.connectionTimeout - clock.elapsed;
+      if (left <= Duration.zero) {
+        throw const DiscogsNetworkFailure(
+          'The server took too long to respond. Try again.',
+        );
+      }
+      if (await _api.account(timeout: left) == null) {
         throw const DiscogsAuthenticationFailure(
           'Connect Discogs again in Settings.',
         );

@@ -17,6 +17,8 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 - Only real tag taps log plays now. Other apps can no longer log fake plays by sending a `groovefolio://album/…` link to Groovefolio; such links open the app and log nothing.
 ### Server requests
 - Request bodies sent to the Groovefolio server are now UTF-8 with `Content-Type: application/json; charset=utf-8`. Before, they were sent as Latin-1, which only worked because every current body is plain ASCII.
+### Discogs connection
+- “Checking connection…” now gives up after about 10 seconds even when the app has to refresh its server token first. Before, the refresh steps each had their own 30-second limit, so the check could take close to two minutes. Nothing is lost when it gives up; the next check finishes the refresh.
 
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
