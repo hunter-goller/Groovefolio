@@ -52,18 +52,41 @@ void main() {
 
     expect(activity, contains('override fun onNewIntent(intent: Intent)'));
     final create = activity.indexOf('override fun onCreate(');
+    final forged = activity.indexOf('isForgedAlbumIntent(intent)', create);
     final guard = activity.indexOf(
       'shouldSuppressAlbumNfcIntent(intent)',
       create,
     );
-    final sanitize = activity.indexOf('intent = Intent(', create);
+    final sanitize = activity.indexOf('intent = Intent(', guard);
     final attach = activity.indexOf(
       'super.onCreate(savedInstanceState)',
       create,
     );
     expect(create, greaterThanOrEqualTo(0));
+    // Tagless album links are stripped first, then the cooldown applies;
+    // both happen before Flutter attaches and reads the intent.
+    expect(forged, greaterThan(create));
+    expect(forged, lessThan(guard));
     expect(guard, greaterThan(create));
     expect(sanitize, greaterThan(guard));
     expect(attach, greaterThan(sanitize));
+  });
+
+  test('album links without a real tag are never passed to Flutter', () {
+    final activity = File(
+      'android/app/src/main/kotlin/app/groovefolio/MainActivity.kt',
+    ).readAsStringSync();
+    final newIntent = activity.indexOf('override fun onNewIntent(');
+    final forged = activity.indexOf('isForgedAlbumIntent(intent)', newIntent);
+    final handOff = activity.indexOf('super.onNewIntent(intent)', newIntent);
+    expect(forged, greaterThan(newIntent));
+    expect(forged, lessThan(handOff));
+    expect(activity, contains('NfcAdapter.EXTRA_TAG'));
+
+    final entry = File(
+      'android/app/src/main/kotlin/app/groovefolio/NfcEntryActivity.kt',
+    ).readAsStringSync();
+    expect(entry, contains('NfcAdapter.EXTRA_TAG'));
+    expect(entry, contains('NfcAlbumIntentPolicy.isForged('));
   });
 }

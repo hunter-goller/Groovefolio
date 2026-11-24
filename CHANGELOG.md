@@ -4,6 +4,9 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ## Unreleased
 
+### NFC security
+- Only real tag taps log plays now. Other apps can no longer log fake plays by sending a `groovefolio://album/…` link to Groovefolio; such links open the app and log nothing.
+
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
 - Selected the permanent Android application ID `app.groovefolio` before public release and required explicit upload signing for release builds. The developer's real upload key and AAB remain outstanding.
