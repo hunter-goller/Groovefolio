@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:vinyl_app/features/settings/widgets/collection_backup_tiles.dart';
 import 'package:vinyl_app/services/app_info_service.dart';
 import 'package:vinyl_app/theme/theme_provider.dart';
 
@@ -117,9 +118,10 @@ class SettingsPreferences extends ConsumerWidget {
                 leading: Icon(Icons.phone_android_outlined),
                 title: Text('Stored on this device'),
                 subtitle: Text(
-                  'Your collection and play history stay here. Manage individual records from Collection. Uninstalling or clearing app data removes local records and history.',
+                  'Your collection and play history stay here. Manage individual records from Collection. Uninstalling or clearing app data removes local records and history, so back up first.',
                 ),
               ),
+              CollectionBackupTiles(),
             ],
           ),
         ),
