@@ -4,6 +4,13 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ## Unreleased
 
+### CI
+- Pull requests now run checks only (about 4 minutes instead of 11); the debug and release builds run after each merge to `main`. The NFC Kotlin tests run on PRs that change Android code or packages, and on every merge.
+- New **Release check** workflow: pushing a `v1.2.3` tag verifies the version matches `pubspec.yaml`, runs every check and build for that commit, and lists the commands to build the signed upload locally. The upload key stays off GitHub.
+
+### Release builds
+- CI builds the release App Bundle (the format Google Play requires) instead of a release APK, and fails if it isn't signed with the provided upload key.
+
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
 - Selected the permanent Android application ID `app.groovefolio` before public release and required explicit upload signing for release builds. The developer's real upload key and AAB remain outstanding.
