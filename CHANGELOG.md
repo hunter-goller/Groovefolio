@@ -4,6 +4,9 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ## Unreleased
 
+### Performance
+- Cover art is decoded at the size it's shown (about 200 px for a list tile) instead of at full size (up to 1600 px). This uses much less memory and scrolls more smoothly through large collections.
+
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
 - Selected the permanent Android application ID `app.groovefolio` before public release and required explicit upload signing for release builds. The developer's real upload key and AAB remain outstanding.
