@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/services/artwork_storage_service.dart';
 import 'package:vinyl_app/services/backup/collection_backup_service.dart';
+import 'package:vinyl_app/services/backup/rescue_copy_service.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
 void main() {
@@ -328,6 +329,15 @@ void main() {
         Archive()..add(ArchiveFile.string('notes.txt', 'hi')),
       );
       expect(() => service.readBackup(zip), message('isn’t a Groovefolio'));
+    });
+
+    test('a rescue copy, with a message saying what it is', () {
+      final zip = ZipEncoder().encodeBytes(
+        Archive()
+          ..add(ArchiveFile.string(RescueCopyFormat.manifestName, '{}'))
+          ..add(ArchiveFile.bytes('database/vinyl_app_db.sqlite', [1])),
+      );
+      expect(() => service.readBackup(zip), message('rescue copy'));
     });
 
     test('a manifest from another app', () {

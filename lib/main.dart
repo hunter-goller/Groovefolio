@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -11,6 +12,8 @@ import 'package:vinyl_app/features/startup/app_startup.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/routing/router.dart';
+import 'package:vinyl_app/services/backup/backup_file_gateway.dart';
+import 'package:vinyl_app/services/backup/rescue_copy_service.dart';
 import 'package:vinyl_app/services/discogs/discogs_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_delivery_context.dart';
 import 'package:vinyl_app/services/nfc/nfc_intent_play_handler.dart';
@@ -24,6 +27,13 @@ import 'package:vinyl_app/theme/theme_provider.dart';
 
 /// Captures app links before opening storage. A failed database open shows
 /// recovery UI and retries with fresh dependencies without deleting local data.
+/// Debug and profile builds only: `--dart-define=GROOVEFOLIO_SIMULATE_STARTUP_FAILURE=true`
+/// shows the startup error screen without touching the database, so the
+/// rescue-copy flow can be checked on a phone. Release builds ignore it.
+const _simulateStartupFailure =
+    !kReleaseMode &&
+    bool.fromEnvironment('GROOVEFOLIO_SIMULATE_STARTUP_FAILURE');
+
 Future<void> main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
@@ -31,7 +41,19 @@ Future<void> main() async {
 
   runApp(
     AppStartup(
+      saveRescueCopy: () async {
+        // No providers here: the database may be what failed to open.
+        final service = RescueCopyService();
+        final bytes = await service.createRescueCopy();
+        return const FilePickerBackupFileGateway().save(
+          service.suggestedFileName(),
+          bytes,
+        );
+      },
       initialize: () async {
+        if (_simulateStartupFailure) {
+          throw StateError('Simulated startup failure for testing.');
+        }
         // Keep the native app-links singleton across retries so startup callbacks
         // remain available when the normal root listeners are finally mounted.
         final container = ProviderContainer(

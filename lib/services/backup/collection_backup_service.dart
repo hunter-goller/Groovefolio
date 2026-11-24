@@ -8,6 +8,7 @@ import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/db/database_provider.dart';
 import 'package:vinyl_app/db/migrations/schema_versions.dart';
 import 'package:vinyl_app/services/artwork_storage_service.dart';
+import 'package:vinyl_app/services/backup/rescue_copy_service.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
 /// Identifies Groovefolio backup files and their layout.
@@ -240,6 +241,12 @@ class CollectionBackupService {
         .where((file) => file.name == BackupFormat.manifestName)
         .firstOrNull;
     if (manifestFile == null) {
+      if (files.any((file) => file.name == RescueCopyFormat.manifestName)) {
+        throw const BackupFormatException(
+          'That’s a rescue copy, saved when Groovefolio couldn’t open your '
+          'collection. It can’t be restored here. Keep it and contact support.',
+        );
+      }
       throw const BackupFormatException(
         'That file isn’t a Groovefolio backup.',
       );
