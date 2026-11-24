@@ -69,6 +69,9 @@ class InstallationSession {
     }
   });
 
+  /// [timeout] is one deadline for the whole request, including any token
+  /// recovery or rotation it has to do first. Without it each step uses the
+  /// transport's default timeout.
   Future<BackendResponse> request(
     String method,
     String path, {
@@ -76,6 +79,7 @@ class InstallationSession {
     String? body,
     Duration? timeout,
   }) => _serial(() async {
+    final budget = _Budget(timeout);
     var session = await _read();
     if (session == null) {
       throw const DiscogsAuthenticationFailure(
@@ -84,7 +88,7 @@ class InstallationSession {
     }
     try {
       if (session.pending != null) {
-        session = await _recover(session);
+        session = await _recover(session, budget);
       }
       if (!session.expiresAt.isAfter(_now().add(const Duration(days: 3)))) {
         session = _Session(
@@ -94,14 +98,14 @@ class InstallationSession {
           _newToken(),
         );
         await _save(session); // Persist successor BEFORE sending the rotation.
-        session = await _rotate(session);
+        session = await _rotate(session, budget);
       }
       return await transport.send(
         method,
         uri(path, query),
         token: session.token,
         body: body,
-        requestTimeout: timeout,
+        requestTimeout: budget.remaining(),
       );
     } on BackendError catch (error) {
       if (error.invalidToken) {
@@ -112,12 +116,13 @@ class InstallationSession {
     }
   });
 
-  Future<_Session> _recover(_Session session) async {
+  Future<_Session> _recover(_Session session, _Budget budget) async {
     try {
       final response = await transport.send(
         'GET',
         uri('/v1/installation'),
         token: session.pending,
+        requestTimeout: budget.remaining(),
       );
       return await _promote(session, response, session.pending!);
     } on BackendError catch (error) {
@@ -131,22 +136,24 @@ class InstallationSession {
       'GET',
       uri('/v1/installation'),
       token: session.token,
+      requestTimeout: budget.remaining(),
     );
     if (status.json()['installationId'] != session.id) {
       throw const DiscogsApiFailure(
         'The server returned an invalid connection.',
       );
     }
-    return _rotate(session);
+    return _rotate(session, budget);
   }
 
-  Future<_Session> _rotate(_Session session) async {
+  Future<_Session> _rotate(_Session session, _Budget budget) async {
     try {
       final response = await transport.send(
         'POST',
         uri('/v1/installation/rotate'),
         token: session.token,
         body: jsonEncode({'nextToken': session.pending}),
+        requestTimeout: budget.remaining(),
       );
       return await _promote(session, response, session.pending!);
     } on BackendError catch (error) {
@@ -179,6 +186,30 @@ class InstallationSession {
     return base64Url
         .encode(List.generate(32, (_) => random.nextInt(256)))
         .replaceAll('=', '');
+  }
+}
+
+/// What's left of a request's overall deadline. A step that would start with
+/// nothing left fails like a timeout. Token state is already persisted before
+/// each step, so stopping early is the same as a network timeout: the next
+/// request recovers.
+class _Budget {
+  _Budget(this.total) : _clock = Stopwatch()..start();
+  final Duration? total;
+  final Stopwatch _clock;
+
+  Duration? remaining() {
+    final total = this.total;
+    if (total == null) {
+      return null;
+    }
+    final left = total - _clock.elapsed;
+    if (left <= Duration.zero) {
+      throw const DiscogsNetworkFailure(
+        'The server took too long to respond. Try again.',
+      );
+    }
+    return left;
   }
 }
 
