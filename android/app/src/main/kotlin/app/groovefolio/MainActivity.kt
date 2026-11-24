@@ -12,6 +12,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.nfc.NfcAdapter
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
@@ -70,6 +71,12 @@ open class MainActivity : FlutterActivity() {
     override fun shouldDestroyEngineWithHost(): Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        if (isForgedAlbumIntent(intent)) {
+            // Another app sent an album link without a real tag. Open the app
+            // normally instead: strip the payload before Flutter reads it.
+            traceNfcEntry("onCreate", suppressed = false, forged = true)
+            intent = Intent(this, MainActivity::class.java).setAction(Intent.ACTION_MAIN)
+        }
         val suppressed = shouldSuppressAlbumNfcIntent(intent)
         if (!suppressed) recordAlbumNfcDelivery(intent)
         traceNfcEntry("onCreate", suppressed)
@@ -197,6 +204,11 @@ open class MainActivity : FlutterActivity() {
     }
 
     override fun onNewIntent(intent: Intent) {
+        if (isForgedAlbumIntent(intent)) {
+            // Never pass a tagless album link to Flutter; it would log a play.
+            traceNfcEntry("onNewIntent", suppressed = false, forged = true)
+            return
+        }
         val suppressed = shouldSuppressAlbumNfcIntent(intent)
         if (!suppressed) recordAlbumNfcDelivery(intent)
         traceNfcEntry("onNewIntent", suppressed)
@@ -223,6 +235,16 @@ open class MainActivity : FlutterActivity() {
         )
     }
 
+    private fun isForgedAlbumIntent(intent: Intent): Boolean {
+        val uri = intent.data
+        return NfcAlbumIntentPolicy.isForged(
+            action = intent.action,
+            scheme = uri?.scheme,
+            host = uri?.host,
+            hasTag = intent.hasExtra(NfcAdapter.EXTRA_TAG),
+        )
+    }
+
     private fun shouldSuppressAlbumNfcIntent(intent: Intent): Boolean {
         val uri = intent.data
         return foregroundIntentGate.shouldSuppress(intent.action, uri?.scheme, uri?.host)
@@ -241,10 +263,13 @@ open class MainActivity : FlutterActivity() {
         if (isNfcOnlyHost) finish()
     }
 
-    private fun traceNfcEntry(entry: String, suppressed: Boolean) {
+    private fun traceNfcEntry(entry: String, suppressed: Boolean, forged: Boolean = false) {
         if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
             // No album IDs, URIs, credentials, or NDEF contents in diagnostics.
-            Log.d("GroovefolioNfc", "$entry task=$taskId suppressed=$suppressed")
+            Log.d(
+                "GroovefolioNfc",
+                "$entry task=$taskId suppressed=$suppressed forged=$forged",
+            )
         }
     }
 

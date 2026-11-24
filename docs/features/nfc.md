@@ -56,6 +56,11 @@ hardware paths still require physical validation before release.
   is already visible so future external taps can post their notification
 - duplicates and failed events never receive success feedback or app haptics
 - notification taps navigate to the album without logging again
+- only real taps log plays: an album link must carry Android's `NfcAdapter.EXTRA_TAG`,
+  which the NFC service attaches and internal forwarding keeps. Another app sending
+  `groovefolio://album/<id>` to the exported activities, or `adb shell am start` with that
+  URI, opens Groovefolio normally and logs nothing (`NfcAlbumIntentPolicy`). Test with a
+  real tag.
 
 ## Still needed
 - physical-device validation with the Galaxy S22 Ultra and NTAG215 tags
@@ -100,7 +105,9 @@ The NFC payload/association design should continue to keep the local database as
 Dart tests cover the error/retry dialog lifetime, safe release, and a linking
 interaction starting while an automatic play awaits album lookup. Native JVM
 tests exercise the shared intent policy, ownership across activity instances,
-cooldown, missing NFC data, and OAuth/launcher exclusions. CI also checks both
+cooldown, missing NFC data, OAuth/launcher exclusions, and that album links without a
+real tag are rejected. CI also checks both
 APK variants. These checks do not simulate Samsung's NFC dispatcher; physical
 verification is still required. Debug builds emit only lifecycle entry, task ID,
-and suppression decisions under the `GroovefolioNfc` log tag (no URI or album data).
+and suppression and forged-link decisions under the `GroovefolioNfc` log tag (no URI or
+album data).
