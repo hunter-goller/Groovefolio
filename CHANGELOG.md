@@ -21,6 +21,9 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 - “Checking connection…” now gives up after about 10 seconds even when the app has to refresh its server token first. Before, the refresh steps each had their own 30-second limit, so the check could take close to two minutes. Nothing is lost when it gives up; the next check finishes the refresh.
 ### Discogs
 - Fixed Settings staying on "waiting" after connecting Discogs when returning to the app and the sign-in link arrived at the same time.
+### Discogs import
+- Collection import now waits and retries when Discogs asks it to slow down (up to a minute at a time, 3 retries per record) instead of stopping, and shows that it's waiting.
+- Added Cancel import, and Back asks before stopping an import. Records already imported stay.
 
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
