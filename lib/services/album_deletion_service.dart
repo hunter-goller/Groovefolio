@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/services/artwork_storage_service.dart';
+import 'package:vinyl_app/services/collection_tidy_service.dart';
 
 /// Counts captured before deleting the album; related rows are removed by
 /// database cascades rather than one delete call per association.
@@ -27,12 +28,14 @@ class AlbumDeletionService {
     required this._playRepository,
     required this._nfcTagRepository,
     required this._artworkStorageService,
+    this._tidyService,
   });
 
   final IAlbumRepository _albumRepository;
   final IPlayRepository _playRepository;
   final INfcTagRepository _nfcTagRepository;
   final ArtworkStorageService _artworkStorageService;
+  final CollectionTidyService? _tidyService;
 
   /// Deletes one local album and its dependent rows, then best-effort artwork.
   /// A failed database delete leaves the artwork intact.
@@ -64,8 +67,15 @@ class AlbumDeletionService {
     try {
       await _artworkStorageService.deleteArtwork(album.artworkPath);
     } catch (_) {
-      // The database deletion already committed. Leave orphan cleanup for a
-      // later maintenance pass rather than reporting the record as undeleted.
+      // The database deletion already committed. The tidy pass below, or a
+      // later one, removes the orphaned file instead.
+    }
+
+    try {
+      // Removes the artist/genres only this record used, plus stray covers.
+      await _tidyService?.tidy();
+    } catch (_) {
+      // Leftovers are harmless; the next delete or edit tidies again.
     }
 
     return AlbumDeletionResult(
@@ -81,5 +91,6 @@ final albumDeletionServiceProvider = Provider<AlbumDeletionService>((ref) {
     playRepository: ref.watch(playRepositoryProvider),
     nfcTagRepository: ref.watch(nfcTagRepositoryProvider),
     artworkStorageService: ref.watch(artworkStorageServiceProvider),
+    tidyService: ref.watch(collectionTidyServiceProvider),
   );
 });

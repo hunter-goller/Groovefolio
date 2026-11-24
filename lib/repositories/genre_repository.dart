@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/db/database_provider.dart';
 import 'package:vinyl_app/utils/id_generator.dart';
+import 'package:vinyl_app/utils/name_match.dart';
 
 part 'genre_repository.g.dart';
 
@@ -63,15 +64,26 @@ class GenreRepository implements IGenreRepository {
   }
 
   @override
-  Future<Genre?> findByName(String name) {
+  Future<Genre?> findByName(String name) async {
     final normalizedName = name.trim();
-    if (normalizedName.isEmpty) return Future.value(null);
+    if (normalizedName.isEmpty) return null;
+    return _firstMatch(normalizedName);
+  }
 
-    final query = _db.select(_db.genres)
-      ..where(
-        (genre) => genre.name.lower().equals(normalizedName.toLowerCase()),
-      );
-    return query.getSingleOrNull();
+  /// Compared in Dart, not SQL: SQLite's lower() is ASCII-only. If older
+  /// duplicates exist, the earliest-created one wins.
+  Future<Genre?> _firstMatch(String name) async {
+    final key = nameMatchKey(name);
+    final candidates =
+        await (_db.select(_db.genres)..orderBy([
+              (genre) => OrderingTerm.asc(genre.createdAt),
+              (genre) => OrderingTerm.asc(genre.id),
+            ]))
+            .get();
+    for (final genre in candidates) {
+      if (nameMatchKey(genre.name) == key) return genre;
+    }
+    return null;
   }
 
   @override
@@ -82,11 +94,7 @@ class GenreRepository implements IGenreRepository {
     }
 
     return _db.transaction(() async {
-      final existingQuery = _db.select(_db.genres)
-        ..where(
-          (genre) => genre.name.lower().equals(normalizedName.toLowerCase()),
-        );
-      final existing = await existingQuery.getSingleOrNull();
+      final existing = await _firstMatch(normalizedName);
       if (existing != null) return existing;
 
       return _db
