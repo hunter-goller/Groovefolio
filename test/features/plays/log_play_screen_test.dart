@@ -1,12 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
+import 'package:vinyl_app/features/stats/screens/stats_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
+import 'package:vinyl_app/services/recommendation_service.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
 import 'package:vinyl_app/types/side_played.dart';
 
@@ -57,6 +62,45 @@ void main() {
     expect(fixture.playRepository.plays.single.sidePlayed, SidePlayed.sideA);
     expect(find.text('Collection test'), findsOneWidget);
     expect(find.text('Play logged: Blue Train • Side A'), findsOneWidget);
+  });
+
+  testWidgets('saving a play refreshes Stats and Discover', (tester) async {
+    final fixture = _Fixture.single();
+    var statsBuilds = 0;
+    var discoverBuilds = 0;
+    await _pumpLogPlay(
+      tester,
+      fixture: fixture,
+      overrides: [
+        // Never-completing futures: only rebuilds matter, not the data.
+        statsDashboardProvider.overrideWith((ref, range) {
+          statsBuilds++;
+          return Completer<StatsDashboardData>().future;
+        }),
+        discoverRecommendationsProvider.overrideWith((ref) {
+          discoverBuilds++;
+          return Completer<DiscoverRecommendations>().future;
+        }),
+      ],
+    );
+    // Stand in for Stats and Discover still open under Log Play.
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(LogPlayScreen)),
+    );
+    container.listen(statsDashboardProvider(StatsRange.currentYear), (_, _) {});
+    container.listen(discoverRecommendationsProvider, (_, _) {});
+    expect(statsBuilds, 1);
+    expect(discoverBuilds, 1);
+
+    await tester.tap(find.text('Blue Train'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Save play'));
+    await tester.tap(find.text('Save play'));
+    await tester.pumpAndSettle();
+
+    expect(fixture.playRepository.plays, hasLength(1));
+    expect(statsBuilds, 2);
+    expect(discoverBuilds, 2);
   });
 
   testWidgets('default picker limits recent records until Browse all', (
@@ -158,6 +202,7 @@ Future<void> _pumpLogPlay(
   required _Fixture fixture,
   CollectionAlbum? initialAlbum,
   bool settle = true,
+  List<Override> overrides = const [],
 }) async {
   final router = GoRouter(
     initialLocation: AppRoutes.logPlay,
@@ -189,6 +234,7 @@ Future<void> _pumpLogPlay(
           _FakeArtistRepository(fixture.artists),
         ),
         playRepositoryProvider.overrideWithValue(fixture.playRepository),
+        ...overrides,
       ],
       child: MaterialApp.router(
         theme: AppTheme.light,
