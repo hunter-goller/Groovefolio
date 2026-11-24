@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
+import 'package:vinyl_app/features/plays/play_data_refresh.dart';
 import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
@@ -163,11 +164,7 @@ class _LogPlayScreenState extends ConsumerState<LogPlayScreen> {
 
       _playSaved = true;
       if (!mounted) return;
-      ref.invalidate(albumsProvider);
-      ref.invalidate(recentlyPlayedProvider);
-      ref.invalidate(playCountProvider(album.id));
-      ref.invalidate(albumDetailProvider(album.id));
-      ref.invalidate(albumSearchProvider(_query));
+      refreshPlayData(ref, album.id);
 
       if (!mounted) return;
       final guideController = ref.read(walkthroughProvider.notifier);
