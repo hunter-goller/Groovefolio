@@ -1,11 +1,23 @@
+import 'dart:math';
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 
 part 'recommendation_service.g.dart';
 
-/// The four mutually exclusive shelves used by local Discover.
-enum RecommendationKind { rediscover, genre, era, underplayed }
+/// The mutually exclusive shelves used by local Discover.
+enum RecommendationKind {
+  /// Usually played on the same days as something you're playing now.
+  pairing,
+  rediscover,
+  genre,
+
+  /// An overlooked record by one of your most-played artists.
+  deepCut,
+  era,
+  underplayed,
+}
 
 /// Human-readable local signals shown by “Why this record?”.
 class RecommendationEvidence {
@@ -101,6 +113,9 @@ class DiscoverRecommendations {
     required this.genrePicks,
     required this.eraPicks,
     this.underplayed = const [],
+    this.pairings = const [],
+    this.pairingSeedTitle,
+    this.deepCuts = const [],
   });
 
   final int collectionSize;
@@ -110,7 +125,18 @@ class DiscoverRecommendations {
   final List<AlbumRecommendation> eraPicks;
   final List<AlbumRecommendation> underplayed;
 
+  /// Records usually played on the same days as your recent plays.
+  final List<AlbumRecommendation> pairings;
+
+  /// The recent record most [pairings] go with, for the shelf title.
+  final String? pairingSeedTitle;
+
+  /// Overlooked records by your most-played artists.
+  final List<AlbumRecommendation> deepCuts;
+
   bool get hasRecommendations =>
+      pairings.isNotEmpty ||
+      deepCuts.isNotEmpty ||
       rediscover.isNotEmpty ||
       genrePicks.isNotEmpty ||
       eraPicks.isNotEmpty ||
@@ -131,6 +157,13 @@ abstract interface class IRecommendationService {
 /// Ranks local records from play recency, genres, artists and release era.
 /// An injected clock makes recency rules stable in tests.
 class RecommendationService implements IRecommendationService {
+  /// Records played this recently seed "Because you played…".
+  static const pairingSeedWindow = Duration(days: 14);
+  static const minSharedDays = 2;
+  static const minSharedShare = 0.25;
+  static const minArtistPlaysForDeepCuts = 5;
+  static const maxDeepCutsPerArtist = 2;
+
   RecommendationService({
     required this._albumRepository,
     required this._artistRepository,
@@ -145,8 +178,9 @@ class RecommendationService implements IRecommendationService {
   final IGenreRepository _genreRepository;
   final DateTime Function() _now;
 
-  /// Builds shelves in priority order: rediscovery, taste, era, then
-  /// underplayed. Earlier sections exclude their albums from later ones.
+  /// Builds shelves in priority order: pairings, rediscovery, deep cuts,
+  /// taste, era, then underplayed. Earlier sections exclude their albums from
+  /// later ones.
   @override
   Future<DiscoverRecommendations> getRecommendations({
     Duration rediscoverThreshold = const Duration(days: 90),
@@ -231,8 +265,27 @@ class RecommendationService implements IRecommendationService {
       recentTasteWindow,
     );
 
+    // Each shelf keeps its strongest picks and rotates the rest daily, so
+    // Discover changes from day to day without hiding its best suggestions.
+    final day = _rotationDay(now);
+
     // Build each shelf before the next so the first applicable explanation
     // wins and a record never appears twice on the same Discover screen.
+    final pairingResult = _buildPairings(
+      albums: albums,
+      artistsById: artistsById,
+      genresByAlbum: genresByAlbum,
+      playCounts: playCounts,
+      lastPlayedAt: lastPlayedAt,
+      plays: validPlays,
+      now: now,
+      recentSuppression: recentSuppression,
+      limit: sectionLimit,
+      day: day,
+    );
+    final pairings = pairingResult.picks;
+    final pairingIds = pairings.map((item) => item.album.id).toSet();
+
     final rediscover = _buildRediscover(
       albums: albums,
       artistsById: artistsById,
@@ -241,9 +294,31 @@ class RecommendationService implements IRecommendationService {
       lastPlayedAt: lastPlayedAt,
       now: now,
       threshold: rediscoverThreshold,
+      excludedAlbumIds: pairingIds,
       limit: sectionLimit,
+      day: day,
     );
-    final rediscoverIds = rediscover.map((item) => item.album.id).toSet();
+    final rediscoverIds = {
+      ...pairingIds,
+      ...rediscover.map((item) => item.album.id),
+    };
+
+    final deepCuts = _buildDeepCuts(
+      albums: albums,
+      artistsById: artistsById,
+      genresByAlbum: genresByAlbum,
+      playCounts: playCounts,
+      lastPlayedAt: lastPlayedAt,
+      now: now,
+      recentSuppression: recentSuppression,
+      excludedAlbumIds: rediscoverIds,
+      limit: sectionLimit,
+      day: day,
+    );
+    final deepCutIds = <String>{
+      ...rediscoverIds,
+      ...deepCuts.map((item) => item.album.id),
+    };
 
     final genrePicks = _buildTastePicks(
       albums: albums,
@@ -255,11 +330,12 @@ class RecommendationService implements IRecommendationService {
       tasteProfile: tasteProfile,
       now: now,
       recentSuppression: recentSuppression,
-      excludedAlbumIds: rediscoverIds,
+      excludedAlbumIds: deepCutIds,
       limit: sectionLimit,
+      day: day,
     );
     final usedIds = <String>{
-      ...rediscoverIds,
+      ...deepCutIds,
       ...genrePicks.map((item) => item.album.id),
     };
 
@@ -274,6 +350,7 @@ class RecommendationService implements IRecommendationService {
       recentSuppression: recentSuppression,
       excludedAlbumIds: usedIds,
       limit: sectionLimit,
+      day: day,
     );
 
     final occupied = {...usedIds, ...eraPicks.map((item) => item.album.id)};
@@ -317,25 +394,17 @@ class RecommendationService implements IRecommendationService {
       rediscover: List.unmodifiable(rediscover),
       genrePicks: List.unmodifiable(genrePicks),
       eraPicks: List.unmodifiable(eraPicks),
-      underplayed: List.unmodifiable(underplayed.take(sectionLimit)),
+      underplayed: List.unmodifiable(_rotate(underplayed, sectionLimit, day)),
+      pairings: List.unmodifiable(pairings),
+      pairingSeedTitle: pairingResult.seedTitle,
+      deepCuts: List.unmodifiable(deepCuts),
     );
   }
 
+  /// One query for every album's genres, instead of one per album.
   Future<Map<String, List<Genre>>> _loadGenres(List<Album> albums) async {
-    final assignments = await Future.wait([
-      for (final album in albums) _loadAlbumGenres(album.id),
-    ]);
-    return {
-      for (final assignment in assignments)
-        assignment.albumId: assignment.genres,
-    };
-  }
-
-  Future<_AlbumGenres> _loadAlbumGenres(String albumId) async {
-    return _AlbumGenres(
-      albumId: albumId,
-      genres: await _genreRepository.findByAlbum(albumId),
-    );
+    final all = await _genreRepository.findAllByAlbum();
+    return {for (final album in albums) album.id: all[album.id] ?? const []};
   }
 
   TasteProfile? _buildTasteProfile(
@@ -481,11 +550,14 @@ class RecommendationService implements IRecommendationService {
     required Map<String, DateTime> lastPlayedAt,
     required DateTime now,
     required Duration threshold,
+    required Set<String> excludedAlbumIds,
     required int limit,
+    required int day,
   }) {
     final candidates = <AlbumRecommendation>[];
 
     for (final album in albums) {
+      if (excludedAlbumIds.contains(album.id)) continue;
       final lastPlayed = lastPlayedAt[album.id];
       if (lastPlayed == null) continue;
       final elapsed = now.difference(lastPlayed);
@@ -528,7 +600,7 @@ class RecommendationService implements IRecommendationService {
       return _compareAlbums(left.album, right.album);
     });
 
-    return candidates.take(limit).toList(growable: false);
+    return _rotate(candidates, limit, day);
   }
 
   List<AlbumRecommendation> _buildTastePicks({
@@ -543,6 +615,7 @@ class RecommendationService implements IRecommendationService {
     required Duration recentSuppression,
     required Set<String> excludedAlbumIds,
     required int limit,
+    required int day,
   }) {
     if (tasteProfile == null) return const [];
 
@@ -712,7 +785,7 @@ class RecommendationService implements IRecommendationService {
       return _compareAlbums(left.album, right.album);
     });
 
-    return candidates.take(limit).toList(growable: false);
+    return _rotate(candidates, limit, day);
   }
 
   List<AlbumRecommendation> _buildEraPicks({
@@ -726,6 +799,7 @@ class RecommendationService implements IRecommendationService {
     required Duration recentSuppression,
     required Set<String> excludedAlbumIds,
     required int limit,
+    required int day,
   }) {
     final favoriteDecade = tasteProfile?.favoriteDecade;
     final favoriteDecadePlayCount = tasteProfile?.favoriteDecadePlayCount ?? 0;
@@ -781,7 +855,250 @@ class RecommendationService implements IRecommendationService {
       return _compareAlbums(left.album, right.album);
     });
 
-    return candidates.take(limit).toList(growable: false);
+    return _rotate(candidates, limit, day);
+  }
+
+  /// Records you've played on the same days as something you've played in the
+  /// last [pairingSeedWindow]. A pick needs at least [minSharedDays] shared
+  /// days, and those must be at least [minSharedShare] of the days it was
+  /// played, so "often played with" stays true for records you play a lot.
+  ({List<AlbumRecommendation> picks, String? seedTitle}) _buildPairings({
+    required List<Album> albums,
+    required Map<String, String> artistsById,
+    required Map<String, List<Genre>> genresByAlbum,
+    required Map<String, int> playCounts,
+    required Map<String, DateTime> lastPlayedAt,
+    required List<Play> plays,
+    required DateTime now,
+    required Duration recentSuppression,
+    required int limit,
+    required int day,
+  }) {
+    const none = (picks: <AlbumRecommendation>[], seedTitle: null);
+    final daysByAlbum = <String, Set<DateTime>>{};
+    for (final play in plays) {
+      final local = DateTime.tryParse(play.playedAt)?.toLocal();
+      if (local == null) continue;
+      daysByAlbum
+          .putIfAbsent(play.albumId, () => <DateTime>{})
+          .add(DateTime(local.year, local.month, local.day));
+    }
+
+    final seeds =
+        [
+          for (final album in albums)
+            if (_isRecent(lastPlayedAt[album.id], now, pairingSeedWindow))
+              album,
+        ]..sort(
+          (left, right) =>
+              lastPlayedAt[right.id]!.compareTo(lastPlayedAt[left.id]!),
+        );
+    if (seeds.isEmpty) return none;
+
+    final ranked = <({AlbumRecommendation pick, Album seed, double share})>[];
+    for (final album in albums) {
+      final last = lastPlayedAt[album.id];
+      if (last == null || _isRecent(last, now, recentSuppression)) continue;
+      final days = daysByAlbum[album.id];
+      if (days == null || days.length < minSharedDays) continue;
+
+      Album? seed;
+      var shared = 0;
+      for (final candidate in seeds) {
+        final together = days
+            .intersection(daysByAlbum[candidate.id] ?? const <DateTime>{})
+            .length;
+        if (together > shared) {
+          shared = together;
+          seed = candidate;
+        }
+      }
+      if (seed == null || shared < minSharedDays) continue;
+      final share = shared / days.length;
+      if (share < minSharedShare) continue;
+
+      final count = playCounts[album.id] ?? 0;
+      ranked.add((
+        seed: seed,
+        share: share,
+        pick: AlbumRecommendation(
+          album: album,
+          artistName: artistsById[album.artistId] ?? 'Unknown artist',
+          genres: _genreNames(genresByAlbum[album.id]),
+          reason:
+              'Played with ${seed.title} on $shared days • '
+              '${_formatLastPlayed(last, now)}',
+          kind: RecommendationKind.pairing,
+          playCount: count,
+          score: shared,
+          lastPlayedAt: last,
+          evidence: List.unmodifiable([
+            RecommendationEvidence(
+              title: 'Played together on $shared days',
+              detail:
+                  'On $shared of the ${days.length} days you played '
+                  '${album.title}, you also played ${seed.title}.',
+            ),
+            RecommendationEvidence(
+              title: 'You just played ${seed.title}',
+              detail: _formatLastPlayed(lastPlayedAt[seed.id]!, now),
+            ),
+            RecommendationEvidence(
+              title: 'Time away',
+              detail: _candidateHistory(count, last, now),
+            ),
+          ]),
+        ),
+      ));
+    }
+    if (ranked.isEmpty) return none;
+
+    ranked.sort((left, right) {
+      final byShared = right.pick.score.compareTo(left.pick.score);
+      if (byShared != 0) return byShared;
+      final byShare = right.share.compareTo(left.share);
+      if (byShare != 0) return byShare;
+      return _compareAlbums(left.pick.album, right.pick.album);
+    });
+    final picks = _rotate([for (final item in ranked) item.pick], limit, day);
+    final seedsUsed = {
+      for (final item in ranked)
+        if (picks.contains(item.pick)) item.seed.id: item.seed.title,
+    };
+    return (
+      picks: picks,
+      seedTitle: seedsUsed.length == 1 ? seedsUsed.values.single : null,
+    );
+  }
+
+  /// Records with at most one play by artists you've played at least
+  /// [minArtistPlaysForDeepCuts] times, skipping each artist's most-played
+  /// record. At most [maxDeepCutsPerArtist] per artist keeps the shelf varied.
+  List<AlbumRecommendation> _buildDeepCuts({
+    required List<Album> albums,
+    required Map<String, String> artistsById,
+    required Map<String, List<Genre>> genresByAlbum,
+    required Map<String, int> playCounts,
+    required Map<String, DateTime> lastPlayedAt,
+    required DateTime now,
+    required Duration recentSuppression,
+    required Set<String> excludedAlbumIds,
+    required int limit,
+    required int day,
+  }) {
+    final byArtist = <String, List<Album>>{};
+    for (final album in albums) {
+      byArtist.putIfAbsent(album.artistId, () => []).add(album);
+    }
+
+    final candidates = <AlbumRecommendation>[];
+    for (final entry in byArtist.entries) {
+      final records = entry.value;
+      if (records.length < 2) continue;
+      final artistPlays = records.fold<int>(
+        0,
+        (total, album) => total + (playCounts[album.id] ?? 0),
+      );
+      if (artistPlays < minArtistPlaysForDeepCuts) continue;
+      final favorite = records.reduce(
+        (best, album) =>
+            (playCounts[album.id] ?? 0) > (playCounts[best.id] ?? 0)
+            ? album
+            : best,
+      );
+      final artist = artistsById[entry.key] ?? 'Unknown artist';
+      final playedRecords = records
+          .where((album) => (playCounts[album.id] ?? 0) > 0)
+          .length;
+
+      for (final album in records) {
+        final count = playCounts[album.id] ?? 0;
+        final last = lastPlayedAt[album.id];
+        if (album.id == favorite.id ||
+            count > 1 ||
+            excludedAlbumIds.contains(album.id) ||
+            _isRecent(last, now, recentSuppression) ||
+            (count > 0 && last == null)) {
+          continue;
+        }
+        candidates.add(
+          AlbumRecommendation(
+            album: album,
+            artistName: artist,
+            genres: _genreNames(genresByAlbum[album.id]),
+            reason: count == 0
+                ? 'You’ve played $artist $artistPlays times • never this one'
+                : 'You’ve played $artist $artistPlays times • this one just '
+                      'once',
+            kind: RecommendationKind.deepCut,
+            playCount: count,
+            score: artistPlays,
+            lastPlayedAt: last,
+            evidence: List.unmodifiable([
+              RecommendationEvidence(
+                title: 'An artist you play a lot',
+                detail:
+                    '$artist: $artistPlays plays across $playedRecords of '
+                    'your ${records.length} records.',
+              ),
+              RecommendationEvidence(
+                title: 'Your favorite of theirs',
+                detail:
+                    '${favorite.title} • '
+                    '${_playCountLabel(playCounts[favorite.id] ?? 0)}',
+              ),
+              RecommendationEvidence(
+                title: 'This record',
+                detail: _candidateHistory(count, last, now),
+              ),
+            ]),
+          ),
+        );
+      }
+    }
+
+    candidates.sort((left, right) {
+      final byArtistPlays = right.score.compareTo(left.score);
+      if (byArtistPlays != 0) return byArtistPlays;
+      final byPlays = left.playCount.compareTo(right.playCount);
+      if (byPlays != 0) return byPlays;
+      return _compareAlbums(left.album, right.album);
+    });
+    final perArtist = <String, int>{};
+    final varied = [
+      for (final pick in candidates)
+        if ((perArtist[pick.album.artistId] =
+                (perArtist[pick.album.artistId] ?? 0) + 1) <=
+            maxDeepCutsPerArtist)
+          pick,
+    ];
+    return _rotate(varied, limit, day);
+  }
+
+  /// Days since 2000-01-01 in local time: changes once a day, at midnight.
+  static int _rotationDay(DateTime now) {
+    final local = now.toLocal();
+    return DateTime.utc(
+      local.year,
+      local.month,
+      local.day,
+    ).difference(DateTime.utc(2000)).inDays;
+  }
+
+  /// Picks [limit] items from best-first [ranked]: the top half always, and
+  /// the rest from the next-best candidates, starting at a different place
+  /// each [day]. Kept items stay in rank order.
+  static List<T> _rotate<T>(List<T> ranked, int limit, int day) {
+    if (ranked.length <= limit) return List.unmodifiable(ranked);
+    final fixed = (limit + 1) ~/ 2;
+    final pool = ranked.sublist(fixed, min(ranked.length, limit * 3));
+    final chosen = <int>{
+      for (var i = 0; i < limit - fixed; i++) (day + i) % pool.length,
+    }.toList()..sort();
+    return List.unmodifiable([
+      ...ranked.take(fixed),
+      for (final index in chosen) pool[index],
+    ]);
   }
 
   bool _isRecent(DateTime? lastPlayed, DateTime now, Duration suppression) {
@@ -900,13 +1217,6 @@ IRecommendationService recommendationService(Ref ref) {
 @riverpod
 Future<DiscoverRecommendations> discoverRecommendations(Ref ref) {
   return ref.watch(recommendationServiceProvider).getRecommendations();
-}
-
-class _AlbumGenres {
-  const _AlbumGenres({required this.albumId, required this.genres});
-
-  final String albumId;
-  final List<Genre> genres;
 }
 
 class _GenreCount {

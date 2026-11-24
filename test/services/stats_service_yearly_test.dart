@@ -134,6 +134,9 @@ class _Genres implements IGenreRepository {
   Future<List<Genre>> findByAlbum(String albumId) async => const [];
 
   @override
+  Future<Map<String, List<Genre>>> findAllByAlbum() async => const {};
+
+  @override
   Future<void> setAlbumGenres(String albumId, Iterable<String> genreIds) =>
       throw UnimplementedError();
 
