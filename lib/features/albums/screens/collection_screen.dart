@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/albums/album_delete_flow.dart';
 import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
@@ -60,7 +59,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   Future<void> _refresh() async {
     ref.invalidate(albumsProvider);
     ref.invalidate(albumGenresProvider);
-    await ref.read(albumsProvider.future);
+    await ref.read(visibleCollectionProvider.future);
   }
 
   void _clearSearch() {
@@ -172,9 +171,11 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final albumsAsync = ref.watch(albumsProvider);
+    final albumsAsync = ref.watch(visibleCollectionProvider);
     final filters = ref.watch(collectionFiltersProvider);
-    final hasAlbums = albumsAsync.value?.isNotEmpty ?? false;
+    // Whole collection, so Log a play and Add record stay available while a
+    // search or genre filter matches nothing.
+    final hasAlbums = ref.watch(albumsProvider).value?.isNotEmpty ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -218,24 +219,8 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
             retryButtonKey: const Key('collection-error-retry'),
           ),
           data: (albums) {
-            final selectedGenre = filters.genre;
-            final visibleAlbums = selectedGenre == null
-                ? albums
-                : albums
-                      .where((album) {
-                        final assignedGenres =
-                            ref.watch(albumGenresProvider(album.id)).value ??
-                            const <Genre>[];
-                        return assignedGenres.any(
-                          (genre) =>
-                              genre.name.toLowerCase() ==
-                              selectedGenre.toLowerCase(),
-                        );
-                      })
-                      .toList(growable: false);
-
             return _CollectionBody(
-              albums: visibleAlbums,
+              albums: albums,
               openSwipeAlbumId: _openSwipeAlbumId,
               filters: filters,
               showSearch: _showSearch,
@@ -381,8 +366,9 @@ class _CollectionAlbumTileState extends ConsumerState<_CollectionAlbumTile> {
   Widget build(BuildContext context) {
     final genres =
         ref
-            .watch(albumGenresProvider(album.id))
-            .value
+            .watch(
+              collectionGenresProvider.select((all) => all.value?[album.id]),
+            )
             ?.map((genre) => genre.name)
             .toList(growable: false) ??
         const <String>[];

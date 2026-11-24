@@ -120,7 +120,10 @@ void main() {
         playRepository: _FakePlayRepository(const []),
       );
       addTearDown(container.dispose);
-      final subscription = container.listen(albumsProvider, (_, _) {});
+      final subscription = container.listen(
+        visibleCollectionProvider,
+        (_, _) {},
+      );
       addTearDown(subscription.close);
 
       container
@@ -130,7 +133,7 @@ void main() {
           .read(collectionFiltersProvider.notifier)
           .setSort(CollectionSort.alphabetical);
 
-      final albums = await container.read(albumsProvider.future);
+      final albums = await container.read(visibleCollectionProvider.future);
 
       expect(albums.map((album) => album.title), [
         'Kind of Blue',
@@ -154,14 +157,17 @@ void main() {
         ]),
       );
       addTearDown(container.dispose);
-      final subscription = container.listen(albumsProvider, (_, _) {});
+      final subscription = container.listen(
+        visibleCollectionProvider,
+        (_, _) {},
+      );
       addTearDown(subscription.close);
 
       container
           .read(collectionFiltersProvider.notifier)
           .setSort(CollectionSort.mostPlayed);
 
-      final albums = await container.read(albumsProvider.future);
+      final albums = await container.read(visibleCollectionProvider.future);
 
       expect(albums.first.id, blueTrain.id);
       expect(albums.first.playCount, 3);
@@ -259,6 +265,122 @@ void main() {
     });
   });
 
+  group('visibleCollectionProvider', () {
+    test('typing in search filters in memory without reloading', () async {
+      final albums = _FakeAlbumRepository([kindOfBlue, blueTrain, sketches]);
+      final plays = _FakePlayRepository(const []);
+      final container = _container(
+        albumRepository: albums,
+        artistRepository: _FakeArtistRepository([miles, coltrane]),
+        playRepository: plays,
+      );
+      addTearDown(container.dispose);
+      final subscription = container.listen(
+        visibleCollectionProvider,
+        (_, _) {},
+      );
+      addTearDown(subscription.close);
+      await container.read(visibleCollectionProvider.future);
+
+      final filters = container.read(collectionFiltersProvider.notifier);
+      for (final query in ['b', 'bl', 'blu', 'blue', 'blue t']) {
+        filters.setSearchQuery(query);
+        await container.read(visibleCollectionProvider.future);
+      }
+      filters.setSort(CollectionSort.alphabetical);
+      final result = await container.read(visibleCollectionProvider.future);
+
+      expect(result.map((row) => row.title), ['Blue Train']);
+      expect(albums.findAllCalls, 1);
+      expect(albums.searchCalls, 0);
+      expect(plays.findAllCalls, 1);
+    });
+
+    test('search matches artist names and is case-insensitive', () async {
+      final container = _container(
+        albumRepository: _FakeAlbumRepository([kindOfBlue, blueTrain]),
+        artistRepository: _FakeArtistRepository([miles, coltrane]),
+        playRepository: _FakePlayRepository(const []),
+      );
+      addTearDown(container.dispose);
+      final subscription = container.listen(
+        visibleCollectionProvider,
+        (_, _) {},
+      );
+      addTearDown(subscription.close);
+
+      container
+          .read(collectionFiltersProvider.notifier)
+          .setSearchQuery('  COLTRANE ');
+
+      expect(
+        (await container.read(
+          visibleCollectionProvider.future,
+        )).map((row) => row.id),
+        [blueTrain.id],
+      );
+    });
+
+    test('genre filter uses one genre query and waits for it', () async {
+      const jazz = Genre(id: 'g-jazz', name: 'Jazz', createdAt: '2026');
+      final genres = _FakeGenreRepository({
+        kindOfBlue.id: const [jazz],
+      });
+      final container = _container(
+        albumRepository: _FakeAlbumRepository([kindOfBlue, blueTrain]),
+        artistRepository: _FakeArtistRepository([miles, coltrane]),
+        playRepository: _FakePlayRepository(const []),
+        genreRepository: genres,
+      );
+      addTearDown(container.dispose);
+      final states = <AsyncValue<List<CollectionAlbum>>>[];
+      final subscription = container.listen(
+        visibleCollectionProvider,
+        (_, next) => states.add(next),
+      );
+      addTearDown(subscription.close);
+
+      container.read(collectionFiltersProvider.notifier).setGenre('jazz');
+      final result = await container.read(visibleCollectionProvider.future);
+
+      expect(result.map((row) => row.id), [kindOfBlue.id]);
+      // Never a data state with an empty list while genres were loading.
+      expect(
+        states.where((state) => state.hasValue && state.value!.isEmpty),
+        isEmpty,
+      );
+      expect(genres.findAllByAlbumCalls, 1);
+      expect(genres.findByAlbumCalls, 0);
+    });
+
+    test('invalidating albumsProvider reloads rows and genres', () async {
+      const jazz = Genre(id: 'g-jazz', name: 'Jazz', createdAt: '2026');
+      final genres = _FakeGenreRepository({
+        kindOfBlue.id: const [jazz],
+      });
+      final albums = _FakeAlbumRepository([kindOfBlue]);
+      final container = _container(
+        albumRepository: albums,
+        artistRepository: _FakeArtistRepository([miles]),
+        playRepository: _FakePlayRepository(const []),
+        genreRepository: genres,
+      );
+      addTearDown(container.dispose);
+      final subscription = container.listen(
+        collectionGenresProvider,
+        (_, _) {},
+      );
+      addTearDown(subscription.close);
+      await container.read(collectionGenresProvider.future);
+
+      container.invalidate(albumsProvider);
+      await container.read(collectionGenresProvider.future);
+
+      expect(albums.findAllCalls, 2);
+      expect(genres.findAllByAlbumCalls, 2);
+    });
+  });
+
   group('albumMutationsProvider', () {
     test(
       'create invalidates albumsProvider and exposes the new album',
@@ -327,14 +449,40 @@ ProviderContainer _container({
   required IAlbumRepository albumRepository,
   required IArtistRepository artistRepository,
   required IPlayRepository playRepository,
+  IGenreRepository? genreRepository,
 }) {
   return ProviderContainer(
     overrides: [
       albumRepositoryProvider.overrideWithValue(albumRepository),
       artistRepositoryProvider.overrideWithValue(artistRepository),
       playRepositoryProvider.overrideWithValue(playRepository),
+      if (genreRepository != null)
+        genreRepositoryProvider.overrideWithValue(genreRepository),
     ],
   );
+}
+
+class _FakeGenreRepository implements IGenreRepository {
+  _FakeGenreRepository(this.byAlbum);
+
+  final Map<String, List<Genre>> byAlbum;
+  int findAllByAlbumCalls = 0;
+  int findByAlbumCalls = 0;
+
+  @override
+  Future<Map<String, List<Genre>>> findAllByAlbum() async {
+    findAllByAlbumCalls++;
+    return byAlbum;
+  }
+
+  @override
+  Future<List<Genre>> findByAlbum(String albumId) async {
+    findByAlbumCalls++;
+    return byAlbum[albumId] ?? const [];
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 Play _play(String id, String albumId, String playedAt) {
@@ -354,8 +502,14 @@ class _FakeAlbumRepository implements IAlbumRepository {
   final Map<String, Album> _albums;
   int _nextId = 1;
 
+  int findAllCalls = 0;
+  int searchCalls = 0;
+
   @override
-  Future<List<Album>> findAll() async => List.unmodifiable(_albums.values);
+  Future<List<Album>> findAll() async {
+    findAllCalls++;
+    return List.unmodifiable(_albums.values);
+  }
 
   @override
   Future<Album?> findById(String id) async => _albums[id];
@@ -399,6 +553,7 @@ class _FakeAlbumRepository implements IAlbumRepository {
 
   @override
   Future<List<Album>> search(String query) async {
+    searchCalls++;
     final normalized = query.trim().toLowerCase();
     if (normalized.isEmpty) {
       return findAll();
@@ -439,8 +594,13 @@ class _FakePlayRepository implements IPlayRepository {
   List<Album> recentlyPlayed = const [];
   int? lastRecentlyPlayedLimit;
 
+  int findAllCalls = 0;
+
   @override
-  Future<List<Play>> findAll() async => List.unmodifiable(_plays);
+  Future<List<Play>> findAll() async {
+    findAllCalls++;
+    return List.unmodifiable(_plays);
+  }
 
   @override
   Future<int> getPlayCountByAlbum(String albumId) async {
