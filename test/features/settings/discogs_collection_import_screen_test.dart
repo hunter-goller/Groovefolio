@@ -110,6 +110,119 @@ void main() {
     expect(find.text('Import complete'), findsOneWidget);
     expect(find.text('2 imported • 0 skipped • 0 failed'), findsOneWidget);
   });
+
+  Future<void> pumpPausingImport(
+    WidgetTester tester,
+    _PausingImportService service,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          discogsAccountProvider.overrideWithValue(
+            const AsyncData<DiscogsAccount?>(
+              DiscogsAccount(id: 7, username: 'hunter'),
+            ),
+          ),
+          discogsCollectionImportServiceProvider.overrideWithValue(service),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const DiscogsCollectionImportScreen(),
+                    ),
+                  ),
+                  child: const Text('Open import'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open import'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('discogs-import-selected-button')));
+    await tester.pump();
+    await tester.pump();
+  }
+
+  testWidgets('shows when Discogs asks to slow down, and Cancel stops', (
+    tester,
+  ) async {
+    final service = _PausingImportService();
+    await pumpPausingImport(tester, service);
+
+    expect(find.byKey(const Key('discogs-import-waiting')), findsOneWidget);
+    expect(
+      find.text('Discogs asked us to slow down. Continuing in 20 seconds…'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('discogs-import-cancel')));
+    await tester.pumpAndSettle();
+    expect(find.text('Stop importing?'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('discogs-import-stop-confirm')));
+    await tester.pumpAndSettle();
+
+    expect(service.cancellation!.isCancelled, isTrue);
+    expect(find.text('Import stopped'), findsOneWidget);
+    expect(find.textContaining('You stopped the import'), findsOneWidget);
+  });
+
+  testWidgets('Back during an import asks first and keeps importing', (
+    tester,
+  ) async {
+    final service = _PausingImportService();
+    await pumpPausingImport(tester, service);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('Stop importing?'), findsOneWidget);
+    await tester.tap(find.text('Keep importing'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DiscogsCollectionImportScreen), findsOneWidget);
+    expect(service.cancellation!.isCancelled, isFalse);
+    service.cancellation!.cancel();
+    await tester.pumpAndSettle();
+  });
+}
+
+/// Reports a rate-limit pause, then waits until the import is cancelled.
+class _PausingImportService extends _FakeImportService {
+  DiscogsImportCancellation? cancellation;
+
+  @override
+  Future<DiscogsCollectionImportResult> importCandidates(
+    Iterable<DiscogsCollectionCandidate> candidates, {
+    void Function(DiscogsImportProgress progress)? onProgress,
+    DiscogsImportCancellation? cancellation,
+  }) async {
+    this.cancellation = cancellation;
+    final selected = candidates.toList(growable: false);
+    onProgress?.call(
+      DiscogsImportProgress(
+        completed: 0,
+        total: selected.length,
+        currentTitle: selected.first.item.title,
+        waitingFor: const Duration(seconds: 20),
+      ),
+    );
+    await cancellation!.whenCancelled;
+    return DiscogsCollectionImportResult(
+      requested: selected.length,
+      imported: 0,
+      skipped: 0,
+      failures: const [],
+      warnings: const [],
+      cancelled: true,
+    );
+  }
 }
 
 class _FakeImportService implements DiscogsCollectionImportService {
@@ -119,6 +232,7 @@ class _FakeImportService implements DiscogsCollectionImportService {
   Future<DiscogsCollectionImportResult> importCandidates(
     Iterable<DiscogsCollectionCandidate> candidates, {
     void Function(DiscogsImportProgress progress)? onProgress,
+    DiscogsImportCancellation? cancellation,
   }) async {
     final selected = candidates.toList(growable: false);
     importedReleaseIds = selected
@@ -185,6 +299,7 @@ class _InterruptedImportService extends _FakeImportService {
   Future<DiscogsCollectionImportResult> importCandidates(
     Iterable<DiscogsCollectionCandidate> candidates, {
     void Function(DiscogsImportProgress progress)? onProgress,
+    DiscogsImportCancellation? cancellation,
   }) async {
     importedReleaseIds.add(candidates.first.item.releaseId);
     throw StateError('private interrupted import');

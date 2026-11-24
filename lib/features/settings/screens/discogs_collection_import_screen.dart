@@ -32,6 +32,7 @@ class _DiscogsCollectionImportScreenState
   Object? _error;
   bool _loading = true;
   bool _importing = false;
+  DiscogsImportCancellation? _cancellation;
   bool _importInterrupted = false;
   Set<int> _selectedReleaseIds = <int>{};
 
@@ -95,8 +96,10 @@ class _DiscogsCollectionImportScreenState
         .toList(growable: false);
     if (selected.isEmpty) return;
 
+    final cancellation = DiscogsImportCancellation();
     setState(() {
       _importing = true;
+      _cancellation = cancellation;
       _error = null;
       _progress = DiscogsImportProgress(completed: 0, total: selected.length);
     });
@@ -110,6 +113,7 @@ class _DiscogsCollectionImportScreenState
               if (!mounted) return;
               setState(() => _progress = progress);
             },
+            cancellation: cancellation,
           );
 
       if (!mounted) return;
@@ -126,12 +130,44 @@ class _DiscogsCollectionImportScreenState
         _importing = false;
       });
     } finally {
+      _cancellation = null;
       // The batch can commit earlier records before a later failure.
       if (mounted) {
         ref.invalidate(albumsProvider);
         ref.invalidate(genresProvider);
         ref.invalidate(albumGenresProvider);
       }
+    }
+  }
+
+  /// Asks before stopping; records already imported stay either way.
+  Future<void> _confirmCancel() async {
+    final cancellation = _cancellation;
+    if (cancellation == null || cancellation.isCancelled) return;
+    final stop = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Stop importing?'),
+        content: const Text(
+          'Records already imported stay on your shelf. The rest won’t be '
+          'imported; you can import them later.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep importing'),
+          ),
+          FilledButton(
+            key: const Key('discogs-import-stop-confirm'),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Stop'),
+          ),
+        ],
+      ),
+    );
+    if (stop ?? false) {
+      cancellation.cancel();
+      if (mounted) setState(() {});
     }
   }
 
@@ -148,13 +184,28 @@ class _DiscogsCollectionImportScreenState
 
   @override
   Widget build(BuildContext context) {
+    // Back during an import asks first instead of leaving it running.
+    return PopScope(
+      canPop: !_importing,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_confirmCancel());
+      },
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Import from Discogs')),
       body: SafeArea(
         top: false,
         child: switch ((_loading, _importing, _result, _error, _preview)) {
           (true, _, _, _, _) => const _LoadingImportState(),
-          (false, true, _, _, _) => _ImportProgressState(progress: _progress),
+          (false, true, _, _, _) => _ImportProgressState(
+            progress: _progress,
+            stopping: _cancellation?.isCancelled ?? false,
+            onCancel: _confirmCancel,
+          ),
           (false, false, final result?, _, _) => _ImportResultState(
             result: result,
             onViewCollection: () async {
@@ -528,9 +579,15 @@ class _StatusIcon extends StatelessWidget {
 }
 
 class _ImportProgressState extends StatelessWidget {
-  const _ImportProgressState({required this.progress});
+  const _ImportProgressState({
+    required this.progress,
+    required this.stopping,
+    required this.onCancel,
+  });
 
   final DiscogsImportProgress? progress;
+  final bool stopping;
+  final VoidCallback onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -567,6 +624,16 @@ class _ImportProgressState extends StatelessWidget {
                 ),
               ),
             ],
+            if (value?.waitingFor case final wait?) ...[
+              SizedBox(height: tokens.space12),
+              Text(
+                'Discogs asked us to slow down. Continuing in '
+                '${wait.inSeconds < 1 ? 1 : wait.inSeconds} seconds…',
+                key: const Key('discogs-import-waiting'),
+                textAlign: TextAlign.center,
+                style: context.theme.textTheme.bodyMedium,
+              ),
+            ],
             SizedBox(height: tokens.space12),
             Text(
               'Keep Groovefolio open while the selected records are written locally.',
@@ -574,6 +641,12 @@ class _ImportProgressState extends StatelessWidget {
               style: context.theme.textTheme.bodySmall?.copyWith(
                 color: tokens.textMuted,
               ),
+            ),
+            SizedBox(height: tokens.space16),
+            OutlinedButton(
+              key: const Key('discogs-import-cancel'),
+              onPressed: stopping ? null : onCancel,
+              child: Text(stopping ? 'Stopping…' : 'Cancel import'),
             ),
           ],
         ),
@@ -608,7 +681,8 @@ class _ImportResultState extends StatelessWidget {
         ),
         SizedBox(height: tokens.space12),
         Text(
-          'Import complete',
+          result.cancelled ? 'Import stopped' : 'Import complete',
+          key: const Key('discogs-import-result-title'),
           textAlign: TextAlign.center,
           style: context.theme.textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.w700,
@@ -620,6 +694,17 @@ class _ImportResultState extends StatelessWidget {
           message:
               '${result.imported} imported • ${result.skipped} skipped • ${result.failed} failed',
         ),
+        if (result.cancelled) ...[
+          SizedBox(height: tokens.space8),
+          Text(
+            'You stopped the import. Records already imported are on your '
+            'shelf; import again to bring in the rest.',
+            textAlign: TextAlign.center,
+            style: context.theme.textTheme.bodyMedium?.copyWith(
+              color: tokens.textMuted,
+            ),
+          ),
+        ],
         if (result.warnings.isNotEmpty) ...[
           SizedBox(height: tokens.space16),
           Text(
