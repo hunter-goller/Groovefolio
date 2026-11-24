@@ -172,9 +172,9 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
           if (previousArtworkFile != null &&
               previousArtworkBytes != null &&
               previousArtworkFile.path == writtenArtworkPath) {
-            await previousArtworkFile.writeAsBytes(
+            await artworkStorage.restoreArtworkBytes(
+              previousArtworkFile.path,
               previousArtworkBytes,
-              flush: true,
             );
           } else {
             await artworkStorage.deleteArtwork(writtenArtworkPath);
