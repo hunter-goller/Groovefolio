@@ -210,12 +210,20 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
         );
         await file.writeAsBytes(bytes, flush: true);
         downloadedArtwork = file;
-      } on DiscogsFailure catch (failure) {
+      } on Object catch (error, stackTrace) {
+        // Any failure here (network, a full disk, an unwritable temp folder)
+        // only costs the cover: the release details are still applied.
+        if (error is! DiscogsFailure) {
+          logAppError('save Discogs artwork', error, stackTrace);
+        }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Metadata applied, but artwork could not be downloaded: ${failure.message}',
+                error is DiscogsFailure
+                    ? 'Metadata applied, but artwork could not be downloaded: '
+                          '${error.message}'
+                    : 'Metadata applied, but artwork could not be saved.',
               ),
             ),
           );
@@ -223,7 +231,12 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
       }
     }
 
-    await _deleteDiscogsTempArtwork();
+    try {
+      await _deleteDiscogsTempArtwork();
+    } catch (error, stackTrace) {
+      // A leftover temp file is harmless; applying the release matters more.
+      logAppError('delete temporary Discogs artwork', error, stackTrace);
+    }
     if (!mounted) {
       return;
     }
