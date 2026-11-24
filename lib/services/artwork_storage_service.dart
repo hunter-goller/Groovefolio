@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:vinyl_app/services/artwork_versions.dart';
 
 typedef DocumentsDirectoryResolver = Future<Directory> Function();
 
@@ -65,6 +66,7 @@ class ArtworkStorageService {
     );
 
     await destination.writeAsBytes(bytes, flush: true);
+    ArtworkVersions.bump(destination.path);
     return destination.path;
   }
 
@@ -76,6 +78,14 @@ class ArtworkStorageService {
     if (await file.exists()) {
       await file.delete();
     }
+    ArtworkVersions.bump(normalizedPath);
+  }
+
+  /// Writes [bytes] back to an existing artwork path, e.g. to undo a
+  /// replacement after a failed save.
+  Future<void> restoreArtworkBytes(String artworkPath, List<int> bytes) async {
+    await File(artworkPath).writeAsBytes(bytes, flush: true);
+    ArtworkVersions.bump(artworkPath);
   }
 
   /// Removes all persisted album artwork owned by Groovefolio.

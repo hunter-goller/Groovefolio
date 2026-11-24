@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:vinyl_app/services/artwork_versions.dart';
 import 'package:vinyl_app/utils/error_reporting.dart';
 
 /// Image wrapper that replaces decode/load failures with a caller-provided
@@ -34,7 +35,7 @@ class ResilientImage extends StatefulWidget {
   }) {
     return ResilientImage(
       key: key,
-      image: FileImage(File(path)),
+      image: ArtworkFileImage(File(path)),
       fallback: fallback,
       operation: operation,
       fit: fit,

@@ -26,6 +26,8 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 - Added Cancel import, and Back asks before stopping an import. Records already imported stay.
 ### Discogs connection
 - Opening the app now quietly checks in with the Groovefolio server, at most once a day and only if Discogs is connected, so the connection doesn't silently end after a stretch of not using Discogs. If it has already ended, Settings now says why instead of just showing “Connect Discogs” again.
+### Artwork
+- Replacing a record's cover now shows the new picture right away on every screen. Before, the old cover could stay on screen until the app restarted, because the new file reuses the same path.
 
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
