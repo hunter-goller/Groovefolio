@@ -46,6 +46,9 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 ### Performance
 - Collection search, sort and genre filter work in memory instead of reloading the whole collection on every keystroke, and the genre filter uses one query instead of one per record. It no longer flashes “no results” while genres load. Log Play search reuses the same loaded rows.
 - Stats loads about 4× faster on large collections. It now reads albums, plays and genres once per visit instead of reading the whole play history for each figure and querying genres record by record. Discover also loads genres in one query instead of one per record.
+### Backup and restore
+- Added Settings → Back up collection: a versioned `.zip` with every local table and stored covers, saved wherever the user chooses through the system Save dialog.
+- Added Settings → Restore from backup for an empty collection, with a summary and confirmation, one-transaction restore and validation of damaged, foreign or newer-version files.
 
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
