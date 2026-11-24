@@ -13,6 +13,8 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ### Release builds
 - CI builds the release App Bundle (the format Google Play requires) instead of a release APK, and fails if it isn't signed with the provided upload key.
+### NFC security
+- Only real tag taps log plays now. Other apps can no longer log fake plays by sending a `groovefolio://album/…` link to Groovefolio; such links open the app and log nothing.
 
 ### Documentation and release preparation
 - Organized historical overlay instructions under `docs/archive/apply-notes/` and updated living documentation against the current app.
