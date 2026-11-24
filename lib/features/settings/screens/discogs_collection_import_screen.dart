@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
@@ -117,6 +118,10 @@ class _DiscogsCollectionImportScreenState
           );
 
       if (!mounted) return;
+      ref.tutorialEvent(
+        TutorialEvent.discogsImported,
+        imported: result.imported,
+      );
       setState(() {
         _result = result;
         _importing = false;

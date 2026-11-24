@@ -1,6 +1,12 @@
 # Tutorial tracks (in progress)
 
-The getting-started walkthrough is being rebuilt as a game-style tutorial themed as a record. This page covers the **progress model**, which is merged first; the screens and the spotlight guide come in follow-up PRs. Until then the existing 8-step walkthrough is unchanged.
+The getting-started walkthrough is being rebuilt as a game-style tutorial themed as a record, in three parts: the **progress model** (part 1), the **screens** (part 2) and the **spotlight guide** (part 3).
+
+Parts 1 and 2 sit behind a switch that is **off by default**, so the existing 8-step walkthrough stays in charge until part 3 turns the new tutorial on and removes the old one. To try it:
+
+```bash
+flutter run --profile --dart-define=GROOVEFOLIO_NEW_TUTORIAL=true
+```
 
 ## Tracks
 
@@ -33,3 +39,30 @@ On first read, people who finished or started the old walkthrough are marked as 
 If secure storage can't be read or written, the tutorial carries on in memory and never shows the intro because of the failure. It must never block access to the collection.
 
 Code: `lib/features/onboarding/tracks/`. Tests: `test/features/onboarding/tracks/`.
+
+## Screens (part 2)
+
+- **Welcome** (`TutorialWelcomeScreen`): shown by `OnboardingGate` on a fresh install (intro not seen and no records). A spinning vinyl, the number of tracks and their badges. **Drop the needle** starts the next track; **Skip** opens the shelf. Either marks the intro as seen.
+- **Track 1 choice:** "How do you want to fill your shelf?" offers **Import from Discogs** (opens Settings to connect and import) or **Add one by hand** (opens Add record). Discogs is never required.
+- **Track 4 intro:** a sheet with the tag photo explains NFC and what you need, with **Skip for now**.
+- **Playing a track:** a compact bar shows the track number, one instruction and **Stop**. Part 3 replaces this bar with the spotlight.
+- **Track complete:** confetti, the badge, progress, then **Next: <track>**, **See your gold record** or **Back to my shelf**.
+- **Tracklist** (`/tutorial`, Settings → Getting started): progress vinyl, Side A, Side B and the bonus track with locked, playable and completed states, then every badge.
+- **Gold record** (`/tutorial/gold`): shown once after the last required track; replayable from the tracklist.
+
+The vinyl only spins when the phone allows animations; confetti never moves.
+
+### How tracks complete
+
+Screens report what happened through `ref.tutorialEvent(...)`, which does nothing while the switch is off:
+
+| Event | Where | Completes |
+|---|---|---|
+| Record saved | Add record | Track 1 |
+| Play logged | Log play, NFC tap | Track 2 |
+| Stats viewed, then Discover | Stats screen, bottom bar | Track 3 |
+| NFC tag linked | Album detail | Track 4 |
+| Row swiped open | Collection | Track 5 |
+| Discogs import finished | Import screen | Bonus, and Track 1 if anything was imported |
+
+Only the track being played is celebrated. Doing the same thing outside the tutorial earns the badge quietly.
