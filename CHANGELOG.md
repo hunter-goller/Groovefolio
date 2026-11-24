@@ -37,6 +37,7 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 - The **Rewrite NFC tag** switch on Edit record now works: after saving, it asks you to hold the linked tag to the phone and rewrites it. Before, it did nothing.
 - Choosing a Discogs release still fills in the details if its cover can't be saved (for example, a full disk), instead of failing silently.
 ### Performance
+- Collection search, sort and genre filter work in memory instead of reloading the whole collection on every keystroke, and the genre filter uses one query instead of one per record. It no longer flashes “no results” while genres load. Log Play search reuses the same loaded rows.
 - Stats loads about 4× faster on large collections. It now reads albums, plays and genres once per visit instead of reading the whole play history for each figure and querying genres record by record. Discover also loads genres in one query instead of one per record.
 
 ### Documentation and release preparation

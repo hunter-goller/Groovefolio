@@ -84,28 +84,26 @@ final collectionFiltersProvider =
       CollectionFilters.new,
     );
 
-/// All Collection rows after the active search and sort are applied.
+/// Every Collection row, joined with its artist and play summary, in the
+/// default "recently played" order.
 ///
-/// This provider intentionally composes repository APIs instead of reading
-/// Drift directly. Artists and plays are loaded once and indexed in memory so
-/// building a Collection does not perform a query per album.
+/// This is the only Collection provider that reads the database: albums,
+/// artists and plays are each loaded once and indexed in memory, so building
+/// a Collection never runs a query per album. Search, sort and genre filtering
+/// happen in memory in [visibleCollectionProvider], so typing in search
+/// doesn't reload anything.
 ///
-/// This is a one-shot query, not a Drift watch stream. Watching a repository
-/// provider tracks the repository instance, not writes to its tables. Mutation
-/// callers must invalidate this provider after saving. Genre filtering is
-/// applied by CollectionScreen using per-album genre providers.
+/// This is a one-shot query, not a Drift watch stream. Mutation callers must
+/// invalidate this provider after saving; everything derived from it,
+/// including [collectionGenresProvider], then reloads.
 final albumsProvider = FutureProvider.autoDispose<List<CollectionAlbum>>((
   ref,
 ) async {
-  final filters = ref.watch(collectionFiltersProvider);
   final albumRepository = ref.watch(albumRepositoryProvider);
   final artistRepository = ref.watch(artistRepositoryProvider);
   final playRepository = ref.watch(playRepositoryProvider);
 
-  final albumRows = filters.normalizedSearchQuery.isEmpty
-      ? await albumRepository.findAll()
-      : await albumRepository.search(filters.normalizedSearchQuery);
-
+  final albumRows = await albumRepository.findAll();
   if (albumRows.isEmpty) {
     return const [];
   }
@@ -138,67 +136,63 @@ final albumsProvider = FutureProvider.autoDispose<List<CollectionAlbum>>((
     );
   }
 
-  _sortCollection(collectionAlbums, filters.sort);
-  return collectionAlbums;
+  _sortCollection(collectionAlbums, CollectionSort.recent);
+  return List.unmodifiable(collectionAlbums);
 });
+
+/// Genres for every album in one query, keyed by album ID.
+///
+/// Reloads whenever [albumsProvider] does, so the callers that already
+/// invalidate it after saving genres keep this current too.
+final collectionGenresProvider =
+    FutureProvider.autoDispose<Map<String, List<Genre>>>((ref) async {
+      await ref.watch(albumsProvider.future);
+      return ref.watch(genreRepositoryProvider).findAllByAlbum();
+    });
+
+/// The Collection rows to show: [albumsProvider] with the active search,
+/// genre filter and sort applied in memory.
+///
+/// While a genre filter is active this waits for [collectionGenresProvider],
+/// so the screen shows loading rather than a false "no results".
+final visibleCollectionProvider =
+    FutureProvider.autoDispose<List<CollectionAlbum>>((ref) async {
+      final filters = ref.watch(collectionFiltersProvider);
+      final rows = await ref.watch(albumsProvider.future);
+      final genre = filters.genre?.toLowerCase();
+      final genresByAlbum = genre == null
+          ? null
+          : await ref.watch(collectionGenresProvider.future);
+
+      final query = filters.normalizedSearchQuery.toLowerCase();
+      final visible = [
+        for (final row in rows)
+          if ((query.isEmpty || _matchesSearch(row, query)) &&
+              (genresByAlbum == null ||
+                  (genresByAlbum[row.id] ?? const <Genre>[]).any(
+                    (assigned) => assigned.name.toLowerCase() == genre,
+                  )))
+            row,
+      ];
+      _sortCollection(visible, filters.sort);
+      return visible;
+    });
 
 /// Album search rows for selection flows such as Log Play.
 ///
-/// Unlike [albumsProvider], this provider is independent of Collection filter
-/// state so a search performed in Log Play never changes the Collection screen.
+/// Unlike [visibleCollectionProvider], this provider is independent of
+/// Collection filter state so a search performed in Log Play never changes the
+/// Collection screen. It filters the rows already loaded by [albumsProvider]
+/// instead of reading the database on each keystroke.
 final albumSearchProvider = FutureProvider.autoDispose
     .family<List<CollectionAlbum>, String>((ref, query) async {
-      final normalizedQuery = query.trim();
-      final albumRepository = ref.watch(albumRepositoryProvider);
-      final artistRepository = ref.watch(artistRepositoryProvider);
-      final playRepository = ref.watch(playRepositoryProvider);
-
-      // Keep Log Play search independent of Collection filters and join
-      // artists once before its own title/artist filtering and recency sort.
-      final albumRows = await albumRepository.findAll();
-
-      if (albumRows.isEmpty) {
-        return const [];
-      }
-
-      final artistsFuture = artistRepository.findAll();
-      final playsFuture = playRepository.findAll();
-      final artists = await artistsFuture;
-      final plays = await playsFuture;
-
-      final artistsById = {for (final artist in artists) artist.id: artist};
-      final playSummaries = _summarizePlays(plays);
-      final rows = <CollectionAlbum>[];
-
-      for (final album in albumRows) {
-        final artist = artistsById[album.artistId];
-        if (artist == null) {
-          throw StateError(
-            'Album ${album.id} references missing artist ${album.artistId}.',
-          );
-        }
-
-        final summary = playSummaries[album.id];
-        rows.add(
-          CollectionAlbum(
-            album: album,
-            artist: artist,
-            playCount: summary?.count ?? 0,
-            lastPlayedAt: summary?.lastPlayedAt,
-          ),
-        );
-      }
-
-      final normalizedLower = normalizedQuery.toLowerCase();
-      final filtered = normalizedLower.isEmpty
-          ? rows
-          : rows
-                .where(
-                  (row) =>
-                      row.title.toLowerCase().contains(normalizedLower) ||
-                      row.artistName.toLowerCase().contains(normalizedLower),
-                )
-                .toList();
+      final rows = await ref.watch(albumsProvider.future);
+      final normalizedLower = query.trim().toLowerCase();
+      final filtered = [
+        for (final row in rows)
+          if (normalizedLower.isEmpty || _matchesSearch(row, normalizedLower))
+            row,
+      ];
 
       if (normalizedLower.isEmpty) {
         filtered.sort(_compareLogPlayRecency);
@@ -207,6 +201,11 @@ final albumSearchProvider = FutureProvider.autoDispose
       }
       return filtered;
     });
+
+/// Title or artist contains [lowerQuery] (already trimmed and lower-cased).
+bool _matchesSearch(CollectionAlbum row, String lowerQuery) =>
+    row.title.toLowerCase().contains(lowerQuery) ||
+    row.artistName.toLowerCase().contains(lowerQuery);
 
 /// Single album lookup used by details/edit flows.
 final albumProvider = FutureProvider.autoDispose.family<Album?, String>((
