@@ -86,7 +86,9 @@ void main() {
 
     await tester.tap(find.byKey(const Key('collection-genre-filter')));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Progressive Rock'));
+    await tester.tap(
+      find.byKey(const ValueKey('collection-genre-Progressive Rock')),
+    );
     await tester.pumpAndSettle();
 
     final recentChip = find.widgetWithText(ChoiceChip, 'Recent');
@@ -146,12 +148,12 @@ void main() {
 
     await tester.drag(
       find.byKey(const Key('collection-genre-filter-scroll')),
-      const Offset(0, -900),
+      const Offset(0, -4000),
     );
     await tester.pumpAndSettle();
 
     expect(
-      find.widgetWithText(ChoiceChip, 'Genre 28').hitTestable(),
+      find.byKey(const ValueKey('collection-genre-Genre 28')).hitTestable(),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);

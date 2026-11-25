@@ -108,8 +108,11 @@ void main() {
     final many = [
       for (var i = 0; i < 12; i++) GenreFilterOption('Genre $i', 12 - i),
     ];
+    Finder row(String name) => find.byKey(ValueKey('collection-genre-$name'));
+    Finder quick(String name) =>
+        find.byKey(ValueKey('collection-genre-top-$name'));
 
-    testWidgets('shows counts and returns the chosen genre', (tester) async {
+    testWidgets('a short list is just rows with counts', (tester) async {
       final results = await pump(tester, const [
         GenreFilterOption('Rock', 7),
         GenreFilterOption('Jazz', 3),
@@ -118,6 +121,7 @@ void main() {
         find.byKey(const Key('collection-genre-filter-search')),
         findsNothing,
       );
+      expect(find.text('MOST USED'), findsNothing);
       expect(
         find.descendant(
           of: find.byKey(const Key('collection-genre-all')),
@@ -125,13 +129,57 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.widgetWithText(ChoiceChip, '7'), findsOneWidget);
-      await tester.tap(find.widgetWithText(ChoiceChip, 'Jazz'));
+      expect(
+        find.descendant(of: row('Rock'), matching: find.text('7')),
+        findsOneWidget,
+      );
+      // A–Z: Jazz above Rock, even though Rock is used more.
+      expect(
+        tester.getTopLeft(row('Jazz')).dy,
+        lessThan(tester.getTopLeft(row('Rock')).dy),
+      );
+      await tester.tap(row('Jazz'));
       await tester.pumpAndSettle();
       expect(results, ['Jazz']);
     });
 
-    testWidgets('All genres clears the filter', (tester) async {
+    testWidgets('a long list adds search and the most-used quick picks', (
+      tester,
+    ) async {
+      final results = await pump(tester, many);
+      expect(
+        find.byKey(const Key('collection-genre-filter-search')),
+        findsOneWidget,
+      );
+      expect(find.text('Search 12 genres'), findsOneWidget);
+      expect(find.text('MOST USED'), findsOneWidget);
+      for (var i = 0; i < GenreFilterSheet.quickPicks; i++) {
+        expect(quick('Genre $i'), findsOneWidget);
+      }
+      expect(quick('Genre ${GenreFilterSheet.quickPicks}'), findsNothing);
+      await tester.tap(quick('Genre 2'));
+      await tester.pumpAndSettle();
+      expect(results, ['Genre 2']);
+    });
+
+    testWidgets('the selected genre is ticked and Clear removes it', (
+      tester,
+    ) async {
+      final results = await pump(tester, many, selected: 'genre 3');
+      expect(
+        find.descendant(
+          of: row('Genre 3'),
+          matching: find.byIcon(Icons.check_rounded),
+        ),
+        findsOneWidget,
+      );
+      expect(tester.widget<ChoiceChip>(quick('Genre 3')).selected, isTrue);
+      await tester.tap(find.byKey(const Key('collection-genre-clear')));
+      await tester.pumpAndSettle();
+      expect(results, ['']);
+    });
+
+    testWidgets('All records clears the filter too', (tester) async {
       final results = await pump(tester, const [
         GenreFilterOption('Rock', 7),
       ], selected: 'Rock');
@@ -140,13 +188,23 @@ void main() {
       expect(results, ['']);
     });
 
-    testWidgets('search narrows a long list', (tester) async {
+    testWidgets('no Clear button when nothing is selected', (tester) async {
       await pump(tester, many);
-      final search = find.byKey(const Key('collection-genre-filter-search'));
-      expect(search, findsOneWidget);
-      await tester.enterText(search, 'genre 1');
+      expect(find.byKey(const Key('collection-genre-clear')), findsNothing);
+    });
+
+    testWidgets('search narrows the list to matching rows', (tester) async {
+      await pump(tester, many);
+      await tester.enterText(
+        find.byKey(const Key('collection-genre-filter-search')),
+        'genre 1',
+      );
       await tester.pumpAndSettle();
-      expect(find.byType(ChoiceChip), findsNWidgets(3)); // 1, 10, 11
+      expect(row('Genre 1'), findsOneWidget);
+      expect(row('Genre 10'), findsOneWidget);
+      expect(row('Genre 11'), findsOneWidget);
+      expect(row('Genre 2'), findsNothing);
+      expect(find.text('MOST USED'), findsNothing);
       expect(find.byKey(const Key('collection-genre-all')), findsNothing);
       expect(tester.takeException(), isNull);
     });
@@ -159,9 +217,10 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('No genres match “zydeco”.'), findsOneWidget);
-      await tester.tap(find.byTooltip('Clear'));
+      await tester.tap(find.byTooltip('Clear search'));
       await tester.pumpAndSettle();
-      expect(find.byType(ChoiceChip), findsNWidgets(13));
+      expect(find.text('MOST USED'), findsOneWidget);
+      expect(row('Genre 0'), findsOneWidget);
     });
 
     testWidgets('long names fit a narrow phone with large text', (
