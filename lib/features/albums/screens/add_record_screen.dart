@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:vinyl_app/db/app_database.dart';
+import 'package:vinyl_app/features/albums/drafts/record_draft.dart';
+import 'package:vinyl_app/features/albums/drafts/record_draft_keeper.dart';
 import 'package:vinyl_app/features/onboarding/tracks/spotlight/spotlight_target.dart';
 import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
@@ -39,7 +41,8 @@ class AddRecordScreen extends ConsumerStatefulWidget {
   ConsumerState<AddRecordScreen> createState() => _AddRecordScreenState();
 }
 
-class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
+class _AddRecordScreenState extends ConsumerState<AddRecordScreen>
+    with RecordDraftKeeper<AddRecordScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
   late final TextEditingController _artistController;
@@ -63,6 +66,59 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
     _labelController = TextEditingController();
     _titleController.addListener(_refreshDiscogsPrefill);
     _artistController.addListener(_refreshDiscogsPrefill);
+    initDrafts();
+    markDraftReady();
+  }
+
+  @override
+  RecordDraftKind get draftKind => RecordDraftKind.add;
+
+  @override
+  Listenable get draftFields => Listenable.merge([
+    _titleController,
+    _artistController,
+    _yearController,
+    _labelController,
+  ]);
+
+  @override
+  RecordDraft captureDraft() => RecordDraft(
+    title: _titleController.text,
+    artist: _artistController.text,
+    year: _yearController.text,
+    label: _labelController.text,
+    genres: _selectedGenres,
+    artworkPath: _discogsTempArtwork == null ? _selectedArtwork?.path : null,
+    discogsArtworkPath: _discogsTempArtwork?.path,
+    discogsReleaseId: _selectedDiscogsReleaseId,
+    discogsTracks: _selectedDiscogsTracks,
+    nfc: _writeNfcAfterSave,
+  );
+
+  @override
+  void applyDraft(RecordDraft draft) {
+    _titleController.text = draft.title;
+    _artistController.text = draft.artist;
+    _yearController.text = draft.year;
+    _labelController.text = draft.label;
+    _selectedGenres = draft.genres;
+    final discogsArtwork = draft.discogsArtworkPath;
+    final artwork = draft.artworkPath;
+    _discogsTempArtwork = discogsArtwork == null ? null : File(discogsArtwork);
+    _selectedArtwork = discogsArtwork != null
+        ? File(discogsArtwork)
+        : artwork == null
+        ? null
+        : File(artwork);
+    _selectedDiscogsReleaseId = draft.discogsReleaseId;
+    _selectedDiscogsTracks = draft.discogsTracks;
+    _writeNfcAfterSave = draft.nfc;
+  }
+
+  @override
+  void applyRecoveredArtwork(File file) {
+    _discogsTempArtwork = null;
+    _selectedArtwork = file;
   }
 
   void _refreshDiscogsPrefill() {
@@ -71,6 +127,7 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
 
   @override
   void dispose() {
+    disposeDrafts();
     _titleController.removeListener(_refreshDiscogsPrefill);
     _artistController.removeListener(_refreshDiscogsPrefill);
     _titleController.dispose();
@@ -311,6 +368,7 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
           );
 
       _savedAlbumId = createdAlbum.id;
+      finishDraft();
       if (!mounted) return;
 
       String? artworkWarning;

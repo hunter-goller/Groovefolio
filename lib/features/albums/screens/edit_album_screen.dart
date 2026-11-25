@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:vinyl_app/db/app_database.dart';
+import 'package:vinyl_app/features/albums/drafts/record_draft.dart';
+import 'package:vinyl_app/features/albums/drafts/record_draft_keeper.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
@@ -34,7 +36,8 @@ class EditAlbumScreen extends ConsumerStatefulWidget {
   ConsumerState<EditAlbumScreen> createState() => _EditAlbumScreenState();
 }
 
-class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
+class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen>
+    with RecordDraftKeeper<EditAlbumScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
   late final TextEditingController _artistController;
@@ -55,10 +58,50 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
     _artistController = TextEditingController();
     _yearController = TextEditingController();
     _labelController = TextEditingController();
+    initDrafts();
   }
 
   @override
+  RecordDraftKind get draftKind => RecordDraftKind.edit;
+
+  @override
+  Listenable get draftFields => Listenable.merge([
+    _titleController,
+    _artistController,
+    _yearController,
+    _labelController,
+  ]);
+
+  @override
+  RecordDraft captureDraft() => RecordDraft(
+    albumId: widget.albumId,
+    title: _titleController.text,
+    artist: _artistController.text,
+    year: _yearController.text,
+    label: _labelController.text,
+    genres: _selectedGenres,
+    artworkPath: _selectedArtwork?.path,
+    nfc: _rewriteNfc,
+  );
+
+  @override
+  void applyDraft(RecordDraft draft) {
+    _titleController.text = draft.title;
+    _artistController.text = draft.artist;
+    _yearController.text = draft.year;
+    _labelController.text = draft.label;
+    _selectedGenres = draft.genres;
+    final artwork = draft.artworkPath;
+    _selectedArtwork = artwork == null ? null : File(artwork);
+    _rewriteNfc = draft.nfc;
+  }
+
+  @override
+  void applyRecoveredArtwork(File file) => _selectedArtwork = file;
+
+  @override
   void dispose() {
+    disposeDrafts();
     _titleController.dispose();
     _artistController.dispose();
     _yearController.dispose();
@@ -75,6 +118,7 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
     _labelController.text = detail.album.label ?? '';
     _selectedGenres = genres.map((genre) => genre.name).toList(growable: false);
     _initialized = true;
+    markDraftReady(captureDraft());
   }
 
   Future<void> _pickArtwork() async {
@@ -180,6 +224,7 @@ class _EditAlbumScreenState extends ConsumerState<EditAlbumScreen> {
           );
 
       metadataSaved = true;
+      finishDraft();
       if (!mounted) return;
       await _rewriteTagIfRequested(existing.id);
       if (!mounted) return;

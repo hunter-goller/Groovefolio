@@ -9,6 +9,8 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 - Writing a tag no longer leaves a stray play behind: if that same tag logged a play in the 10 seconds before (it touched the phone while you were getting it ready), the play is removed and the app says so.
 ### Privacy
 - Disconnect in Settings now also deletes this phone's installation record from the Groovefolio server, so nothing about the phone is left there. The next Connect starts fresh.
+### Drafts
+- Add record and Edit record keep what you've typed if Android closes the app in the background (for example while you pick a photo), it crashes, or you swipe it away. Next time, Collection offers “Pick up where you left off?”, and the form fills itself back in with a Discard option. Saving, or leaving the form normally, clears the draft.
 
 ### Robustness
 - One damaged or unknown “side played” value no longer stops Collection, Stats and Discover from loading; it is read as a full-album play.
