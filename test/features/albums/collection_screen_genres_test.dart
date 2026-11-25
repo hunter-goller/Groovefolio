@@ -86,7 +86,9 @@ void main() {
 
     await tester.tap(find.byKey(const Key('collection-genre-filter')));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Progressive Rock'));
+    await tester.tap(
+      find.byKey(const ValueKey('collection-genre-Progressive Rock')),
+    );
     await tester.pumpAndSettle();
 
     final recentChip = find.widgetWithText(ChoiceChip, 'Recent');
@@ -146,12 +148,12 @@ void main() {
 
     await tester.drag(
       find.byKey(const Key('collection-genre-filter-scroll')),
-      const Offset(0, -900),
+      const Offset(0, -4000),
     );
     await tester.pumpAndSettle();
 
     expect(
-      find.widgetWithText(ChoiceChip, 'Genre 28').hitTestable(),
+      find.byKey(const ValueKey('collection-genre-Genre 28')).hitTestable(),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
@@ -360,6 +362,7 @@ class _FakeGenreRepository implements IGenreRepository {
   Future<int> delete(String genreId) => throw UnimplementedError();
 }
 
+/// Many genres, all on the one record, so every one can be filtered by.
 class _FilterOnlyGenreRepository implements IGenreRepository {
   const _FilterOnlyGenreRepository(this.genres);
 
@@ -369,7 +372,9 @@ class _FilterOnlyGenreRepository implements IGenreRepository {
   Future<List<Genre>> findByAlbum(String albumId) async => const [];
 
   @override
-  Future<Map<String, List<Genre>>> findAllByAlbum() async => const {};
+  Future<Map<String, List<Genre>>> findAllByAlbum() async => {
+    'album-1': List.unmodifiable(genres),
+  };
 
   @override
   Future<List<Genre>> findAll() async => List.unmodifiable(genres);
