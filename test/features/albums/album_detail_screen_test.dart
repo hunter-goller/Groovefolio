@@ -307,6 +307,36 @@ void main() {
     },
   );
 
+  testWidgets('a tag linked to another record can be moved here', (
+    tester,
+  ) async {
+    final repository = _FakeNfcTagRepository();
+    await repository.create(albumId: 'other-album', nfcTagId: '04A7392B916180');
+    final platform = _FakeNfcPlatform();
+    final service = NfcService(platform, repository);
+
+    await tester.pumpWidget(
+      _testApp(
+        playRepository: _FakePlayRepository(const []),
+        nfcAvailability: NfcAvailabilityState.available,
+        nfcTagRepository: repository,
+        nfcService: service,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _openRecordActions(tester);
+    await tester.tap(find.text('Link NFC tag'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tag already in use'), findsOneWidget);
+    expect(find.textContaining('Move it to this record?'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('nfc-write-move')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('nfc-write-dialog')), findsNothing);
+    expect(repository.tags.single.albumId, 'album-1');
+  });
+
   testWidgets('rewrites or replaces the NFC tag for an existing record', (
     tester,
   ) async {

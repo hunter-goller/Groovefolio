@@ -25,6 +25,10 @@ enum NfcFailure {
   notWritable,
   unregisteredTag,
   alreadyRegistered,
+
+  /// The tag is linked to a different record; [NfcException.otherAlbumId]
+  /// says which, so the user can choose to move it.
+  linkedToOtherRecord,
   readFailed,
   writeFailed,
   persistenceFailed,
@@ -33,15 +37,32 @@ enum NfcFailure {
 /// Typed NFC failure with a safe message for UI and an optional diagnostic
 /// cause that must never be rendered directly.
 class NfcException implements Exception {
-  const NfcException(this.failure, this.message, {this.cause});
+  const NfcException(
+    this.failure,
+    this.message, {
+    this.cause,
+    this.otherAlbumId,
+  });
 
-  factory NfcException.forFailure(NfcFailure failure, {Object? cause}) {
-    return NfcException(failure, _messageForFailure(failure), cause: cause);
+  factory NfcException.forFailure(
+    NfcFailure failure, {
+    Object? cause,
+    String? otherAlbumId,
+  }) {
+    return NfcException(
+      failure,
+      _messageForFailure(failure),
+      cause: cause,
+      otherAlbumId: otherAlbumId,
+    );
   }
 
   final NfcFailure failure;
   final String message;
   final Object? cause;
+
+  /// For [NfcFailure.linkedToOtherRecord]: the record the tag belongs to.
+  final String? otherAlbumId;
 
   @override
   String toString() => 'NfcException(${failure.name}): $message';
@@ -166,7 +187,9 @@ class NfcService implements INfcAlbumScanner {
   /// Writes an album URI to one NFC tag and saves the physical tag mapping.
   ///
   /// [replaceExisting] allows an album's current association to move to the
-  /// presented tag. A tag linked to a different album is never reassigned.
+  /// presented tag. A tag linked to a different album is only reassigned
+  /// when [moveFromAlbumId] names that album, which the user confirms after
+  /// a [NfcFailure.linkedToOtherRecord] failure; that album then has no tag.
   /// The physical URI is written before the DB mapping; a persistence failure
   /// cannot undo that tag write. Replacement changes the local association,
   /// not bytes on an old tag that is no longer present.
@@ -174,6 +197,7 @@ class NfcService implements INfcAlbumScanner {
     String albumId, {
     Duration timeout = _defaultNfcTimeout,
     bool replaceExisting = false,
+    String? moveFromAlbumId,
   }) async {
     final normalizedAlbumId = albumId.trim();
     if (normalizedAlbumId.isEmpty) {
@@ -200,9 +224,13 @@ class NfcService implements INfcAlbumScanner {
 
       final existingForTag = await _findByTagId(tagIdentifier);
       final existingForAlbum = await _findByAlbum(normalizedAlbumId);
-      if (existingForTag != null &&
-          existingForTag.albumId != normalizedAlbumId) {
-        throw NfcException.forFailure(NfcFailure.alreadyRegistered);
+      final moving =
+          existingForTag != null && existingForTag.albumId != normalizedAlbumId;
+      if (moving && existingForTag.albumId != moveFromAlbumId?.trim()) {
+        throw NfcException.forFailure(
+          NfcFailure.linkedToOtherRecord,
+          otherAlbumId: existingForTag.albumId,
+        );
       }
       if (!replaceExisting &&
           existingForAlbum != null &&
@@ -216,11 +244,15 @@ class NfcService implements INfcAlbumScanner {
         _throwMapped(error, stackTrace, fallback: NfcFailure.writeFailed);
       }
 
-      if (existingForTag != null && !replaceExisting) {
+      if (existingForTag != null && !moving && !replaceExisting) {
         return existingForTag;
       }
 
       try {
+        if (moving) {
+          // The tag now carries this record; the old record keeps no tag.
+          await _repository.delete(existingForTag.id);
+        }
         if (replaceExisting && existingForAlbum != null) {
           return await _repository.replaceForAlbum(
             albumId: normalizedAlbumId,
@@ -465,6 +497,7 @@ String _messageForFailure(NfcFailure failure) => switch (failure) {
   NfcFailure.unregisteredTag => 'That NFC tag is not linked to a record yet.',
   NfcFailure.alreadyRegistered =>
     'That tag or record is already linked somewhere else.',
+  NfcFailure.linkedToOtherRecord => 'That tag is linked to another record.',
   NfcFailure.readFailed => 'Groovefolio couldn’t read that NFC tag.',
   NfcFailure.writeFailed => 'Groovefolio couldn’t write to that NFC tag.',
   NfcFailure.persistenceFailed =>
