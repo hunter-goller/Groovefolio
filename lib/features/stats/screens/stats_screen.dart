@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/onboarding/tracks/spotlight/spotlight_target.dart';
 import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
+import 'package:vinyl_app/features/onboarding/tracks/widgets/badge_shelf_card.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/routing/app_routes.dart';
 import 'package:vinyl_app/services/stats_service.dart';
@@ -389,6 +390,8 @@ class _StatsBody extends StatelessWidget {
               ),
             ),
         ],
+        SizedBox(height: tokens.space16),
+        const BadgeShelfCard(),
       ],
     );
   }
