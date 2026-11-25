@@ -4,6 +4,9 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ## Unreleased
 
+### Drafts
+- Add record and Edit record keep what you've typed if Android closes the app in the background (for example while you pick a photo), it crashes, or you swipe it away. Next time, Collection offers “Pick up where you left off?”, and the form fills itself back in with a Discard option. Saving, or leaving the form normally, clears the draft.
+
 ### Robustness
 - One damaged or unknown “side played” value no longer stops Collection, Stats and Discover from loading; it is read as a full-album play.
 - Unknown links and paths show a “Page not found” screen with a way back to Collection instead of the router’s default error page.

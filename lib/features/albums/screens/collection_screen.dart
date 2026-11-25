@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/albums/album_delete_flow.dart';
+import 'package:vinyl_app/features/albums/drafts/draft_resume_offer.dart';
 import 'package:vinyl_app/features/onboarding/widgets/guide_target.dart';
 import 'package:vinyl_app/features/plays/screens/log_play_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
@@ -48,6 +49,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     );
     _openSwipeAlbumId = ValueNotifier<String?>(null);
     _showSearch = _searchController.text.trim().isNotEmpty;
+    offerToResumeRecordDraft(context, ref);
   }
 
   @override
