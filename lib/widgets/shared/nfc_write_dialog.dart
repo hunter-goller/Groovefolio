@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
+import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/notifications/nfc_play_notification_service.dart';
 
@@ -65,6 +66,10 @@ class NfcWriteDialog extends ConsumerStatefulWidget {
 
 class _NfcWriteDialogState extends ConsumerState<NfcWriteDialog> {
   NfcException? _failure;
+
+  /// Title of the record the presented tag belongs to, when it's linked to
+  /// another record and could be moved here.
+  String? _otherTitle;
   var _attempt = 0;
   var _isWriting = true;
   var _isClosing = false;
@@ -77,23 +82,45 @@ class _NfcWriteDialogState extends ConsumerState<NfcWriteDialog> {
     });
   }
 
-  Future<void> _write() async {
+  Future<void> _write({String? moveFromAlbumId}) async {
     final attempt = ++_attempt;
     setState(() {
       _failure = null;
+      _otherTitle = null;
       _isWriting = true;
     });
 
     try {
       await ref
           .read(nfcServiceProvider)
-          .writeTag(widget.albumId, replaceExisting: widget.replaceExisting);
+          .writeTag(
+            widget.albumId,
+            replaceExisting: widget.replaceExisting,
+            moveFromAlbumId: moveFromAlbumId,
+          );
       if (!mounted || attempt != _attempt) return;
+      if (moveFromAlbumId != null) {
+        ref.invalidate(albumNfcTagProvider(moveFromAlbumId));
+      }
       Navigator.of(context).pop(NfcWriteOutcome.written);
     } on NfcException catch (failure) {
       if (!mounted || attempt != _attempt) return;
+      String? otherTitle;
+      final otherId = failure.otherAlbumId;
+      if (failure.failure == NfcFailure.linkedToOtherRecord &&
+          otherId != null) {
+        try {
+          otherTitle =
+              (await ref.read(albumRepositoryProvider).findById(otherId))
+                  ?.title;
+        } on Object {
+          // The plain message still explains what happened.
+        }
+        if (!mounted || attempt != _attempt) return;
+      }
       setState(() {
         _failure = failure;
+        _otherTitle = otherTitle ?? (otherId == null ? null : 'another record');
         _isWriting = false;
       });
     } on Object {
@@ -136,7 +163,13 @@ class _NfcWriteDialogState extends ConsumerState<NfcWriteDialog> {
           color: failure == null ? colors.primary : colors.error,
           size: 38,
         ),
-        title: Text(failure == null ? activeTitle : 'Couldn’t write tag'),
+        title: Text(
+          failure == null
+              ? activeTitle
+              : _otherTitle != null
+              ? 'Tag already in use'
+              : 'Couldn’t write tag',
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -157,8 +190,11 @@ class _NfcWriteDialogState extends ConsumerState<NfcWriteDialog> {
               ),
             ] else ...[
               Text(
-                failure?.message ??
-                    'Groovefolio couldn’t write to that NFC tag.',
+                _otherTitle != null
+                    ? 'This tag is linked to “$_otherTitle”. Move it to this '
+                          'record? “$_otherTitle” won’t have a tag any more.'
+                    : failure?.message ??
+                          'Groovefolio couldn’t write to that NFC tag.',
                 key: const Key('nfc-write-error'),
                 textAlign: TextAlign.center,
               ),
@@ -180,7 +216,21 @@ class _NfcWriteDialogState extends ConsumerState<NfcWriteDialog> {
             onPressed: _isClosing ? null : _skip,
             child: const Text('Skip for now'),
           ),
-          if (!_isWriting)
+          if (!_isWriting && _otherTitle != null) ...[
+            TextButton(
+              key: const Key('nfc-write-retry'),
+              onPressed: _isClosing ? null : _write,
+              child: const Text('Use another tag'),
+            ),
+            FilledButton.icon(
+              key: const Key('nfc-write-move'),
+              onPressed: _isClosing
+                  ? null
+                  : () => _write(moveFromAlbumId: failure?.otherAlbumId),
+              icon: const Icon(Icons.swap_horiz_rounded),
+              label: const Text('Move tag here'),
+            ),
+          ] else if (!_isWriting)
             FilledButton.icon(
               key: const Key('nfc-write-retry'),
               onPressed: _isClosing ? null : _write,

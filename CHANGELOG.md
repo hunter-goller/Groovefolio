@@ -4,6 +4,9 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 
 ## Unreleased
 
+### NFC
+- You can now move a tag to another record. Writing a tag that's linked to a different record asks “This tag is linked to … Move it to this record?” instead of refusing; moving rewrites the tag and the old record no longer has one. “Use another tag” keeps the old link.
+
 ### Robustness
 - One damaged or unknown “side played” value no longer stops Collection, Stats and Discover from loading; it is read as a full-album play.
 - Unknown links and paths show a “Page not found” screen with a way back to Collection instead of the router’s default error page.
