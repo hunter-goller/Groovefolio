@@ -146,6 +146,11 @@ class NfcService implements INfcAlbumScanner {
   bool _sessionFinished = false;
   bool _stopRequested = false;
   int _foregroundInteractions = 0;
+
+  /// The record the tag in the last [writeTag] call was linked to before it
+  /// was written, or null for a new tag (or before the tag was read).
+  String? get albumOnLastTag => _albumOnLastTag;
+  String? _albumOnLastTag;
   Duration _suppressAutomaticIntentsUntil = Duration.zero;
 
   /// Whether an Android-delivered album URI belongs to a foreground NFC
@@ -209,6 +214,7 @@ class NfcService implements INfcAlbumScanner {
     }
 
     _beginOperation();
+    _albumOnLastTag = null;
     try {
       await _beginPlatformIntentGate();
       await _ensureAvailable();
@@ -223,6 +229,7 @@ class NfcService implements INfcAlbumScanner {
       }
 
       final existingForTag = await _findByTagId(tagIdentifier);
+      _albumOnLastTag = existingForTag?.albumId;
       final existingForAlbum = await _findByAlbum(normalizedAlbumId);
       final moving =
           existingForTag != null && existingForTag.albumId != normalizedAlbumId;

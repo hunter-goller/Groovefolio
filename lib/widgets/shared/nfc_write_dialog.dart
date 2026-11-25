@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/features/settings/screens/nfc_help_screen.dart';
+import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
+import 'package:vinyl_app/services/nfc/nfc_play_logging_service.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/notifications/nfc_play_notification_service.dart';
 
@@ -90,20 +92,29 @@ class _NfcWriteDialogState extends ConsumerState<NfcWriteDialog> {
       _isWriting = true;
     });
 
+    final service = ref.read(nfcServiceProvider);
     try {
-      await ref
-          .read(nfcServiceProvider)
-          .writeTag(
-            widget.albumId,
-            replaceExisting: widget.replaceExisting,
-            moveFromAlbumId: moveFromAlbumId,
-          );
+      await service.writeTag(
+        widget.albumId,
+        replaceExisting: widget.replaceExisting,
+        moveFromAlbumId: moveFromAlbumId,
+      );
       if (!mounted || attempt != _attempt) return;
       if (moveFromAlbumId != null) {
         ref.invalidate(albumNfcTagProvider(moveFromAlbumId));
       }
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      // The dialog closes first; the app-wide container outlives it.
+      final container = ProviderScope.containerOf(context, listen: false);
       Navigator.of(context).pop(NfcWriteOutcome.written);
+      await _removeAccidentalTap(container, service.albumOnLastTag, messenger);
     } on NfcException catch (failure) {
+      if (!mounted || attempt != _attempt) return;
+      await _removeAccidentalTap(
+        ProviderScope.containerOf(context, listen: false),
+        failure.otherAlbumId ?? service.albumOnLastTag,
+        ScaffoldMessenger.maybeOf(context),
+      );
       if (!mounted || attempt != _attempt) return;
       String? otherTitle;
       final otherId = failure.otherAlbumId;
@@ -129,6 +140,40 @@ class _NfcWriteDialogState extends ConsumerState<NfcWriteDialog> {
         _failure = NfcException.forFailure(NfcFailure.writeFailed);
         _isWriting = false;
       });
+    }
+  }
+
+  /// Getting a tag ready often touches it to the phone a moment before this
+  /// dialog opens, and Android logs that as a tap. Writing that same tag
+  /// shows it wasn't meant as a play, so the play is removed.
+  static Future<void> _removeAccidentalTap(
+    ProviderContainer container,
+    String? albumId,
+    ScaffoldMessengerState? messenger,
+  ) async {
+    if (albumId == null) return;
+    try {
+      final removed = await container
+          .read(nfcPlayLoggingServiceProvider)
+          .removeRecentTap(albumId);
+      if (!removed) return;
+      container
+        ..invalidate(albumsProvider)
+        ..invalidate(recentlyPlayedProvider)
+        ..invalidate(playCountProvider(albumId))
+        ..invalidate(albumDetailProvider(albumId));
+      messenger
+        ?..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Removed the play logged when the tag touched your phone '
+              'before writing.',
+            ),
+          ),
+        );
+    } on Object {
+      // The play stays in the history; the tag write is what matters here.
     }
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vinyl_app/db/app_database.dart';
+import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/play_logging_service.dart';
 import 'package:vinyl_app/types/side_played.dart';
@@ -52,6 +53,7 @@ class NfcPlayLoggingService {
     DateTime Function()? now,
     Duration Function()? elapsed,
     this.duplicateWindow = const Duration(seconds: 5),
+    this._deletePlay,
   }) : _now = now ?? DateTime.now,
        _elapsed = elapsed ?? _monotonicElapsed;
 
@@ -66,6 +68,29 @@ class NfcPlayLoggingService {
   final Duration duplicateWindow;
 
   final Map<String, Duration> _lastLoggedAt = {};
+  final Future<int> Function(String playId)? _deletePlay;
+
+  /// The latest play each tag logged, so one that only happened because the
+  /// tag touched the phone on the way to being rewritten can be removed.
+  final Map<String, ({String playId, Duration at})> _recentPlays = {};
+
+  /// Removes the play [albumId]'s tag logged within [within], if any. Used
+  /// when that same tag is then written: getting a tag ready often touches
+  /// it to the phone a moment before the write dialog opens, and Android
+  /// reads that as a tap. Returns whether a play was removed.
+  Future<bool> removeRecentTap(
+    String albumId, {
+    Duration within = const Duration(seconds: 10),
+  }) async {
+    final normalizedAlbumId = albumId.trim();
+    final recent = _recentPlays[normalizedAlbumId];
+    final delete = _deletePlay;
+    if (recent == null || delete == null) return false;
+    final age = _elapsed() - recent.at;
+    if (age.isNegative || age > within) return false;
+    _recentPlays.remove(normalizedAlbumId);
+    return await delete(recent.playId) > 0;
+  }
 
   /// Waits for one NFC scan, resolves it to an album, and logs one play using
   /// [side] (full album by default). A duplicate scan within [duplicateWindow]
@@ -111,6 +136,10 @@ class NfcPlayLoggingService {
         timestamp,
         side,
       );
+      _recentPlays[normalizedAlbumId] = (
+        playId: play.id,
+        at: cooldownTimestamp,
+      );
       return NfcPlayLogResult.logged(play);
     } on Object {
       // A failed write must not prevent an immediate retry. Only remove this
@@ -131,5 +160,6 @@ final nfcPlayLoggingServiceProvider = Provider<NfcPlayLoggingService>((ref) {
   return NfcPlayLoggingService(
     nfcService: ref.watch(nfcServiceProvider),
     playLogger: PlayLoggingNfcAdapter(ref.watch(playLoggingServiceProvider)),
+    deletePlay: (playId) => ref.read(playRepositoryProvider).deleteById(playId),
   );
 });
