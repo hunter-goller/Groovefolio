@@ -52,5 +52,6 @@ Android builds created before the permanent application ID was selected used
 `com.huntergoller.vinyl_app`. Android treats `app.groovefolio` as a separate
 application, so those development installs are not upgraded and their local
 collection is not migrated. This is intentional before the first public release.
+See [notes for testers](testers.md) for what to tell people who have an old build.
 
 Discogs now uses the Groovefolio backend without consumer-key defines. See [connection and device tests](../integrations/discogs.md).

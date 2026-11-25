@@ -12,7 +12,7 @@ Use these focused pages for the current app code:
 | Add a field, screen, or service | [Feature recipes](developer-guide.md#feature-recipes), [migration procedure](developer-guide.md#migration-procedure), [coding standards](development/coding-standards.md) |
 | Understand the app | [Implementation status](implementation-status.md), [architecture](architecture/overview.md), [database](architecture/database.md), [routing](architecture/routing.md) |
 | Explore behavior | [Feature index](features/README.md), [Discogs integration](integrations/discogs.md) |
-| Prepare a release | [Release process](development/release-process.md), [Play readiness](development/google-play-readiness.md), [upload signing](development/android-release-signing.md) |
+| Prepare a release | [Release process](development/release-process.md), [Play readiness](development/google-play-readiness.md), [Data safety answers](development/play-data-safety.md), [upload signing](development/android-release-signing.md), [notes for testers](development/testers.md) |
 | Understand decisions | [Architecture decisions](decisions/README.md) |
 | Review history | [Changelog](../CHANGELOG.md), [archived ticket notes](archive/README.md) |
 

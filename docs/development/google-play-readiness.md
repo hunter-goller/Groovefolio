@@ -17,6 +17,7 @@
 - target/compile SDK review and final permission audit
 - screenshots/feature graphic/listing copy
 - review the published privacy policy against the actual build and complete Data Safety
+  using the [drafted answers](play-data-safety.md)
 - verify critical readability and reduced-motion behavior
 - production error handling
 - final dependency/security review
@@ -49,8 +50,9 @@ The app stores only its installation bearer token and pending flow metadata with
 
 The release scope is ad-free: no AdMob SDK, advertising ID permission, banner
 initialization, or consent SDK is included in `main`. Do not merge the separate
-ads-preview PR #92 into this release. ML Kit's technical data collection still
-needs Data Safety review; no ads does not mean no data leaves the device.
+ads-preview PR #92 into this release. ML Kit's technical data collection is covered in the
+[Data safety answers](play-data-safety.md); no ads does not mean no data
+leaves the device.
 
 See [September 28 release audit](release-audit-2026-09-28.md) for the reconciled
 Trello/code checklist and the privacy retention decisions still outstanding.
