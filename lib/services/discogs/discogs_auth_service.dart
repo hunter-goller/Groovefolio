@@ -173,6 +173,11 @@ class DiscogsAuthService {
       await _cancel(flow);
     }
   });
+
+  /// Deletes the Discogs connection on the server, then the installation
+  /// itself, so nothing about this phone is left there. If only the second
+  /// step fails, Disconnect still succeeds: the Discogs details are already
+  /// gone and the installation expires on its own.
   Future<void> disconnect() => _serial(() async {
     if (await _api.session.hasSession()) {
       await _api.call(
@@ -180,6 +185,11 @@ class DiscogsAuthService {
         '/v1/discogs/account',
         timeout: DiscogsApiClient.connectionTimeout,
       );
+      try {
+        await _api.session.revoke();
+      } on DiscogsFailure {
+        // Kept for next time; the server deletes it when it expires.
+      }
     }
     await _backendStore.delete('flow');
     await _backendStore.clearLegacyDiscogs();

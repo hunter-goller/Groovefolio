@@ -124,11 +124,42 @@ void main() {
       expect(store.values['flow'], isNull);
       store.seedFlow();
       await auth.disconnect();
-      expect(paths, ['/v1/discogs/connections/$flowId', '/v1/discogs/account']);
+      expect(paths, [
+        '/v1/discogs/connections/$flowId',
+        '/v1/discogs/account',
+        '/v1/installation',
+      ]);
       expect(store.values['flow'], isNull);
-      expect(store.values['session'], isNotNull);
+      expect(store.values['session'], isNull);
     },
   );
+  test('disconnect succeeds when only the installation delete fails', () async {
+    final paths = <String>[];
+    final auth = make((method, uri, headers, body, limit) async {
+      paths.add('$method ${uri.path}');
+      return uri.path == '/v1/installation' ? response(503) : response(204);
+    });
+    await auth.disconnect();
+    expect(paths, ['DELETE /v1/discogs/account', 'DELETE /v1/installation']);
+    expect(store.values['session'], isNotNull);
+  });
+  test('disconnect treats an installation already gone as deleted', () async {
+    final auth = make((method, uri, headers, body, limit) async {
+      return uri.path == '/v1/installation'
+          ? response(401, {'code': 'authentication_required'})
+          : response(204);
+    });
+    await auth.disconnect();
+    expect(store.values['session'], isNull);
+  });
+  test('disconnect without a connection contacts nobody', () async {
+    store.values.remove('session');
+    final auth = make(
+      (method, uri, headers, body, limit) async =>
+          fail('No request expected: $method ${uri.path}'),
+    );
+    await auth.disconnect();
+  });
   test('failed disconnect preserves saved state for retry', () async {
     store.seedFlow();
     final auth = make(

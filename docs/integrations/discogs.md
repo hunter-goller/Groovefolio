@@ -19,8 +19,11 @@ change to enable the browser handoff; app resume checking also works with the ol
 Pending transaction ID and owner ID are saved securely before opening the browser. After a
 process restart, Settings reads the account from the backend; Check connection also restores
 pending flow state. Canceled, expired or failed flows offer another attempt. Cancel calls the
-server, and Disconnect removes that installation's server-side Discogs connection. A network
-failure preserves local state for retry. Disconnect does not delete local albums or revoke the
+server. Disconnect removes that installation's server-side Discogs connection, then deletes the
+installation itself (`DELETE /v1/installation`) and forgets it on the phone; the next Connect
+registers a new one. If only the installation delete fails, Disconnect still succeeds and the
+installation expires on its own. A network failure on the first step preserves local state for
+retry. Disconnect does not delete local albums or revoke the
 grant in Discogs' own application settings.
 
 Users upgrading from the former direct Discogs integration must connect again. Legacy OAuth
