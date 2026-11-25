@@ -40,6 +40,14 @@ class _SpotlightOverlayState extends ConsumerState<SpotlightOverlay> {
       listenable: registry,
       builder: (context, _) {
         final step = session.currentStep;
+        if (step != null && step.hidden) return const SizedBox.shrink();
+        // A dialog the app opened covers the control: stay out of its way
+        // until it closes, rather than drawing over it.
+        if (step != null &&
+            !step.targets.any(registry.isMounted) &&
+            step.targets.any(registry.isCovered)) {
+          return const SizedBox.shrink();
+        }
         final targetId = step?.targets.where(registry.isMounted).firstOrNull;
         if (step != null && step.skippable && targetId == null) {
           _followAhead(session, registry);

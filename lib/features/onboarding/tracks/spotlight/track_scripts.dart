@@ -30,6 +30,7 @@ class TrackStep {
     this.skippable = false,
     this.padding = 8,
     this.quiet = false,
+    this.hidden = false,
   });
 
   /// The first of these that is on screen is spotlighted (for example the
@@ -54,6 +55,10 @@ class TrackStep {
   /// Waiting for something the app shows itself (like the NFC write
   /// dialog): no spotlight, just a small bubble with a way back.
   final bool quiet;
+
+  /// The app is busy with what the user just started (a Discogs import):
+  /// show nothing at all until the track's completion event arrives.
+  final bool hidden;
 }
 
 /// How Track 1 fills the shelf.
@@ -78,7 +83,16 @@ const _discogsSteps = [
     targets: [SpotlightId.discogsImportSelected],
     title: 'Pick what to bring in',
     body: 'Untick anything you don’t own any more, then tap Import.',
+  ),
+  // Importing can take minutes and has its own progress and Cancel, so the
+  // tutorial steps aside and comes back when the import finishes.
+  TrackStep(
+    targets: [],
+    title: 'Importing your records',
+    body: 'This can take a few minutes.',
+    gesture: SpotlightGesture.none,
     advance: StepAdvance.completion,
+    hidden: true,
   ),
 ];
 
