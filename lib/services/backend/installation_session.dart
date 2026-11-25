@@ -69,23 +69,6 @@ class InstallationSession {
     }
   });
 
-  /// Deletes this installation on the server, which also deletes anything
-  /// linked to it there, then forgets it on the phone. An installation the
-  /// server no longer knows counts as deleted. The next Connect registers a
-  /// new one.
-  Future<void> revoke() async {
-    if (!await hasSession()) return;
-    try {
-      await request('DELETE', '/v1/installation');
-    } on DiscogsAuthenticationFailure {
-      // Already gone: request() has cleared the saved session.
-    }
-    await _serial(() async {
-      await store.delete('flow');
-      await store.delete('session');
-    });
-  }
-
   Future<BackendResponse> request(
     String method,
     String path, {
@@ -128,6 +111,23 @@ class InstallationSession {
       throw backendFailure(error);
     }
   });
+
+  /// Deletes this installation on the server, which also deletes anything
+  /// linked to it there, then forgets it on the phone. An installation the
+  /// server no longer knows counts as deleted. The next Connect registers a
+  /// new one.
+  Future<void> revoke() async {
+    if (!await hasSession()) return;
+    try {
+      await request('DELETE', '/v1/installation');
+    } on DiscogsAuthenticationFailure {
+      // Already gone: request() has cleared the saved session.
+    }
+    await _serial(() async {
+      await store.delete('flow');
+      await store.delete('session');
+    });
+  }
 
   Future<_Session> _recover(_Session session) async {
     try {
