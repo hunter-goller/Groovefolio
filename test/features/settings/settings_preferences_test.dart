@@ -73,7 +73,9 @@ void main() {
       );
       addTearDown(first.dispose);
       expect(first.read(themeModeControllerProvider), ThemeMode.system);
-      await first.read(themeModeControllerProvider.notifier).useDark();
+      await first
+          .read(themeModeControllerProvider.notifier)
+          .setMode(ThemeMode.dark);
       store.pendingRead!.complete('light');
       await Future<void>.delayed(Duration.zero);
       expect(first.read(themeModeControllerProvider), ThemeMode.dark);
@@ -97,10 +99,13 @@ void main() {
       );
       addTearDown(container.dispose);
       final notifier = container.read(themeModeControllerProvider.notifier);
-      expect(await notifier.useDark(), isFalse);
+      expect(await notifier.setMode(ThemeMode.dark), isFalse);
       expect(container.read(themeModeControllerProvider), ThemeMode.dark);
       store.failWrite = false;
-      final writes = [notifier.useLight(), notifier.useSystem()];
+      final writes = [
+        notifier.setMode(ThemeMode.light),
+        notifier.setMode(ThemeMode.system),
+      ];
       expect(await Future.wait(writes), [true, true]);
       expect(store.value, 'system');
     },
