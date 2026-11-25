@@ -339,6 +339,31 @@ void main() {
       expect(h.store.saved!.goldCelebrated, isTrue);
     });
 
+    testWidgets('gold record counts bonus badges separately', (tester) async {
+      await tall(tester);
+      final h = _Harness(
+        records: 1,
+        plays: 1,
+        saved: const TutorialProgressData(
+          introSeen: true,
+          completed: {TutorialTrack.stats, TutorialTrack.discogsImport},
+        ),
+      );
+      await h.pump(tester);
+      final session = h.container.read(tutorialSessionProvider.notifier);
+      session.play(TutorialTrack.swipe);
+      await session.trackDone(TutorialTrack.swipe);
+      await h.settle(tester);
+      await tester.tap(find.byKey(const Key('track-complete-next')));
+      await h.settle(tester);
+
+      final summary = tester
+          .widget<Text>(find.byKey(const Key('gold-record-summary')))
+          .data!;
+      expect(summary, contains('main tracks and a bonus one'));
+      expect(find.text('Crate Digger'), findsOneWidget);
+    });
+
     testWidgets('Stop ends the track without a badge', (tester) async {
       await tall(tester);
       final h = _Harness(saved: const TutorialProgressData(introSeen: true));

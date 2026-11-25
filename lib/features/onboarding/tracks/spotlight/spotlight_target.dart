@@ -51,18 +51,86 @@ class SpotlightRegistry extends ChangeNotifier {
 
   bool isMounted(SpotlightId id) => _rects.containsKey(id);
 
+  /// On screen but under something else, such as a dialog. The tutorial
+  /// waits quietly instead of pointing at it or asking to go back.
+  bool isCovered(SpotlightId id) => _covered.contains(id);
+  final Set<SpotlightId> _covered = {};
+
   void _set(SpotlightId id, Rect rect, RenderObject object) {
     if (_disposed) return;
     _objects[id] = object;
-    if (_rects[id] == rect) return;
+    _startFollowing();
+    final cover = object is _RenderRectReporter ? object.cover() : _Cover.none;
+    if (cover != _Cover.none) {
+      final underPopup = cover == _Cover.popup;
+      final changed = underPopup ? _covered.add(id) : _covered.remove(id);
+      if (changed | (_rects.remove(id) != null)) notifyListeners();
+      return;
+    }
+    final uncovered = _covered.remove(id);
+    if (_rects[id] == rect && !uncovered) return;
     _rects[id] = rect;
     notifyListeners();
   }
 
-  void _remove(SpotlightId id, Rect? ifStill) {
-    if (_disposed || (ifStill != null && _rects[id] != ifStill)) return;
+  bool _following = false;
+
+  /// Re-measures every known control after each frame. A control reports
+  /// itself when it paints, but page transitions and other layer-only
+  /// animations can move it without painting it again; without this the
+  /// spotlight stays where the control was partway through the slide.
+  void _startFollowing() {
+    if (_following) return;
+    _following = true;
+    SchedulerBinding.instance.addPersistentFrameCallback((_) => _remeasure());
+  }
+
+  void _remeasure() {
+    if (_disposed || _objects.isEmpty) return;
+    var changed = false;
+    final gone = <SpotlightId>[];
+    for (final MapEntry(key: id, value: object) in _objects.entries) {
+      final box = object;
+      if (!box.attached) {
+        gone.add(id);
+        continue;
+      }
+      if (box is! RenderBox || !box.hasSize) continue;
+      final cover = box is _RenderRectReporter ? box.cover() : _Cover.none;
+      if (cover != _Cover.none) {
+        // Under a dialog (wait quietly) or a whole screen (off track).
+        final underPopup = cover == _Cover.popup;
+        if ((underPopup ? _covered.add(id) : _covered.remove(id)) |
+            (_rects.remove(id) != null)) {
+          changed = true;
+        }
+        continue;
+      }
+      if (_covered.remove(id)) changed = true;
+      final rect = box.localToGlobal(Offset.zero) & box.size;
+      if (_rects[id] != rect) {
+        _rects[id] = rect;
+        changed = true;
+      }
+    }
+    for (final id in gone) {
+      _objects.remove(id);
+      if ((_rects.remove(id) != null) | _covered.remove(id)) changed = true;
+    }
+    if (changed) {
+      // Listeners rebuild widgets, which can't happen mid-frame.
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (!_disposed) notifyListeners();
+      });
+    }
+  }
+
+  void _remove(SpotlightId id, RenderObject object) {
+    // Another instance may have taken over this id since (a new screen).
+    if (_disposed || _objects[id] != object) return;
     _objects.remove(id);
-    if (_rects.remove(id) != null) notifyListeners();
+    final wasCovered = _covered.remove(id);
+    if ((_rects.remove(id) != null) | wasCovered) notifyListeners();
   }
 }
 
@@ -126,14 +194,52 @@ class _RectReporter extends SingleChildRenderObjectWidget {
 
   @override
   RenderObject createRenderObject(BuildContext context) =>
-      _RenderRectReporter(id, registry, active);
+      _RenderRectReporter(id, registry, active)
+        ..cover = () => _coverOf(context);
 
   @override
   void updateRenderObject(BuildContext context, _RenderRectReporter render) {
     render
       ..id = id
       ..registry = registry
-      ..active = active;
+      ..active = active
+      ..cover = () => _coverOf(context);
+  }
+}
+
+/// What, if anything, is on top of [context]. A route counts only if every
+/// route holding an outer navigator is on top too: a dialog over the tab
+/// shell covers the shell's pages even though each is still on top of the
+/// shell's own navigator.
+enum _Cover {
+  none,
+
+  /// A dialog, menu or sheet: the control is still on screen underneath.
+  popup,
+
+  /// Another whole screen: the control isn't on screen any more.
+  page,
+}
+
+_Cover _coverOf(BuildContext context) {
+  if (!context.mounted) return _Cover.page;
+  var current = context;
+  // Each pass moves strictly up the tree, to the navigator holding the
+  // route just checked, so this always ends.
+  while (true) {
+    final route = ModalRoute.of(current);
+    if (route == null) return _Cover.none;
+    if (!route.isCurrent) {
+      // A screen pushed on top animates this one away; a dialog, menu or
+      // sheet leaves it in place.
+      final away = route.secondaryAnimation?.value ?? 0;
+      return away > 0 ? _Cover.page : _Cover.popup;
+    }
+    final navigator = current.findAncestorStateOfType<NavigatorState>();
+    if (navigator == null) return _Cover.none;
+    final outer = navigator.context.findAncestorStateOfType<NavigatorState>();
+    if (outer == null) return _Cover.none;
+    current = navigator.context;
   }
 }
 
@@ -141,6 +247,9 @@ class _RectReporter extends SingleChildRenderObjectWidget {
 /// followed without polling, and removes it when it leaves the screen.
 class _RenderRectReporter extends RenderProxyBox {
   _RenderRectReporter(this.id, this.registry, this._active);
+
+  /// Checked every frame while the tutorial is showing; see [_coverOf].
+  _Cover Function() cover = () => _Cover.none;
 
   SpotlightId id;
   SpotlightRegistry registry;
@@ -177,7 +286,7 @@ class _RenderRectReporter extends RenderProxyBox {
     final target = id;
     _reported = null;
     SchedulerBinding.instance.addPostFrameCallback(
-      (_) => reg._remove(target, last),
+      (_) => reg._remove(target, this),
     );
   }
 

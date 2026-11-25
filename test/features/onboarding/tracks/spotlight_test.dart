@@ -216,6 +216,12 @@ void main() {
     await tester.tap(find.byKey(const Key('spotlight-got-it')));
     await settle(tester);
     expect(title(tester), 'Now tap Discover');
+    // The spotlight sits on the tab after the page slid in, not where the
+    // tab was partway through the slide.
+    expect(
+      rectOf(SpotlightId.navDiscover),
+      tester.getRect(find.byIcon(Icons.explore_outlined)),
+    );
     // The tab's label is inside the spotlight too.
     await tester.tap(find.text('Discover'));
     await settle(tester);
@@ -314,6 +320,9 @@ void main() {
     await settle(tester);
     expect(find.byKey(const Key('practice-delete')), findsOneWidget);
     expect(find.byKey(const Key('delete-record-confirm')), findsNothing);
+    // The tutorial waits behind the dialog instead of drawing over it.
+    expect(find.byKey(const Key('spotlight-title')), findsNothing);
+    expect(find.text('Show me'), findsNothing);
     await tester.tap(find.byKey(const Key('practice-delete-ok')));
     await settle(tester);
     expect(find.text('TRACK 5 COMPLETE'), findsOneWidget);
@@ -321,6 +330,29 @@ void main() {
     final albums = await tester.runAsync(() => db.select(db.albums).get());
     expect(albums, hasLength(2), reason: 'nothing was deleted');
     await finish(tester);
+  });
+
+  testWidgets('Discogs import: the tutorial steps aside while importing', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    session()
+      ..play(TutorialTrack.discogsImport)
+      ..jumpTo(trackScript(TutorialTrack.discogsImport).length - 1);
+    await settle(tester);
+    expect(state().currentStep?.hidden, isTrue);
+    expect(find.byKey(const Key('spotlight-title')), findsNothing);
+    expect(find.text('Importing your records'), findsNothing);
+    await finish(tester);
+  });
+
+  test('Discogs: tapping Import moves on to the hidden wait', () {
+    final steps = trackScript(TutorialTrack.discogsImport);
+    final pick = steps[steps.length - 2];
+    expect(pick.targets, [SpotlightId.discogsImportSelected]);
+    expect(pick.advance, StepAdvance.tap);
+    expect(steps.last.hidden, isTrue);
+    expect(steps.last.advance, StepAdvance.completion);
   });
 
   testWidgets('Show me goes back to where the track started, at step 1', (
@@ -339,12 +371,12 @@ void main() {
     await finish(tester);
   });
 
-  test('every script step names a control, except the quiet NFC wait', () {
+  test('every script step names a control, except quiet and hidden waits', () {
     for (final track in TutorialTrack.values) {
       for (final path in ShelfPath.values) {
         for (final step in trackScript(track, path: path)) {
           expect(
-            step.targets.isNotEmpty || step.quiet,
+            step.targets.isNotEmpty || step.quiet || step.hidden,
             isTrue,
             reason: '$track',
           );

@@ -28,6 +28,9 @@ class _GoldRecordScreenState extends ConsumerState<GoldRecordScreen> {
     final tokens = context.tokens;
     final text = context.theme.textTheme;
     final required = view?.required.length ?? 5;
+    // Optional tracks (Discogs, NFC) earn badges too, so there can be more
+    // badges than required tracks.
+    final bonus = (view?.badges.length ?? 0) - required;
     return Scaffold(
       body: Stack(
         children: [
@@ -75,7 +78,13 @@ class _GoldRecordScreenState extends ConsumerState<GoldRecordScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'You played all $required tracks. You know your way around Groovefolio.',
+                          bonus > 0
+                              ? 'You played all $required main tracks and '
+                                    '${bonus == 1 ? 'a bonus one' : '$bonus bonus ones'}. '
+                                    'You know your way around Groovefolio.'
+                              : 'You played all $required tracks. You know your '
+                                    'way around Groovefolio.',
+                          key: const Key('gold-record-summary'),
                           textAlign: TextAlign.center,
                           style: text.bodyLarge?.copyWith(
                             color: tokens.textMuted,
