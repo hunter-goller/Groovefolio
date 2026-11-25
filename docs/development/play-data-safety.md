@@ -29,7 +29,7 @@ upload them anywhere.
 |---|---|---|
 | Does your app collect or share any of the required user data types? | **Yes** | Discogs features send data to the Groovefolio server; ML Kit sends diagnostics to Google. |
 | Is all of the user data collected by your app encrypted in transit? | **Yes** | The app only talks to `https://api.groovefolio.app` and Discogs image hosts over HTTPS (`BackendTransport`, `DiscogsApiClient.downloadImage` reject anything else). Google states ML Kit sends its metrics over HTTPS. |
-| Do you provide a way for users to request that their data is deleted? | **Yes** | **Settings → Discogs → Disconnect** deletes the Discogs username, account ID and credentials from the server straight away. The random installation record is deleted automatically when it expires. See [Deletion](#deletion). |
+| Do you provide a way for users to request that their data is deleted? | **Yes** | **Settings → Discogs → Disconnect** deletes the Discogs username, account ID, credentials and the installation record from the server straight away (with PR #133). See [Deletion](#deletion). |
 | Account creation | **No account** | Users don't create a Groovefolio account. Connecting Discogs links their existing Discogs account through Discogs' own sign-in. |
 
 ## Data types
@@ -88,14 +88,14 @@ this.
 
 ## Deletion
 
-- **Disconnect** (Settings → Discogs) deletes the connection, Discogs username,
-  account ID and encrypted credentials from the server, and any unfinished
-  sign-in.
-- The installation record (random ID, token hash, expiry) stays until it
-  expires, then the server deletes it within about a minute. The backend has
-  `DELETE /v1/installation` to remove it at once, but the app doesn't call it
-  yet. Calling it on Disconnect would make deletion complete and immediate:
-  a small follow-up PR.
+- **Disconnect** (Settings → Discogs) deletes the connection, Discogs
+  username, account ID and encrypted credentials from the server, then the
+  installation record itself (random ID, token hash, expiry), and forgets the
+  installation on the phone (PR #133). If the second step can't reach the
+  server, the installation is deleted automatically when it expires, within
+  about a minute of expiry.
+- If the user never disconnects, an unused installation is deleted when it
+  expires.
 - Uninstalling the app or clearing its data deletes everything on the phone.
   Android backup is off, so nothing is restored on reinstall.
 - ML Kit's diagnostics are held by Google under Google's terms.
