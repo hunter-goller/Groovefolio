@@ -1,0 +1,21 @@
+{
+  "items": [
+    {
+      "releaseId": 249504,
+      "title": "Blue Train",
+      "artist": "John Coltrane",
+      "year": 1957,
+      "label": "Blue Note",
+      "country": "US",
+      "formats": [
+        "Vinyl",
+        "LP"
+      ],
+      "coverImageUrl": null
+    }
+  ],
+  "page": 1,
+  "pages": 1,
+  "totalItems": 1,
+  "matchedBarcode": "0094636036326"
+}

@@ -1,0 +1,5 @@
+{
+  "transactionId": "00000000-0000-4000-8000-000000000002",
+  "expiresAt": "2026-09-27T00:10:00.250Z",
+  "authorizationUrl": "https://www.discogs.com/oauth/authorize?oauth_token=abcDEF123"
+}
