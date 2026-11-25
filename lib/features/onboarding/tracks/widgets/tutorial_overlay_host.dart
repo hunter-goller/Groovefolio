@@ -163,6 +163,7 @@ class _TrackComplete extends ConsumerWidget {
             ),
           ),
         ),
+        const Positioned.fill(child: ConfettiBurst()),
       ],
     );
   }

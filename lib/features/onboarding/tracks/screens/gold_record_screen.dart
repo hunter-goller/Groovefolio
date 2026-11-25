@@ -144,6 +144,7 @@ class _GoldRecordScreenState extends ConsumerState<GoldRecordScreen> {
               ),
             ),
           ),
+          const Positioned.fill(child: ConfettiBurst()),
         ],
       ),
     );

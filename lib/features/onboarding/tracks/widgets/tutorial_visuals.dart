@@ -239,38 +239,201 @@ class BadgeMedal extends StatelessWidget {
   }
 }
 
-/// Static confetti, kept clear of the middle so text stays readable.
-/// Decorative only; it never moves, so reduced motion is respected.
-class Confetti extends StatelessWidget {
+/// Still confetti around the edges, kept clear of the middle so text stays
+/// readable. It fades in as a [ConfettiBurst] lands, or shows at once with
+/// reduced motion. Put it behind the content.
+class Confetti extends StatefulWidget {
   const Confetti({super.key});
 
   @override
+  State<Confetti> createState() => _ConfettiState();
+}
+
+class _ConfettiState extends State<Confetti>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _settle = _playOnce(this, context);
+
+  @override
+  void dispose() {
+    _settle.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    _settle; // Starts on the first build.
     return IgnorePointer(
       child: ExcludeSemantics(
-        child: CustomPaint(
-          painter: _ConfettiPainter(Theme.of(context).colorScheme.primary),
-          size: Size.infinite,
+        child: RepaintBoundary(
+          child: CustomPaint(
+            painter: _ConfettiPainter(
+              Theme.of(context).colorScheme.primary,
+              settle: _settle,
+            ),
+            size: Size.infinite,
+          ),
         ),
       ),
     );
   }
 }
 
-class _ConfettiPainter extends CustomPainter {
-  _ConfettiPainter(this.accent);
+/// Confetti fired from both bottom corners, up over the content, then
+/// fluttering down and away. Plays once; nothing with reduced motion.
+/// Put it in front of the content: it never takes taps.
+class ConfettiBurst extends StatefulWidget {
+  const ConfettiBurst({super.key});
+
+  static const duration = Duration(milliseconds: 3600);
+
+  @override
+  State<ConfettiBurst> createState() => _ConfettiBurstState();
+}
+
+class _ConfettiBurstState extends State<ConfettiBurst>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _burst = _playOnce(this, context);
+
+  @override
+  void dispose() {
+    _burst.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _burst; // Starts on the first build.
+    return IgnorePointer(
+      child: ExcludeSemantics(
+        child: RepaintBoundary(
+          child: CustomPaint(
+            painter: _ConfettiBurstPainter(
+              progress: _burst,
+              accent: Theme.of(context).colorScheme.primary,
+            ),
+            size: Size.infinite,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A controller that runs [ConfettiBurst.duration] once, or is already
+/// finished when the phone asks for reduced motion.
+AnimationController _playOnce(TickerProvider vsync, BuildContext context) {
+  final controller = AnimationController(
+    vsync: vsync,
+    duration: ConfettiBurst.duration,
+  );
+  if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) {
+    controller.value = 1;
+  } else {
+    controller.forward();
+  }
+  return controller;
+}
+
+List<Color> _confettiColors(Color accent) => [
+  accent,
+  goldLight,
+  const Color(0xFF5FB49C),
+  const Color(0xFFE8E2D9),
+  const Color(0xFF8E7CC3),
+];
+
+/// The moving burst. Half the pieces leave each bottom corner, angled up
+/// and inwards, slowed by air, pulled down by gravity, tumbling as they go.
+class _ConfettiBurstPainter extends CustomPainter {
+  _ConfettiBurstPainter({required this.progress, required this.accent})
+    : super(repaint: progress);
+
+  final Animation<double> progress;
   final Color accent;
+
+  static const _pieces = 130;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final value = progress.value;
+    if (value <= 0 || value >= 1) return;
+    final t = value * ConfettiBurst.duration.inMilliseconds / 1000;
+    final gravity = size.height * 0.85;
+    final colors = _confettiColors(accent);
+    final rnd = math.Random(11);
+    final paint = Paint();
+
+    for (var i = 0; i < _pieces; i++) {
+      // Every piece draws the same randoms on every frame, in the same order.
+      final fromLeft = i.isEven;
+      // Up fast enough to near the top; across by up to most of the width.
+      final rise = size.height * (1.5 + rnd.nextDouble() * 1.0);
+      final across = size.width * (0.25 + rnd.nextDouble() * 1.05);
+      final delay = rnd.nextDouble() * 0.35;
+      // Light pieces catch more air, so they float down more slowly.
+      final drag = 1.35 + rnd.nextDouble() * 0.8;
+      final spin = (rnd.nextDouble() - 0.5) * 12;
+      final flip = 5 + rnd.nextDouble() * 7;
+      final sway = 8 + rnd.nextDouble() * 16;
+      final phase = rnd.nextDouble() * math.pi * 2;
+      final round = rnd.nextDouble() < 0.25;
+      final life = 2.9 + rnd.nextDouble() * 0.65;
+
+      final age = t - delay;
+      if (age <= 0 || age >= life) continue;
+      final vx = fromLeft ? across : -across;
+      final vy = -rise;
+      // Exact motion with linear drag: fast at first, then a gentle fall.
+      final slowed = (1 - math.exp(-drag * age)) / drag;
+      final x =
+          (fromLeft ? -8.0 : size.width + 8) +
+          vx * slowed +
+          math.sin(age * 3.5 + phase) * sway * math.min(age, 1);
+      final y = size.height + 8 + vy * slowed + gravity / drag * (age - slowed);
+      final fade = ((life - age) / 0.45).clamp(0.0, 1.0);
+
+      paint.color = colors[i % colors.length].withValues(alpha: 0.95 * fade);
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(phase + spin * age);
+      // Squashing one axis makes a flat piece look like it's turning over.
+      canvas.scale(1, math.cos(age * flip + phase).abs() * 0.85 + 0.15);
+      if (round) {
+        canvas.drawCircle(Offset.zero, 3.5, paint);
+      } else {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            const Rect.fromLTWH(-6, -3, 12, 6),
+            const Radius.circular(1.5),
+          ),
+          paint,
+        );
+      }
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConfettiBurstPainter old) =>
+      old.progress != progress || old.accent != accent;
+}
+
+/// The still frame around the edges. Fades in over the second half of the
+/// burst, so the pieces seem to land there.
+class _ConfettiPainter extends CustomPainter {
+  _ConfettiPainter(this.accent, {required this.settle})
+    : super(repaint: settle);
+  final Color accent;
+  final Animation<double> settle;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final shown = Curves.easeOut.transform(
+      ((settle.value - 0.35) / 0.65).clamp(0.0, 1.0),
+    );
+    if (shown == 0) return;
     final rnd = math.Random(7);
-    final colors = [
-      accent,
-      goldLight,
-      const Color(0xFF5FB49C),
-      const Color(0xFFE8E2D9),
-      const Color(0xFF8E7CC3),
-    ];
+    final colors = _confettiColors(accent);
     for (var i = 0; i < 110; i++) {
       final x = rnd.nextDouble() * size.width;
       final y = rnd.nextDouble() * size.height * 0.6;
@@ -288,12 +451,14 @@ class _ConfettiPainter extends CustomPainter {
           const Rect.fromLTWH(-5, -2.5, 10, 5),
           const Radius.circular(1.5),
         ),
-        Paint()..color = colors[i % colors.length].withValues(alpha: 0.9),
+        Paint()
+          ..color = colors[i % colors.length].withValues(alpha: 0.9 * shown),
       );
       canvas.restore();
     }
   }
 
   @override
-  bool shouldRepaint(covariant _ConfettiPainter old) => old.accent != accent;
+  bool shouldRepaint(covariant _ConfettiPainter old) =>
+      old.accent != accent || old.settle != settle;
 }
