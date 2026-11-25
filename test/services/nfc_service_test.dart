@@ -22,7 +22,7 @@ void main() {
         for (var attempt = 0; attempt < 2; attempt++) {
           await expectLater(
             fixture.service.writeTag('taylor-swift'),
-            throwsA(_nfcFailure(NfcFailure.alreadyRegistered)),
+            throwsA(_nfcFailure(NfcFailure.linkedToOtherRecord)),
           );
           elapsed += const Duration(minutes: 1);
           expect(fixture.service.shouldSuppressAutomaticIntent, isTrue);
@@ -250,28 +250,91 @@ void main() {
     },
   );
 
-  test('replace mode cannot take a tag linked to another album', () async {
+  test(
+    'replace mode cannot take a tag linked to another album unasked',
+    () async {
+      final fixture = _Fixture();
+      final original = await fixture.repository.create(
+        albumId: 'album-1',
+        nfcTagId: '01020304',
+      );
+      await fixture.repository.create(
+        albumId: 'album-2',
+        nfcTagId: '04A7392B916180',
+      );
+
+      await expectLater(
+        fixture.service.writeTag('album-1', replaceExisting: true),
+        throwsA(_nfcFailure(NfcFailure.linkedToOtherRecord)),
+      );
+
+      expect(await fixture.repository.findByAlbum('album-1'), original);
+      expect(fixture.repository.replaceCalls, 0);
+      expect(fixture.platform.writtenUri, isNull);
+      expect(fixture.platform.finishCalls, 1);
+      expect(fixture.platform.foregroundIntentGateActive, isFalse);
+      expect(fixture.platform.foregroundIntentGateStates, [true, false]);
+    },
+  );
+
+  test('a tag linked to another record says which one', () async {
     final fixture = _Fixture();
-    final original = await fixture.repository.create(
-      albumId: 'album-1',
-      nfcTagId: '01020304',
-    );
     await fixture.repository.create(
       albumId: 'album-2',
       nfcTagId: '04A7392B916180',
     );
 
     await expectLater(
-      fixture.service.writeTag('album-1', replaceExisting: true),
-      throwsA(_nfcFailure(NfcFailure.alreadyRegistered)),
+      fixture.service.writeTag('album-1'),
+      throwsA(
+        isA<NfcException>()
+            .having((e) => e.failure, 'failure', NfcFailure.linkedToOtherRecord)
+            .having((e) => e.otherAlbumId, 'otherAlbumId', 'album-2'),
+      ),
+    );
+    expect(fixture.platform.writtenUri, isNull);
+  });
+
+  test(
+    'a confirmed move rewrites the tag and unlinks the old record',
+    () async {
+      final fixture = _Fixture();
+      await fixture.repository.create(
+        albumId: 'album-2',
+        nfcTagId: '04A7392B916180',
+      );
+
+      final moved = await fixture.service.writeTag(
+        'album-1',
+        moveFromAlbumId: 'album-2',
+      );
+
+      expect(moved.albumId, 'album-1');
+      expect(fixture.platform.writtenUri, nfcAlbumUri('album-1'));
+      expect(await fixture.repository.findByAlbum('album-2'), isNull);
+      expect(
+        (await fixture.repository.findByTagId('04A7392B916180'))?.albumId,
+        'album-1',
+      );
+    },
+  );
+
+  test('a move confirmed for a different record is refused', () async {
+    final fixture = _Fixture();
+    await fixture.repository.create(
+      albumId: 'album-2',
+      nfcTagId: '04A7392B916180',
     );
 
-    expect(await fixture.repository.findByAlbum('album-1'), original);
-    expect(fixture.repository.replaceCalls, 0);
+    await expectLater(
+      fixture.service.writeTag('album-1', moveFromAlbumId: 'album-3'),
+      throwsA(_nfcFailure(NfcFailure.linkedToOtherRecord)),
+    );
     expect(fixture.platform.writtenUri, isNull);
-    expect(fixture.platform.finishCalls, 1);
-    expect(fixture.platform.foregroundIntentGateActive, isFalse);
-    expect(fixture.platform.foregroundIntentGateStates, [true, false]);
+    expect(
+      (await fixture.repository.findByAlbum('album-2'))?.nfcTagId,
+      '04A7392B916180',
+    );
   });
 }
 

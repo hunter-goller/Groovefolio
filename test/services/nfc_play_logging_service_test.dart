@@ -144,6 +144,53 @@ void main() {
     expect(retry.suppressed, isFalse);
     expect(logger.calls, 2);
   });
+
+  group('removeRecentTap', () {
+    late List<String> deleted;
+    late Duration elapsed;
+    late NfcPlayLoggingService service;
+
+    setUp(() {
+      deleted = [];
+      elapsed = Duration.zero;
+      service = NfcPlayLoggingService(
+        nfcService: _FakeNfcScanner('album-1'),
+        playLogger: _FakePlayLogger(),
+        elapsed: () => elapsed,
+        deletePlay: (id) async {
+          deleted.add(id);
+          return 1;
+        },
+      );
+    });
+
+    test('removes the play the same tag logged moments ago', () async {
+      final logged = await service.logResolvedAlbum('album-1');
+      elapsed += const Duration(seconds: 4);
+
+      expect(await service.removeRecentTap(' album-1 '), isTrue);
+      expect(deleted, [logged.play!.id]);
+      // Only once.
+      expect(await service.removeRecentTap('album-1'), isFalse);
+    });
+
+    test('keeps older plays and plays from other tags', () async {
+      await service.logResolvedAlbum('album-1');
+      expect(await service.removeRecentTap('album-2'), isFalse);
+      elapsed += const Duration(seconds: 11);
+      expect(await service.removeRecentTap('album-1'), isFalse);
+      expect(deleted, isEmpty);
+    });
+
+    test('does nothing without a way to delete plays', () async {
+      final plain = NfcPlayLoggingService(
+        nfcService: _FakeNfcScanner('album-1'),
+        playLogger: _FakePlayLogger(),
+      );
+      await plain.logResolvedAlbum('album-1');
+      expect(await plain.removeRecentTap('album-1'), isFalse);
+    });
+  });
 }
 
 class _FakePlayLogger implements INfcPlayLogger {

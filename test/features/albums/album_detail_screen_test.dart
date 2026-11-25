@@ -5,6 +5,7 @@ import 'package:vinyl_app/db/app_database.dart';
 import 'package:vinyl_app/features/albums/screens/album_detail_screen.dart';
 import 'package:vinyl_app/providers/repository_providers.dart';
 import 'package:vinyl_app/services/nfc/nfc_platform_adapter.dart';
+import 'package:vinyl_app/services/nfc/nfc_play_logging_service.dart';
 import 'package:vinyl_app/services/nfc/nfc_service.dart';
 import 'package:vinyl_app/services/walkthrough_controller.dart';
 import 'package:vinyl_app/theme/app_theme.dart';
@@ -313,6 +314,80 @@ void main() {
     },
   );
 
+  testWidgets('a tag linked to another record can be moved here', (
+    tester,
+  ) async {
+    final repository = _FakeNfcTagRepository();
+    await repository.create(albumId: 'other-album', nfcTagId: '04A7392B916180');
+    final platform = _FakeNfcPlatform();
+    final service = NfcService(platform, repository);
+
+    await tester.pumpWidget(
+      _testApp(
+        playRepository: _FakePlayRepository(const []),
+        nfcAvailability: NfcAvailabilityState.available,
+        nfcTagRepository: repository,
+        nfcService: service,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _openRecordActions(tester);
+    await tester.tap(find.text('Link NFC tag'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tag already in use'), findsOneWidget);
+    expect(find.textContaining('Move it to this record?'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('nfc-write-move')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('nfc-write-dialog')), findsNothing);
+    expect(repository.tags.single.albumId, 'album-1');
+  });
+
+  testWidgets('writing a tag removes the play it logged just before', (
+    tester,
+  ) async {
+    final repository = _FakeNfcTagRepository();
+    await repository.create(albumId: 'album-1', nfcTagId: '04A7392B916180');
+    final platform = _FakeNfcPlatform();
+    final service = NfcService(platform, repository);
+    final deleted = <String>[];
+    final logging = NfcPlayLoggingService(
+      nfcService: service,
+      playLogger: _RecordingPlayLogger(),
+      deletePlay: (id) async {
+        deleted.add(id);
+        return 1;
+      },
+    );
+    // The tag touched the phone on the way to being rewritten.
+    await logging.logResolvedAlbum('album-1');
+
+    await tester.pumpWidget(
+      _testApp(
+        playRepository: _FakePlayRepository(const []),
+        nfcAvailability: NfcAvailabilityState.available,
+        nfcTagRepository: repository,
+        nfcService: service,
+        nfcPlayLogging: logging,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _openRecordActions(tester);
+    await tester.tap(find.textContaining('NFC tag').last);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('nfc-write-dialog')), findsNothing);
+    expect(deleted, ['tap-1']);
+    expect(
+      find.text(
+        'Removed the play logged when the tag touched your phone before '
+        'writing.',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('rewrites or replaces the NFC tag for an existing record', (
     tester,
   ) async {
@@ -358,6 +433,7 @@ Widget _testApp({
   NfcAvailabilityState nfcAvailability = NfcAvailabilityState.unsupported,
   INfcTagRepository? nfcTagRepository,
   NfcService? nfcService,
+  NfcPlayLoggingService? nfcPlayLogging,
 }) {
   final resolvedNfcTagRepository = nfcTagRepository ?? _FakeNfcTagRepository();
   return ProviderScope(
@@ -374,6 +450,8 @@ Widget _testApp({
       nfcTagRepositoryProvider.overrideWithValue(resolvedNfcTagRepository),
       nfcAvailabilityProvider.overrideWithValue(AsyncData(nfcAvailability)),
       if (nfcService != null) nfcServiceProvider.overrideWithValue(nfcService),
+      if (nfcPlayLogging != null)
+        nfcPlayLoggingServiceProvider.overrideWithValue(nfcPlayLogging),
     ],
     child: MaterialApp(
       theme: AppTheme.light,
@@ -636,5 +714,26 @@ class _FakeNfcTagRepository implements INfcTagRepository {
     replaceCalls += 1;
     tags.removeWhere((tag) => tag.albumId == albumId);
     return create(albumId: albumId, nfcTagId: nfcTagId, writtenAt: writtenAt);
+  }
+}
+
+class _RecordingPlayLogger implements INfcPlayLogger {
+  var _count = 0;
+
+  @override
+  Future<Play> logPlay(
+    String albumId,
+    DateTime playedAt,
+    SidePlayed side,
+  ) async {
+    _count += 1;
+    final at = playedAt.toUtc().toIso8601String();
+    return Play(
+      id: 'tap-$_count',
+      albumId: albumId,
+      playedAt: at,
+      sidePlayed: side,
+      createdAt: at,
+    );
   }
 }
