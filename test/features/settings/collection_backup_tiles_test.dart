@@ -6,11 +6,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vinyl_app/db/app_database.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_progress.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_progress_store.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_track.dart';
 import 'package:vinyl_app/features/settings/widgets/collection_backup_tiles.dart';
 import 'package:vinyl_app/services/artwork_storage_service.dart';
 import 'package:vinyl_app/services/backup/backup_file_gateway.dart';
 import 'package:vinyl_app/services/backup/collection_backup_service.dart';
 import 'package:vinyl_app/types/side_played.dart';
+
+import '../../support/tutorial_test_support.dart';
 
 class _FakeGateway implements BackupFileGateway {
   String? savedName;
@@ -37,6 +42,7 @@ void main() {
   late AppDatabase db;
   late CollectionBackupService service;
   late _FakeGateway gateway;
+  late IntroSeenTutorialStore tutorial;
 
   setUp(() async {
     docs = await Directory.systemTemp.createTemp('groovefolio_backup_ui');
@@ -86,11 +92,17 @@ void main() {
   }
 
   Future<void> pump(WidgetTester tester) async {
+    tutorial = IntroSeenTutorialStore();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           collectionBackupServiceProvider.overrideWithValue(service),
           backupFileGatewayProvider.overrideWithValue(gateway),
+          tutorialProgressStoreProvider.overrideWithValue(tutorial),
+          tutorialEvidenceReaderProvider.overrideWithValue(
+            () async =>
+                const TutorialEvidence(records: 1, plays: 1, nfcTags: 0),
+          ),
         ],
         child: const MaterialApp(home: Scaffold(body: CollectionBackupTiles())),
       ),
@@ -112,6 +124,11 @@ void main() {
     expect(contents.summary.albums, 1);
     expect(contents.summary.plays, 1);
     expect(find.text('Backup saved. Keep it somewhere safe.'), findsOneWidget);
+    // A real backup earns the tutorial's Safe Keeper badge quietly.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    expect(tutorial.saved.completed, contains(TutorialTrack.backup));
   });
 
   testWidgets('Restore explains it needs an empty collection', (tester) async {

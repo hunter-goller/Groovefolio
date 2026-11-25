@@ -163,9 +163,9 @@ final tutorialProgressProvider =
       TutorialProgressController.new,
     );
 
-/// Whether the backup track can be played. Off until the backup feature
-/// ships, so nobody is sent to a Settings row that doesn't exist yet.
-final backupTrackAvailableProvider = Provider<bool>((ref) => false);
+/// Whether the backup track can be played. On now that Settings has
+/// Back up collection; tests can switch it off.
+final backupTrackAvailableProvider = Provider<bool>((ref) => true);
 
 /// Tracks this phone can play. NFC needs NFC hardware.
 final tutorialAvailableTracksProvider = Provider<Set<TutorialTrack>>((ref) {
@@ -222,6 +222,12 @@ class TutorialView {
 
   bool get isGold => required.isNotEmpty && requiredDone == required.length;
 
+  /// Main-flow tracks (Sides A and B, optional ones like NFC included) are
+  /// suggested in track order; bonus tracks only once those are done.
+  /// Optional tracks still never block the gold record.
+  static bool _mainFlow(TutorialTrack track) =>
+      track.side != TutorialSide.bonus;
+
   /// The track to suggest after skipping [current]: like [next], but never
   /// [current] itself, and the tracks after it come first.
   TutorialTrack? nextAfter(TutorialTrack current) {
@@ -232,24 +238,25 @@ class TutorialView {
       ...tracks.where((t) => t.number < current.number),
     ];
     for (final track in order) {
-      if (!track.optional && playable(track)) return track;
+      if (_mainFlow(track) && playable(track)) return track;
     }
     for (final track in order) {
-      if (track.optional && playable(track)) return track;
+      if (!_mainFlow(track) && playable(track)) return track;
     }
     return null;
   }
 
-  /// The track to suggest next: the first playable required one, then the
-  /// first playable optional one. Null when there's nothing left to play.
+  /// The track to suggest next: the first playable main-flow track in order
+  /// (so NFC comes after Stats on phones that have it), then bonus tracks.
+  /// Null when there's nothing left to play.
   TutorialTrack? get next {
     bool playable(TutorialTrack track) =>
         statusOf(track) == TutorialTrackStatus.available;
-    for (final track in required) {
-      if (playable(track)) return track;
+    for (final track in tracks) {
+      if (_mainFlow(track) && playable(track)) return track;
     }
     for (final track in tracks) {
-      if (track.optional && playable(track)) return track;
+      if (!_mainFlow(track) && playable(track)) return track;
     }
     return null;
   }

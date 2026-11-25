@@ -355,6 +355,23 @@ void main() {
     expect(steps.last.advance, StepAdvance.completion);
   });
 
+  testWidgets('Track 6: Settings, then the Back up collection row', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    session().play(TutorialTrack.backup, home: '/');
+    await settle(tester);
+    expect(title(tester), 'Back up your shelf');
+    await tester.tapAt(rectOf(SpotlightId.settingsGear).center);
+    await settle(tester);
+    expect(title(tester), 'Tap Back up collection');
+    expect(
+      rectOf(SpotlightId.backupTile),
+      tester.getRect(find.byKey(const Key('backup-collection'))),
+    );
+    await finish(tester);
+  });
+
   testWidgets('Show me goes back to where the track started, at step 1', (
     tester,
   ) async {

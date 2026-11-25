@@ -282,19 +282,42 @@ void main() {
           TutorialTrack.backup,
         ]);
         expect(v.isGold, isFalse);
-        expect(v.next, TutorialTrack.backup);
+        // Tracks are offered in order, so NFC (Track 4) comes before Backup
+        // (Track 6) even though it's optional.
+        expect(v.next, TutorialTrack.nfc);
+        expect(v.nextAfter(TutorialTrack.nfc), TutorialTrack.backup);
 
         await notifier.complete(TutorialTrack.backup);
         v = await view(c);
         expect(v.requiredDone, 5);
         expect(v.isGold, isTrue, reason: 'NFC and Discogs are optional');
-        expect(v.next, TutorialTrack.nfc, reason: 'optional tracks come last');
+        expect(v.next, TutorialTrack.nfc, reason: 'still offered after gold');
 
         await notifier.markGoldCelebrated();
         await notifier.settled;
         expect(store.saved!.goldCelebrated, isTrue);
       },
     );
+
+    test('NFC is offered right after Stats, Discogs only at the end', () async {
+      await addRecord('album-1', play: true);
+      final c = container(backup: true);
+      final notifier = c.read(tutorialProgressProvider.notifier);
+      await view(c);
+      await notifier.complete(TutorialTrack.stats);
+      var v = await view(c);
+      expect(v.next, TutorialTrack.nfc);
+
+      for (final track in [
+        TutorialTrack.nfc,
+        TutorialTrack.swipe,
+        TutorialTrack.backup,
+      ]) {
+        await notifier.complete(track);
+      }
+      v = await view(c);
+      expect(v.next, TutorialTrack.discogsImport);
+    });
 
     test('skipping suggests a different track, later ones first', () async {
       await addRecord('album-1');
