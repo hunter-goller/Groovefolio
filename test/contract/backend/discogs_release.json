@@ -1,0 +1,37 @@
+{
+  "releaseId": 249504,
+  "title": "Blue Train",
+  "artist": "John Coltrane",
+  "year": 1957,
+  "label": "Blue Note",
+  "genres": [
+    "Jazz"
+  ],
+  "styles": [
+    "Hard Bop"
+  ],
+  "artworkUrl": "https://i.discogs.com/abc/blue-train.jpg",
+  "tracks": [
+    {
+      "title": "Blue Train",
+      "sequence": 1,
+      "position": "A1",
+      "side": "A",
+      "durationSeconds": 643
+    },
+    {
+      "title": "Moment’s Notice",
+      "sequence": 2,
+      "position": "A2",
+      "side": "A",
+      "durationSeconds": null
+    },
+    {
+      "title": "Bonus",
+      "sequence": 3,
+      "position": null,
+      "side": null,
+      "durationSeconds": null
+    }
+  ]
+}

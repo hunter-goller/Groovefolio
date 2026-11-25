@@ -1,0 +1,30 @@
+{
+  "items": [
+    {
+      "releaseId": 249504,
+      "instanceId": 987654321,
+      "title": "Blue Train",
+      "artist": "John Coltrane",
+      "year": 1957,
+      "label": "Blue Note",
+      "formats": [
+        "Vinyl",
+        "LP"
+      ],
+      "coverImageUrl": "https://i.discogs.com/abc/blue-train.jpg"
+    },
+    {
+      "releaseId": 5,
+      "instanceId": 5,
+      "title": "Homogenic",
+      "artist": "Björk",
+      "year": null,
+      "label": null,
+      "formats": [],
+      "coverImageUrl": null
+    }
+  ],
+  "page": 2,
+  "pages": 3,
+  "totalItems": 250
+}
