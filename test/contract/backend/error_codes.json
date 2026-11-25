@@ -1,0 +1,106 @@
+[
+  {
+    "status": 400,
+    "code": "invalid_input"
+  },
+  {
+    "status": 400,
+    "code": "invalid_callback"
+  },
+  {
+    "status": 400,
+    "code": "invalid_discogs_destination"
+  },
+  {
+    "status": 401,
+    "code": "authentication_required"
+  },
+  {
+    "status": 404,
+    "code": "discogs_flow_not_found"
+  },
+  {
+    "status": 404,
+    "code": "discogs_release_not_found"
+  },
+  {
+    "status": 409,
+    "code": "discogs_already_connected"
+  },
+  {
+    "status": 409,
+    "code": "discogs_connection_changed"
+  },
+  {
+    "status": 409,
+    "code": "discogs_connection_required"
+  },
+  {
+    "status": 409,
+    "code": "discogs_flow_inactive"
+  },
+  {
+    "status": 409,
+    "code": "discogs_reconnect_required"
+  },
+  {
+    "status": 409,
+    "code": "token_conflict"
+  },
+  {
+    "status": 413,
+    "code": "request_too_large"
+  },
+  {
+    "status": 415,
+    "code": "encoding_not_supported"
+  },
+  {
+    "status": 415,
+    "code": "json_required"
+  },
+  {
+    "status": 429,
+    "code": "discogs_connection_throttled"
+  },
+  {
+    "status": 429,
+    "code": "discogs_throttled"
+  },
+  {
+    "status": 429,
+    "code": "registration_capacity_reached"
+  },
+  {
+    "status": 429,
+    "code": "registration_throttled"
+  },
+  {
+    "status": 500,
+    "code": "internal_error"
+  },
+  {
+    "status": 502,
+    "code": "discogs_invalid_response"
+  },
+  {
+    "status": 502,
+    "code": "discogs_unavailable"
+  },
+  {
+    "status": 503,
+    "code": "credential_storage_unavailable"
+  },
+  {
+    "status": 503,
+    "code": "discogs_not_configured"
+  },
+  {
+    "status": 503,
+    "code": "discogs_unavailable"
+  },
+  {
+    "status": 503,
+    "code": "service_unavailable"
+  }
+]

@@ -184,6 +184,15 @@ DiscogsFailure backendFailure(BackendError error) {
       'Connect Discogs again in Settings to continue.',
     );
   }
+  // Discogs no longer accepts the saved connection, for example because
+  // access was removed on discogs.com. The server still has it, so Settings
+  // shows Connected until it's disconnected.
+  if (error.code == 'discogs_reconnect_required') {
+    return const DiscogsAuthenticationFailure(
+      'Discogs needs you to reconnect. In Settings, disconnect Discogs, '
+      'then connect again.',
+    );
+  }
   if (error.status == 429) {
     return DiscogsRateLimitFailure(
       'Too many requests. Please wait before trying again.',
