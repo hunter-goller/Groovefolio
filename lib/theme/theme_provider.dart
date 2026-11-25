@@ -49,10 +49,4 @@ class ThemeModeController extends _$ThemeModeController {
       return false;
     }
   }
-
-  Future<bool> useSystem() => setMode(ThemeMode.system);
-
-  Future<bool> useLight() => setMode(ThemeMode.light);
-
-  Future<bool> useDark() => setMode(ThemeMode.dark);
 }

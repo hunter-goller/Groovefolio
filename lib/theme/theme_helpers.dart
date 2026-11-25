@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vinyl_app/theme/tokens.dart';
 
-/// Small helper matching the VinylApp-008 theme API described in the roadmap.
-ThemeData useTheme(BuildContext context) => Theme.of(context);
-
 extension AppThemeDataX on ThemeData {
   AppThemeTokens get appTokens {
     final tokens = extension<AppThemeTokens>();

@@ -214,23 +214,3 @@ class DiscogsApiClient {
   List<String> _strings(Object? value) =>
       value == null ? const [] : (value as List<dynamic>).cast<String>();
 }
-
-List<String> discogsBarcodeSearchCandidates(String barcode) {
-  final normalized = barcode.replaceAll(RegExp(r'[^0-9]'), '');
-  if (normalized.isEmpty) {
-    throw ArgumentError.value(
-      barcode,
-      'barcode',
-      'Discogs barcode cannot be empty.',
-    );
-  }
-
-  final candidates = <String>[normalized];
-  if (normalized.length == 13 && normalized.startsWith('0')) {
-    candidates.add(normalized.substring(1));
-  } else if (normalized.length == 12) {
-    candidates.add('0$normalized');
-  }
-
-  return List<String>.unmodifiable(candidates.toSet());
-}
