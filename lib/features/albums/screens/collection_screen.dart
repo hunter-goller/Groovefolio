@@ -3,6 +3,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vinyl_app/features/albums/album_delete_flow.dart';
+import 'package:vinyl_app/features/albums/widgets/genre_filter_sheet.dart';
 import 'package:vinyl_app/features/onboarding/tracks/spotlight/spotlight_target.dart';
 import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
 import 'package:vinyl_app/features/onboarding/tracks/widgets/practice_delete.dart';
@@ -75,68 +76,27 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
 
   Future<void> _showGenreFilter() async {
     final genres = await ref.read(genresProvider.future);
+    final rows = await ref.read(albumsProvider.future);
+    final genresByAlbum = await ref.read(collectionGenresProvider.future);
     if (!mounted) return;
 
     final currentGenre = ref.read(collectionFiltersProvider).genre;
+    final options = rankGenreFilterOptions(
+      genres: genres,
+      genresByAlbum: genresByAlbum,
+      albumIds: [for (final row in rows) row.album.id],
+      selected: currentGenre,
+    );
     final selected = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
       useSafeArea: true,
       isScrollControlled: true,
-      builder: (sheetContext) {
-        final tokens = sheetContext.tokens;
-        final availableHeight = MediaQuery.sizeOf(sheetContext).height;
-
-        return ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: availableHeight * 0.72),
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              tokens.space16,
-              0,
-              tokens.space16,
-              tokens.space24,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Filter by genre',
-                  style: sheetContext.theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                SizedBox(height: tokens.space12),
-                Flexible(
-                  child: SingleChildScrollView(
-                    key: const Key('collection-genre-filter-scroll'),
-                    child: Wrap(
-                      spacing: tokens.space8,
-                      runSpacing: tokens.space8,
-                      children: [
-                        ChoiceChip(
-                          label: const Text('All genres'),
-                          selected: currentGenre == null,
-                          onSelected: (_) => Navigator.of(sheetContext).pop(''),
-                        ),
-                        for (final genre in genres)
-                          ChoiceChip(
-                            label: Text(genre.name),
-                            selected:
-                                currentGenre?.toLowerCase() ==
-                                genre.name.toLowerCase(),
-                            onSelected: (_) =>
-                                Navigator.of(sheetContext).pop(genre.name),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      builder: (sheetContext) => GenreFilterSheet(
+        options: options,
+        totalRecords: rows.length,
+        selected: currentGenre,
+      ),
     );
 
     if (selected == null || !mounted) return;

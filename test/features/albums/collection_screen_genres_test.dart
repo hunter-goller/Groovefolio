@@ -360,6 +360,7 @@ class _FakeGenreRepository implements IGenreRepository {
   Future<int> delete(String genreId) => throw UnimplementedError();
 }
 
+/// Many genres, all on the one record, so every one can be filtered by.
 class _FilterOnlyGenreRepository implements IGenreRepository {
   const _FilterOnlyGenreRepository(this.genres);
 
@@ -369,7 +370,9 @@ class _FilterOnlyGenreRepository implements IGenreRepository {
   Future<List<Genre>> findByAlbum(String albumId) async => const [];
 
   @override
-  Future<Map<String, List<Genre>>> findAllByAlbum() async => const {};
+  Future<Map<String, List<Genre>>> findAllByAlbum() async => {
+    'album-1': List.unmodifiable(genres),
+  };
 
   @override
   Future<List<Genre>> findAll() async => List.unmodifiable(genres);
