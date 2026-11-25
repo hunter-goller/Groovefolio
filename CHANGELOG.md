@@ -9,6 +9,8 @@ All notable Groovefolio changes are recorded here. Historical ticket IDs retain 
 - The tutorial waits behind dialogs, such as swipe practice’s “Nice move!”, instead of drawing its hand and ring over them.
 - During a Discogs import the tutorial steps aside, and comes back to celebrate when the import finishes.
 - The gold record counts bonus badges separately: “all 4 main tracks and a bonus one”.
+- Tracks are suggested in order, so “Tap to log with NFC” comes right after Stats on phones with NFC (it stays optional, with Skip for now). Discogs stays a bonus at the end.
+- New Track 6, “Back up your shelf”, now that backups exist: it points at Settings, then Back up collection. Saving a real backup earns its Safe Keeper badge.
 
 ### Tutorial tracks (part 3b)
 - Scripted the Side B tracks: NFC (record menu, Link NFC tag, then the write dialog) and swipe (swipe, Edit or Delete, then a Practice mode Delete that changes nothing). The backup track is scripted and appears once the backup feature ships.

@@ -20,11 +20,16 @@ import 'tutorial_progress_test.dart'
     show MemoryLegacyStore, MemoryTutorialStore;
 
 class _Harness {
-  _Harness({this.records = 0, this.plays = 0, TutorialProgressData? saved})
-    : store = MemoryTutorialStore()..saved = saved;
+  _Harness({
+    this.records = 0,
+    this.plays = 0,
+    this.backup = false,
+    TutorialProgressData? saved,
+  }) : store = MemoryTutorialStore()..saved = saved;
 
   int records;
   int plays;
+  final bool backup;
   final MemoryTutorialStore store;
   late ProviderContainer container;
   late GoRouter router;
@@ -33,6 +38,8 @@ class _Harness {
     tutorialProgressStoreProvider.overrideWithValue(store),
     onboardingStoreProvider.overrideWithValue(MemoryLegacyStore()),
     nfcHelpVisibleProvider.overrideWithValue(false),
+    // These tests cover Side A and the screens; the backup track has its own.
+    backupTrackAvailableProvider.overrideWithValue(backup),
     tutorialEvidenceReaderProvider.overrideWithValue(
       () async => TutorialEvidence(records: records, plays: plays, nfcTags: 0),
     ),
@@ -362,6 +369,28 @@ void main() {
           .data!;
       expect(summary, contains('main tracks and a bonus one'));
       expect(find.text('Crate Digger'), findsOneWidget);
+    });
+
+    testWidgets('with backups available, gold also needs Track 6', (
+      tester,
+    ) async {
+      await tall(tester);
+      final h = _Harness(
+        records: 1,
+        plays: 1,
+        backup: true,
+        saved: const TutorialProgressData(
+          introSeen: true,
+          completed: {TutorialTrack.stats},
+        ),
+      );
+      await h.pump(tester);
+      final session = h.container.read(tutorialSessionProvider.notifier);
+      session.play(TutorialTrack.swipe);
+      await session.trackDone(TutorialTrack.swipe);
+      await h.settle(tester);
+      expect(find.text('See your gold record'), findsNothing);
+      expect(find.textContaining('Back up your shelf'), findsOneWidget);
     });
 
     testWidgets('Stop ends the track without a badge', (tester) async {

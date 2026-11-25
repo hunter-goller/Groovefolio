@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vinyl_app/features/onboarding/tracks/spotlight/spotlight_target.dart';
+import 'package:vinyl_app/features/onboarding/tracks/tutorial_session.dart';
 import 'package:vinyl_app/features/stats/screens/stats_screen.dart';
 import 'package:vinyl_app/providers/album_providers.dart';
 import 'package:vinyl_app/providers/genre_providers.dart';
@@ -46,7 +48,10 @@ class _CollectionBackupTilesState extends ConsumerState<CollectionBackupTiles> {
       final saved = await ref
           .read(backupFileGatewayProvider)
           .save(service.suggestedFileName(), bytes);
-      if (saved) _show('Backup saved. Keep it somewhere safe.');
+      if (saved) {
+        _show('Backup saved. Keep it somewhere safe.');
+        ref.tutorialEvent(TutorialEvent.backupSaved);
+      }
     } catch (error, stackTrace) {
       logAppError('create backup', error, stackTrace);
       _show('Couldn’t create the backup. Your collection is unchanged.');
@@ -163,16 +168,19 @@ class _CollectionBackupTilesState extends ConsumerState<CollectionBackupTiles> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        ListTile(
-          key: const Key('backup-collection'),
-          enabled: !_busy,
-          leading: const Icon(Icons.save_alt_outlined),
-          title: const Text('Back up collection'),
-          subtitle: const Text(
-            'Save a file with your records, plays and covers. Choose where it '
-            'goes, such as Downloads or Google Drive.',
+        SpotlightTarget(
+          id: SpotlightId.backupTile,
+          child: ListTile(
+            key: const Key('backup-collection'),
+            enabled: !_busy,
+            leading: const Icon(Icons.save_alt_outlined),
+            title: const Text('Back up collection'),
+            subtitle: const Text(
+              'Save a file with your records, plays and covers. Choose where '
+              'it goes, such as Downloads or Google Drive.',
+            ),
+            onTap: _backUp,
           ),
-          onTap: _backUp,
         ),
         ListTile(
           key: const Key('restore-collection'),
